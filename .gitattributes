@@ -1,0 +1,30 @@
+# Line-ending policy.
+#
+# Team members are on different operating systems. Without this file, Git
+# rewrites line endings per machine, which produces diffs where nothing changed
+# and — worse — modifies the raw datasets.
+
+# Text files: normalised to LF in the repository, checked out natively.
+*.py    text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.txt   text eol=lf
+*.log   text eol=lf
+
+# Raw datasets: NEVER converted.
+#
+# data/raw/ must stay byte-for-byte identical to the files published on Kaggle.
+# Kaggle reports 2,184,425 bytes across the two files and the local copies match
+# exactly; line-ending conversion would break that and with it the provenance
+# record §4.5 asks for. Marking them -text disables all conversion.
+data/raw/*.csv  -text
+
+# Generated output: leave alone so exported files match what the program wrote.
+output/**  -text
+
+# Test fixtures are hand-written text and should normalise like source.
+**/testing/fixtures/*.csv  text eol=lf
+
+# Config is edited by hand on several machines.
+config/*.csv   text eol=lf
+config/*.json  text eol=lf

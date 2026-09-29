@@ -1,0 +1,13 @@
+{
+  "_comment": "PLACEHOLDER LIMITS. §4.4 requires at least five categories with justified limits. Replace these with figures the team can defend, and record the reasoning in budgetwise/analysis/budgets/supplementary/budget_justification.md",
+  "_owner": "Patrick (P3.3), agreed at G1",
+  "currency_note": "Amounts are in the dataset's single underlying unit. No currency conversion is performed (§4.5).",
+  "limits": {
+    "Food": 8000,
+    "Rent": 12000,
+    "Travel": 5000,
+    "Utilities": 3000,
+    "Entertainment": 2500
+  },
+  "unbudgeted_categories": "DECIDE at G1 - skip them, or report as unbudgeted?"
+}

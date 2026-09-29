@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Generated output
+#
+# Output files are regenerated on every run, so they are not tracked day to day.
+# But §5 requires the repository to contain the output datasets, so the FINAL
+# frozen results from Gate 4 are committed deliberately:
+#
+#     git add -f output/cleaned/cleaned_<dataset>_<date>.csv
+#     git add -f output/summaries/summary_<dataset>_<date>.json
+#
+output/cleaned/*
+output/summaries/*
+output/logs/*
+!output/**/.gitkeep
+
+# Never ignore the raw data — provenance depends on it being present.
+# If the licence turns out to forbid redistribution, remove the files and
+# link to Kaggle in data/README.md instead (§3).

@@ -1,0 +1,48 @@
+raw,proposed_normalized,rows,decision,note
+FOOD,Food,583,ok,case variant
+Food,Food,579,ok,exact
+RENT,Rent,574,ok,case variant
+Rent,Rent,571,ok,exact
+Foods,Food,567,ok,typo
+food,Food,567,ok,case variant
+Others,Others,554,G1,exact; assignment's example list says Other (singular) - also folds in Misc
+Fod,Food,535,ok,typo
+rent,Rent,534,ok,case variant
+Foodd,Food,525,ok,typo
+Rentt,Rent,517,ok,typo
+Rnt,Rent,516,ok,typo
+Freelance,Freelance,490,G1,"exact; income category, absent from the assignment's example list - keep, or fold into Salary?"
+Investment,Investment,482,ok,exact
+Bonus,Bonus,442,G1,"exact; income category, absent from the assignment's example list - keep, or fold into Salary?"
+Salary,Salary,430,ok,exact
+Travel,Travel,422,G1,exact; assignment's example list says Transportation - keep Travel or rename?
+Traval,Travel,411,G1,typo; assignment's example list says Transportation - keep Travel or rename?
+TRAVEL,Travel,403,G1,case variant; assignment's example list says Transportation - keep Travel or rename?
+travel,Travel,381,G1,case variant; assignment's example list says Transportation - keep Travel or rename?
+Travl,Travel,368,G1,typo; assignment's example list says Transportation - keep Travel or rename?
+Entertain,Entertainment,349,ok,typo
+Entrtnmnt,Entertainment,340,ok,typo
+Utility,Utilities,330,ok,typo
+Utilties,Utilities,329,ok,typo
+entertainment,Entertainment,327,ok,case variant
+Entertainment,Entertainment,319,ok,exact
+Utilities,Utilities,317,ok,exact
+utilities,Utilities,313,ok,case variant
+Utlities,Utilities,300,ok,typo
+"""""",Uncategorized,285,ok,"blank - §4.5 requires Uncategorized, never dropped"
+education,Education,284,ok,case variant
+Education,Education,259,ok,exact
+Educaton,Education,258,ok,typo
+EDU,Education,235,ok,typo
+health,Health,159,G1,case variant; assignment's example list says Healthcare - keep Health or rename?
+Helth,Health,157,G1,typo; assignment's example list says Healthcare - keep Health or rename?
+Health,Health,156,G1,exact; assignment's example list says Healthcare - keep Health or rename?
+HEALTH,Health,151,G1,case variant; assignment's example list says Healthcare - keep Health or rename?
+Savings,Savings,110,G1,"exact; absent from the assignment's example list - keep, or fold into Investment?"
+SAVINGS,Savings,101,G1,"case variant; absent from the assignment's example list - keep, or fold into Investment?"
+savings,Savings,99,G1,"case variant; absent from the assignment's example list - keep, or fold into Investment?"
+Saving,Savings,85,G1,"typo; absent from the assignment's example list - keep, or fold into Investment?"
+Other,Others,50,G1,typo; assignment's example list says Other (singular) - also folds in Misc
+others,Others,48,G1,case variant; assignment's example list says Other (singular) - also folds in Misc
+Misc,Others,45,G1,typo; assignment's example list says Other (singular) - also folds in Misc
+OTHERS,Others,43,G1,case variant; assignment's example list says Other (singular) - also folds in Misc
