@@ -1,0 +1,13 @@
+raw_input,expected_value,expected_symbol,expected_reason
+5891,5891.0,plain,
+₹5891,5891.0,₹,
+$5863,5863.0,$,
+Rs.5638,5638.0,Rs.,
+6602 INR,6602.0,INR,
+-5891,5891.0,plain,
+₹-5891,5891.0,₹,
+999999999,,,sentinel_amount
+100000000,,,sentinel_amount
+99999999,99999999.0,plain,
+"",,,missing_amount
+abc,,,invalid_amount

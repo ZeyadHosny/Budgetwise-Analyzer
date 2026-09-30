@@ -9,8 +9,7 @@ def parse_amount(raw: str) -> tuple[float | None, str | None, str | None]:
     symbol = None
 
     # Negative sign
-    if value.startswith('-'):
-        value = value[1:].strip()
+    value = value.replace("-", "").strip()
 
     # Currency prefixes
     if value.startswith("₹"):
@@ -29,6 +28,9 @@ def parse_amount(raw: str) -> tuple[float | None, str | None, str | None]:
     elif value.endswith("INR"):
         symbol = "INR"
         value = value[:-3].strip()
+
+    else:
+        symbol = "plain"
 
     # Convert the remaining text to a number
     try:
