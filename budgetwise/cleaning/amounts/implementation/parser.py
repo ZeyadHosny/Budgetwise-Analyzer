@@ -1,8 +1,10 @@
+from budgetwise.errorlog.implementation.reason_codes import Reason
+
 def parse_amount(raw: str) -> tuple[float | None, str | None, str | None]:
 
     # 1. Missing
     if raw is None or raw.strip() == "":
-        return None, None, "missing_amount"
+        return None, None, Reason.MISSING_AMOUNT
 
     value = raw.strip()
 
@@ -33,10 +35,10 @@ def parse_amount(raw: str) -> tuple[float | None, str | None, str | None]:
     try:
         amount = float(value)
     except ValueError:
-        return None, None, "invalid_amount"
+        return None, None, Reason.INVALID_AMOUNT
 
     # 5. Sentinel
     if amount >= 100_000_000:
-        return None, None, "sentinel_amount"
+        return None, None, Reason.SENTINEL_AMOUNT
 
     return amount, symbol, None
