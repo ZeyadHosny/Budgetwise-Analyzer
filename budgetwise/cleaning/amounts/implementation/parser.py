@@ -35,7 +35,7 @@ def parse_amount(raw: str) -> tuple[float | None, str | None, str | None]:
     try:
         amount = float(value)
     except ValueError:
-        return None, None, Reason.INVALID_AMOUNT
+        return None, None, Reason.UNRECOGNIZED_AMOUNT_FORMAT
 
     # 5. Sentinel
     if amount >= 100_000_000:

@@ -6,7 +6,7 @@ class Reason:
 
     # Amount codes
     MISSING_AMOUNT              = "missing_amount"
-    INVALID_AMOUNT              = "invalid_amount"
+    UNRECOGNIZED_AMOUNT_FORMAT  = "unrecognized_amount_format"
     SENTINEL_AMOUNT             = "sentinel_amount"
 
     # Category codes

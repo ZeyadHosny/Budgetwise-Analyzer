@@ -31,21 +31,21 @@ Rs.999999999,,,"sentinel_amount"
 " ₹ 5,891 ",5891.0,₹,
 " $ 5,891 ",5891.0,$,
 " ₹-5,891 ",5891.0,₹,
-hello,,,invalid_amount
-abc123,,,invalid_amount
-$abc,,,invalid_amount
-₹abc,,,invalid_amount
-Rs.abc,,,invalid_amount
-abc INR,,,invalid_amount
-$,,,invalid_amount
-₹,,,invalid_amount
-Rs.,,,invalid_amount
-INR,,,invalid_amount
-12abc34,,,invalid_amount
-5.6.7,,,invalid_amount
-$5.6.7,,,invalid_amount
-₹5.6.7,,,invalid_amount
-Rs.5.6.7,,,invalid_amount
-INR 5891,,,invalid_amount
-$ $5891,,,invalid_amount
-₹₹5891,,,invalid_amount
+hello,,,unrecognized_amount_format
+abc123,,,unrecognized_amount_format
+$abc,,,unrecognized_amount_format
+₹abc,,,unrecognized_amount_format
+Rs.abc,,,unrecognized_amount_format
+abc INR,,,unrecognized_amount_format
+$,,,unrecognized_amount_format
+₹,,,unrecognized_amount_format
+Rs.,,,unrecognized_amount_format
+INR,,,unrecognized_amount_format
+12abc34,,,unrecognized_amount_format
+5.6.7,,,unrecognized_amount_format
+$5.6.7,,,unrecognized_amount_format
+₹5.6.7,,,unrecognized_amount_format
+Rs.5.6.7,,,unrecognized_amount_format
+INR 5891,,,unrecognized_amount_format
+$ $5891,,,unrecognized_amount_format
+₹₹5891,,,unrecognized_amount_format
