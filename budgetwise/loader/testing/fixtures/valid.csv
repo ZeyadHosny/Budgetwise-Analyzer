@@ -1,0 +1,4 @@
+transaction_id,user_id,date,transaction_type,category,amount,payment_mode,location,notes
+T001,U001,2023-01-01,Expense,Food,25.50,card,Bowling Green,Lunch
+T002,U002,2023-01-02,Income,Salary,1000.00,bank,Bowling Green,Paycheck
+T003,U003,2023-01-03,Expense,Rent,750.00,cash,Toledo,Monthly rent
