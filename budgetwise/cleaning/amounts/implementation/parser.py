@@ -1,44 +1,41 @@
 def parse_amount(raw: str) -> tuple[float | None, str | None, str | None]:
-    """Parse a raw amount string into a tuple of (value, currency, unit)."""
 
-    # Missing amount
+    # 1. Missing
     if raw is None or raw.strip() == "":
         return None, None, "missing_amount"
 
     value = raw.strip()
+
+    # 2. Remove formatting
+    value = value.replace(",", "")
+    value = value.replace("-", "")
+
+    # 3. Identify/remove currency
     symbol = None
 
-    # Negative sign
-    value = value.replace("-", "").strip()
-
-    # Currency prefixes
     if value.startswith("₹"):
         symbol = "₹"
-        value = value[1:].strip()
+        value = value[1:]
 
     elif value.startswith("$"):
         symbol = "$"
-        value = value[1:].strip()
+        value = value[1:]
 
     elif value.startswith("Rs."):
         symbol = "Rs."
-        value = value[3:].strip()
+        value = value[3:]
 
-    # INR suffix
     elif value.endswith("INR"):
         symbol = "INR"
-        value = value[:-3].strip()
+        value = value[:-3]
 
-    else:
-        symbol = "plain"
-
-    # Convert the remaining text to a number
+    # 4. Convert
     try:
         amount = float(value)
     except ValueError:
         return None, None, "invalid_amount"
 
-    # Sentinel amount
+    # 5. Sentinel
     if amount >= 100_000_000:
         return None, None, "sentinel_amount"
 

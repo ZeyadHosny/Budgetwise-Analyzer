@@ -1,13 +1,51 @@
 raw_input,expected_value,expected_symbol,expected_reason
-5891,5891.0,plain,
+5891,5891.0,,
 ₹5891,5891.0,₹,
-$5863,5863.0,$,
-Rs.5638,5638.0,Rs.,
-6602 INR,6602.0,INR,
--5891,5891.0,plain,
+$5891,5891.0,$,
+Rs.5891,5891.0,Rs.,
+5891 INR,5891.0,INR,
+-5891,5891.0,,
 ₹-5891,5891.0,₹,
-999999999,,,sentinel_amount
-100000000,,,sentinel_amount
-99999999,99999999.0,plain,
-"",,,missing_amount
-abc,,,invalid_amount
+$-5891,5891.0,$,
+Rs.-5891,5891.0,Rs.,
+-5891 INR,5891.0,INR,
+"5,891",5891.0,,
+"₹5,891",5891.0,₹,
+"$5,891",5891.0,$,
+"₹-5,891",5891.0,₹,
+"$-5,891",5891.0,$,
+"-5,891",5891.0,,
+,,"",missing_amount
+999999999,,,"sentinel_amount"
+100000000,,,"sentinel_amount"
+100000001,,,"sentinel_amount"
+₹999999999,,,"sentinel_amount"
+$999999999,,,"sentinel_amount"
+Rs.999999999,,,"sentinel_amount"
+999999999 INR,,,"sentinel_amount"
+" 5,891 ",5891.0,,
+" ₹5,891 ",5891.0,₹,
+" $5,891 ",5891.0,$,
+" Rs.5,891 ",5891.0,Rs.,
+" 5,891 INR ",5891.0,INR,
+" ₹ 5,891 ",5891.0,₹,
+" $ 5,891 ",5891.0,$,
+" ₹-5,891 ",5891.0,₹,
+hello,,,invalid_amount
+abc123,,,invalid_amount
+$abc,,,invalid_amount
+₹abc,,,invalid_amount
+Rs.abc,,,invalid_amount
+abc INR,,,invalid_amount
+$,,,invalid_amount
+₹,,,invalid_amount
+Rs.,,,invalid_amount
+INR,,,invalid_amount
+12abc34,,,invalid_amount
+5.6.7,,,invalid_amount
+$5.6.7,,,invalid_amount
+₹5.6.7,,,invalid_amount
+Rs.5.6.7,,,invalid_amount
+INR 5891,,,invalid_amount
+$ $5891,,,invalid_amount
+₹₹5891,,,invalid_amount
