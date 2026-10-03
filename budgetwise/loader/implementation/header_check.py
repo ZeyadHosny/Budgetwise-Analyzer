@@ -11,7 +11,7 @@ EXPECTED_COLUMNS = [
 ]
 
 
-def check_header(header):
+def validate_header(header):
     """Check that the CSV contains exactly the expected columns."""
 
     missing = [column for column in EXPECTED_COLUMNS if column not in header]

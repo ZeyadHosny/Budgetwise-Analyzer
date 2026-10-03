@@ -1,6 +1,6 @@
 import csv
 
-from .header_check import check_header
+from .header_check import validate_header
 
 
 def load_rows(filename):
@@ -14,7 +14,7 @@ def load_rows(filename):
         except StopIteration:
             raise ValueError("CSV file is empty")
         
-        check_header(header)
+        validate_header(header)
 
         for line_no, values in enumerate(reader, start=2):
             row = {}
