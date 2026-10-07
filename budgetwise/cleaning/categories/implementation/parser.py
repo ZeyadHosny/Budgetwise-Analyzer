@@ -25,20 +25,31 @@ def _load_mapping() -> dict[str, str]:
 CATEGORY_MAPPING = _load_mapping()
 
 
-def normalize(raw: str | None) -> tuple[str, str | None]:
+def normalize_category(raw: str | None) -> tuple[str, str | None]:
     """
     Normalize a raw category value.
 
     Returns:
-        (normalized_category, error_reason)
+        (normalized_category, reason_code)
     """
 
+    # Missing category
     if raw is None or raw.strip() == "":
-        return "Uncategorized", "missing_category"
+        return "Uncategorized", "CATEGORY_UNCATEGORIZED"
 
+    # Remove surrounding spaces and ignore capitalization for lookup
     cleaned = raw.strip().lower()
 
+    # Known category
     if cleaned in CATEGORY_MAPPING:
-        return CATEGORY_MAPPING[cleaned], None
+        normalized = CATEGORY_MAPPING[cleaned]
 
-    return "Uncategorized", "unknown_category"
+        # The raw value had to be changed
+        if raw.strip() != normalized:
+            return normalized, "CATEGORY_NORMALIZED"
+
+        # Already in the correct form
+        return normalized, None
+
+    # Unknown category
+    return "Uncategorized", "UNKNOWN_CATEGORY"

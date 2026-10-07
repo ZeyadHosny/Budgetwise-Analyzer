@@ -1,1 +1,1 @@
-from .implementation.parser import normalize
+from .implementation.parser import normalize_category

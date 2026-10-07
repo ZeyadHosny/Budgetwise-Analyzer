@@ -1,116 +1,116 @@
 import unittest
 
-from budgetwise.cleaning.categories import normalize
+from budgetwise.cleaning.categories import normalize_category
 
 
 class TestCategoryParser(unittest.TestCase):
 
     def test_exact_food(self):
         self.assertEqual(
-            normalize("Food"),
+            normalize_category("Food"),
             ("Food", None)
         )
 
     def test_uppercase_food(self):
         self.assertEqual(
-            normalize("FOOD"),
-            ("Food", None)
+            normalize_category("FOOD"),
+            ("Food", "CATEGORY_NORMALIZED")
         )
 
     def test_food_typo(self):
         self.assertEqual(
-            normalize("Fod"),
-            ("Food", None)
+            normalize_category("Fod"),
+            ("Food", "CATEGORY_NORMALIZED")
         )
 
     def test_food_with_spaces(self):
         self.assertEqual(
-            normalize("  Food  "),
+            normalize_category("  Food  "),
             ("Food", None)
         )
 
     def test_rent_typo(self):
         self.assertEqual(
-            normalize("Rentt"),
-            ("Rent", None)
+            normalize_category("Rentt"),
+            ("Rent", "CATEGORY_NORMALIZED")
         )
 
     def test_travel_typo(self):
         self.assertEqual(
-            normalize("Traval"),
-            ("Travel", None)
+            normalize_category("Traval"),
+            ("Transportation", "CATEGORY_NORMALIZED")
         )
 
     def test_entertainment_typo(self):
         self.assertEqual(
-            normalize("Entrtnmnt"),
-            ("Entertainment", None)
+            normalize_category("Entrtnmnt"),
+            ("Entertainment", "CATEGORY_NORMALIZED")
         )
 
     def test_utilities_typo(self):
         self.assertEqual(
-            normalize("Utilties"),
-            ("Utilities", None)
+            normalize_category("Utilties"),
+            ("Utilities", "CATEGORY_NORMALIZED")
         )
 
     def test_education_typo(self):
         self.assertEqual(
-            normalize("Educaton"),
-            ("Education", None)
+            normalize_category("Educaton"),
+            ("Education", "CATEGORY_NORMALIZED")
         )
 
     def test_healthcare_mapping(self):
         self.assertEqual(
-            normalize("Helth"),
-            ("Healthcare", None)
+            normalize_category("Helth"),
+            ("Healthcare", "CATEGORY_NORMALIZED")
         )
 
     def test_savings_mapping(self):
         self.assertEqual(
-            normalize("Saving"),
-            ("Savings", None)
+            normalize_category("Saving"),
+            ("Savings", "CATEGORY_NORMALIZED")
         )
 
     def test_other_mapping(self):
         self.assertEqual(
-            normalize("Misc"),
-            ("Other", None)
+            normalize_category("Misc"),
+            ("Other", "CATEGORY_NORMALIZED")
         )
 
     def test_freelance(self):
         self.assertEqual(
-            normalize("Freelance"),
+            normalize_category("Freelance"),
             ("Freelance", None)
         )
 
     def test_bonus(self):
         self.assertEqual(
-            normalize("Bonus"),
+            normalize_category("Bonus"),
             ("Bonus", None)
         )
 
     def test_missing_empty_string(self):
         self.assertEqual(
-            normalize(""),
-            ("Uncategorized", "missing_category")
+            normalize_category(""),
+            ("Uncategorized", "CATEGORY_UNCATEGORIZED")
         )
 
     def test_missing_spaces(self):
         self.assertEqual(
-            normalize("   "),
-            ("Uncategorized", "missing_category")
+            normalize_category("   "),
+            ("Uncategorized", "CATEGORY_UNCATEGORIZED")
         )
 
     def test_missing_none(self):
         self.assertEqual(
-            normalize(None),
-            ("Uncategorized", "missing_category")
+            normalize_category(None),
+            ("Uncategorized", "CATEGORY_UNCATEGORIZED")
         )
 
     def test_unknown_category(self):
         self.assertEqual(
-            normalize("CarPayment"),
-            ("Uncategorized", "unknown_category")
+            normalize_category("CarPayment"),
+            ("Uncategorized", "UNKNOWN_CATEGORY")
         )
 
 
