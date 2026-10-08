@@ -1,22 +1,19 @@
-# interface/menu
+# menu
 
-The text menu the user drives the program with.
+The interactive text menu - the program's entry point.
 
 | | |
 |---|---|
-| **Responsible** | Sarah |
-| **Domain reviewer** | Zeyad (`P1.5` skeleton) · Bahareh (`P3.4`) |
-| **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
-| **Tasks** | `P1.5` skeleton · `P3.4` implementation |
-| **Status** | Not started |
+| **Responsible** | Zeyad |
+| **Domain reviewer** | Patrick (`P3.5`) |
+| **Task** | `P3.5` |
+| **Assignment** | sec 4.1 menu-driven loading, five options, `while` loop over `input()`; sec 2 text menu, no GUI |
+| **Depends on** | `P2.10` `run()` - Sarah; `P3.3` `P3.4` `P3.6` `P3.7` for display |
+| **Status** | Implemented; the pipeline it calls is not yet written |
 
-## 1. What this folder does
+## The five options
 
-The program's front door. §4.1 is explicit that this must be an **interactive
-menu, not a one-shot script** — a `while` loop reading `input()` that lets the
-user choose what gets loaded.
-
-The assignment prints the menu it expects, so it is not open to interpretation:
+sec 4.1 prints the menu it expects, so this is not open to interpretation:
 
 ```
 === BudgetWise Finance Analyzer ===
@@ -28,74 +25,43 @@ The assignment prints the menu it expects, so it is not open to interpretation:
 Choose an option:
 ```
 
-All five options are graded separately. **Option 3 is the one teams miss** — the
-prose in §4.1 mentions only a date range, and the category filter appears solely
-in this block.
+**Option 3 is the one teams miss.** sec 4.1's prose mentions only a date
+range; the category filter appears solely in the printed block.
 
-## 2. How other modules use it
+## Nothing may crash
 
-```python
-from budgetwise.interface.menu import run_menu
+sec 7 grades *"the program runs on real, messy data without crashing"*, and
+this is demonstrated live on Oct 19.
 
-run_menu()      # called by main.py, and nothing else
+| Input | Response |
+|---|---|
+| `9`, `banana`, empty | `Please choose 1 to 5.` and reprompt |
+| `2023-13-45` at a date prompt | `Not a valid date.` and reprompt |
+| end date before start | rejected and reprompt |
+| unknown category | lists the available ones and reprompts |
+| `Ctrl+C` | exits cleanly, no traceback |
+
+## This module owns the printing
+
+Everywhere else returns values. `interface/` is the only place `print()` and
+`input()` appear - that separation is what lets every other module be tested
+without simulating a user.
+
+## Running it before the pipeline exists
+
+`run()` is `P2.10`. Until it lands, the menu runs against a small built-in
+sample so the flow can be demonstrated:
+
+```bash
+python implementation/menu.py --demo
 ```
 
-This module calls `pipeline.run()` and the display modules. Nothing calls it
-except `main.py`.
+Remove the fallback once `P2.10` is merged.
 
-## 3. What it produces
-
-A session:
-
-```
-=== BudgetWise Finance Analyzer ===
-1. Load full dataset
-...
-Choose an option: 2
-Start date (YYYY-MM-DD): 2023-01-01
-End date   (YYYY-MM-DD): 2023-12-31
-
-Loaded 3,842 transactions (2023-01-01 to 2023-12-31)
-  Skipped 214 rows — see output/logs/errors.log
-```
-
-Invalid input never crashes:
-
-```
-Choose an option: 9
-  Please choose 1 to 5.
-
-Choose an option: banana
-  Please choose 1 to 5.
-```
-
-## 4. Requirements and tasks covered
-
-| Requirement | Source | Task |
-|---|---|---|
-| Menu-driven loading, interactive, not a one-shot script | §4.1 | `P3.4` |
-| `while` loop reading `input()` | §4.1 | `P3.4` |
-| Option 1 — load full dataset | §4.1 | `P3.4` |
-| Option 2 — load by date range | §4.1 | `P3.4` |
-| Option 3 — load by category | §4.1 | `P3.4` |
-| Option 4 — view error log | §4.1 | `P3.4` |
-| Option 5 — exit | §4.1 | `P3.4` |
-| Invalid input handled without crashing | §4.1 | `P3.4` `P4.1` |
-| Text-based menu, no GUI | §2 | `P3.4` |
-
-## 5. Folders
+## Folders
 
 | Folder | Contents |
 |---|---|
-| `implementation/` | `menu.py`, `prompts.py`, `filters.py` |
-| `testing/` | `test_menu.py`, `test_filters.py` |
-| `supplementary/` | `menu_flow.md` |
-
-## 6. Done when
-
-- [ ] All five options work
-- [ ] Option 3 exists — the one most often missed
-- [ ] Invalid input reprompts instead of crashing
-- [ ] Malformed dates at the prompt are rejected politely
-- [ ] `Ctrl+C` exits without a traceback
-- [ ] `menu_flow.md` written — feeds the report's flow diagram
+| `implementation/` | `menu.py` |
+| `testing/` | `test_menu.py` - 18 cases, `input()` patched |
+| `supplementary/` | `menu_flow.md` - feeds sec 5's design flow diagram |
