@@ -1,0 +1,2 @@
+transaction_id,user_id,date,transaction_type,category,amount,payment_mode,location,notes
+T100,U100,2023-01-01,Expense

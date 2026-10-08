@@ -1,0 +1,2 @@
+transaction_id,user_id,date,wrong_column,category,amount,payment_mode,location,notes
+T200,U200,2023-01-01,Expense,Food,25.00,card,Bowling Green,Lunch
