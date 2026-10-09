@@ -1,3 +1,6 @@
+from collections import Counter
+
+
 EXPECTED_COLUMNS = [
     "transaction_id",
     "user_id",
@@ -12,18 +15,41 @@ EXPECTED_COLUMNS = [
 
 
 def validate_header(header):
-    """Check that the CSV contains exactly the expected columns."""
+    """Check for missing, unexpected, or duplicate column names."""
 
-    missing = [column for column in EXPECTED_COLUMNS if column not in header]
-    unexpected = [column for column in header if column not in EXPECTED_COLUMNS]
+    if header is None:
+        raise ValueError("Invalid CSV header; header is missing")
 
-    if missing or unexpected:
-        problems = []
+    missing = [
+        column
+        for column in EXPECTED_COLUMNS
+        if column not in header
+    ]
 
-        if missing:
-            problems.append(f"missing columns: {missing}")
+    unexpected = [
+        column
+        for column in header
+        if column not in EXPECTED_COLUMNS
+    ]
 
-        if unexpected:
-            problems.append(f"unexpected columns: {unexpected}")
+    duplicates = [
+        column
+        for column, count in Counter(header).items()
+        if count > 1
+    ]
 
-        raise ValueError("Invalid CSV header; " + "; ".join(problems))
+    problems = []
+
+    if missing:
+        problems.append(f"missing columns: {missing}")
+
+    if unexpected:
+        problems.append(f"unexpected columns: {unexpected}")
+
+    if duplicates:
+        problems.append(f"duplicate columns: {duplicates}")
+
+    if problems:
+        raise ValueError(
+            "Invalid CSV header; " + "; ".join(problems)
+        )
