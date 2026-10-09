@@ -13,9 +13,17 @@ def normalize_payment_mode(raw: str | None) -> tuple[str, str | None]:
 
     mapping = {
         "upi": "UPI",
+
         "card": "Card",
+        "crd": "Card",
+
         "cash": "Cash",
+        "csh": "Cash",
+
         "bank transfer": "Bank Transfer",
+        "banktransfer": "Bank Transfer",
+        "bank_transfer": "Bank Transfer",
+        "bank transfr": "Bank Transfer",
     }
 
     if cleaned in mapping:
