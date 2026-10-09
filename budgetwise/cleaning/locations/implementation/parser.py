@@ -49,7 +49,8 @@ def normalize_location(raw: str | None) -> tuple[str, str | None]:
     if cleaned in mapping:
         normalized = mapping[cleaned]
 
-        if raw.strip() != normalized:
+        # Report any change, including surrounding whitespace
+        if raw != normalized:
             return normalized, "LOCATION_NORMALIZED"
 
         return normalized, None
