@@ -44,8 +44,8 @@ def normalize_category(raw: str | None) -> tuple[str, str | None]:
     if cleaned in CATEGORY_MAPPING:
         normalized = CATEGORY_MAPPING[cleaned]
 
-        # The raw value had to be changed
-        if raw.strip() != normalized:
+        # Report any change, including surrounding whitespace
+        if raw != normalized:
             return normalized, "CATEGORY_NORMALIZED"
 
         # Already in the correct form
