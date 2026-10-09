@@ -1,4 +1,4 @@
-"""Runs raw rows through the cleaners and builds the cleaned dataset."""
+"""Cleaning pipeline: raw rows in, cleaned records and transaction objects out."""
 
-# Contract — uncomment once implementation/pipeline.py exists.
-# from .implementation.pipeline import run, LoadResult
+# Contract. What the menu and the tests may use from this folder.
+from .implementation.runner import clean_file, run
