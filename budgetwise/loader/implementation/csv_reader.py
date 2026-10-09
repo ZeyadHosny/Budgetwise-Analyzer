@@ -4,25 +4,20 @@ from .header_check import validate_header
 
 
 def load_rows(filename):
-    """Yield (line_number, row) for each data row in the CSV."""
+    """Yield source line numbers and unmodified raw CSV rows."""
 
-    with open(filename, "r", newline="", encoding="utf-8") as file:
-        reader = csv.reader(file)
+    with open(
+        filename,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as file:
+        reader = csv.DictReader(file)
 
-        try:
-            header = next(reader)
-        except StopIteration:
+        if reader.fieldnames is None:
             raise ValueError("CSV file is empty")
-        
-        validate_header(header)
 
-        for line_no, values in enumerate(reader, start=2):
-            row = {}
+        validate_header(reader.fieldnames)
 
-            for index, column in enumerate(header):
-                if index < len(values):
-                    row[column] = values[index]
-                else:
-                    row[column] = ""
-
-            yield line_no, row
+        for row in reader:
+            yield reader.line_num, row
