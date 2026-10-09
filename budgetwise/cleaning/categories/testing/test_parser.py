@@ -26,7 +26,7 @@ class TestCategoryParser(unittest.TestCase):
     def test_food_with_spaces(self):
         self.assertEqual(
             normalize_category("  Food  "),
-            ("Food", None)
+            ("Food", "CATEGORY_NORMALIZED")
         )
 
     def test_rent_typo(self):
