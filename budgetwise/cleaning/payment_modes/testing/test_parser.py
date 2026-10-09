@@ -77,6 +77,28 @@ class TestPaymentModeParser(unittest.TestCase):
             ("Unknown", "PAYMENT_MODE_UNKNOWN")
         )
 
+    def test_observed_payment_mode_variants(self):
+        cases = [
+            ("Upi", "UPI"),
+            ("UPi", "UPI"),
+            ("CARD", "Card"),
+            ("Crd", "Card"),
+            ("CRD", "Card"),
+            ("CASH", "Cash"),
+            ("Csh", "Cash"),
+            ("csh", "Cash"),
+            ("BankTransfer", "Bank Transfer"),
+            ("Bank_Transfer", "Bank Transfer"),
+            ("Bank Transfr", "Bank Transfer"),
+        ]
+
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                self.assertEqual(
+                    normalize_payment_mode(raw),
+                    (expected, "PAYMENT_MODE_NORMALIZED")
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
