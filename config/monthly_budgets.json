@@ -1,13 +1,28 @@
 {
-  "_comment": "PLACEHOLDER LIMITS. §4.4 requires at least five categories with justified limits. Replace these with figures the team can defend, and record the reasoning in budgetwise/analysis/budgets/supplementary/budget_justification.md",
+  "_comment": "Proposed monthly category benchmarks for team review. Limits use the median observed user-month category expense total from cleaned 2021–2023 records, rounded upward to the nearest 100 units. See docs/budget_policy.md.",
   "_owner": "Patrick (P3.3), agreed at G1",
+  "status": "proposed_for_team_review",
   "currency_note": "Amounts are in the dataset's single underlying unit. No currency conversion is performed (§4.5).",
-  "limits": {
-    "Food": 8000,
-    "Rent": 12000,
-    "Travel": 5000,
-    "Utilities": 3000,
-    "Entertainment": 2500
+  "baseline": {
+    "start": "2021-01-01",
+    "end": "2023-12-31",
+    "transaction_type": "Expense",
+    "method": "median_observed_user_month_category_total",
+    "round_up_to": 100,
+    "impute_absent_months_as_zero": false
   },
-  "unbudgeted_categories": "DECIDE at G1 - skip them, or report as unbudgeted?"
+  "limits": {
+    "Food": 3900,
+    "Rent": 8900,
+    "Transportation": 5600,
+    "Utilities": 5600,
+    "Entertainment": 5400,
+    "Education": 5600,
+    "Healthcare": 5200
+  },
+  "user_overrides": {},
+  "comparison_policy": "Allow all available months. Label baseline-period comparisons as descriptive comparisons using the same data that generated the limits.",
+  "group_policy": "Include users with at least one retained dated transaction in the selected month. Sum spending and limits for those same users.",
+  "unbudgeted_categories": "report_as_unbudgeted",
+  "justification_file": "budgetwise/analysis/budgets/supplementary/budget_justification.md"
 }
