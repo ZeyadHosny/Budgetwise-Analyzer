@@ -2,12 +2,7 @@
 
 | File | Task | Feeds |
 |---|---|---|
-| `data_structure_choices.md` | `P3.1` | report — implementation details |
+| `data_structure_choices.md` | `P3.2` | report — implementation details, §4.2 and §7 evidence |
 
-Record which structure was used where and why. §4.2 grades appropriate use of
-lists, tuples, dictionaries, and sets, and §7 grades "appropriate,
-well-structured use of OOP and data structures" — this file is the evidence for
-both.
-
-Also record the dated-versus-undated rule here, since it makes two totals
-legitimately disagree.
+`data_structure_choices.md` records which structure is used where and why, and
+explains why the category total and the monthly total legitimately differ.

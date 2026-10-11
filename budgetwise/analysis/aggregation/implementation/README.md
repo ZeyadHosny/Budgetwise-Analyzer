@@ -1,45 +1,35 @@
 # analysis/aggregation/implementation
 
-Henrieta · `P3.1` · domain reviewer Zeyad
+Henrietta · `P3.2` · domain reviewer Bahareh
 
-## Write these
+## Files
+
+| File | Contents |
+|---|---|
+| `by_category.py` | `totals_by_category`, `count_by_category`, `unique_categories` |
+| `by_month.py` | `totals_by_month`, `totals_by_month_and_category` |
+| `fields.py` | Reads one value from a transaction, whichever shape it arrives in |
+
+## Functions
 
 ```python
-totals_by_category(transactions, kind=None) -> dict[str, float]
-totals_by_month(transactions, kind=None)    -> dict[tuple[str, str], float]
-unique_categories(transactions)             -> set[str]
-count_by_category(transactions)             -> dict[str, int]
+totals_by_category(transactions, kind=None)           -> dict[str, float]
+count_by_category(transactions, kind=None)            -> dict[str, int]
+unique_categories(transactions)                       -> set[str]
+totals_by_month(transactions, kind=None)              -> dict[tuple[str, str], float]
+totals_by_month_and_category(transactions, kind=None) -> dict[tuple[str, str], dict[str, float]]
 ```
 
-`kind` is `"expense"`, `"income"`, or `None` for both.
+- `kind` is `"expense"`, `"income"` or `None` for both. Case is ignored. Anything else raises `ValueError`, so a typo fails loudly instead of returning empty totals.
+- `transactions` is a list of `Transaction` objects (`budgetwise.models`) or cleaned record dicts (`budgetwise.pipeline.clean_file()`).
+- Monthly results come back in chronological order.
 
 ## The rule that is easy to get wrong
 
-A transaction with no date **still counts toward its category total**, but must
-not appear in any monthly total. §4.5:
+§4.5: a missing date is excluded from date analysis but still counts toward category totals. So `totals_by_category` includes undated rows and `totals_by_month` skips them, and their sums differ. See `../supplementary/data_structure_choices.md`.
 
-> "Missing date: Log and exclude the row from date-based analysis (it may still
-> count toward category totals)."
+## Rules followed
 
-So `totals_by_category` includes it and `totals_by_month` skips it. The two
-functions therefore do *not* sum to the same figure, and that is correct. Say so
-in `data_structure_choices.md` before someone reports it as a bug.
-
-## Use each structure deliberately
-
-§4.2 names four structures and the workbook note for `P3.1` says to demonstrate
-each explicitly. Do not use a dict where a set is the honest choice:
-
-- `unique_categories` returns a **set** — membership is the whole point
-- month keys are **tuples** — `("2023", "07")`, immutable and sortable
-- totals are **dicts** — accumulate by key
-- transactions arrive as a **list** — order preserved
-
-`collections.defaultdict` and `collections.Counter` are standard library and
-fair game.
-
-## Do not
-
-- Sum a signed amount. Use `kind` to select, and `amount` for the magnitude.
-- Re-read files — you receive objects from `pipeline/`
-- Import pandas or numpy — violates §2
+- Amounts are summed as unsigned magnitudes; direction comes from `transaction_type`.
+- No file reading: the functions receive transactions from the pipeline.
+- Standard library only (`collections.defaultdict`); no pandas or numpy (§2).
