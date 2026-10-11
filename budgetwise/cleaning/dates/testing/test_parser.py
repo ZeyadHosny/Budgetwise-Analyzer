@@ -85,6 +85,20 @@ class AmbiguousDateTests(unittest.TestCase):
             with self.subTest(raw=raw):
                 self.assertFalse(is_ambiguous_date(raw))
 
+    def test_invalid_dates_are_never_counted_as_ambiguous(self):
+        # Right shape, both numbers 12 or less, but not real dates.
+        # parse_date() rejects them, so they must not be counted either.
+        for raw in ("00/05/2023", "05/00/2023", "00-05-23", "01-01-0000", "00-00-2023"):
+            with self.subTest(raw=raw):
+                self.assertIsNone(parse_date(raw)[0])
+                self.assertFalse(is_ambiguous_date(raw))
+
+    def test_ambiguous_dates_are_always_dates_that_parse(self):
+        for raw in ("04/11/2024", "12-01-23", "01-12-2022"):
+            with self.subTest(raw=raw):
+                self.assertTrue(is_ambiguous_date(raw))
+                self.assertIsNotNone(parse_date(raw)[0])
+
 
 class MissingDateTests(unittest.TestCase):
     def test_missing_values(self):

@@ -94,12 +94,21 @@ def parse_date(raw_date):
 
 
 def is_ambiguous_date(raw):
-    """True if a slash or hyphen date has day and month both 12 or less.
+    """True if a REAL slash or hyphen date has day and month both 1 to 12.
 
     Only used to count ambiguous dates for the report. Parsing does not need
     it, because the format alone decides how a date is read.
+
+    A date is only ambiguous if it is a valid date in the first place, so
+    this asks parse_date() first. "00/05/2023" has the right shape but is not
+    a date, so it is not counted.
     """
+    # ISO dates (YYYY-MM-DD) have only one reading, so they are never ambiguous.
     if find_date_format(raw) in (None, "YYYY-MM-DD"):
         return False
+    # Not a real calendar date under the required rule: nothing to be unsure of.
+    if parse_date(raw)[0] is None:
+        return False
     text = raw.strip()
-    return int(text[0:2]) <= 12 and int(text[3:5]) <= 12
+    first, second = int(text[0:2]), int(text[3:5])
+    return 1 <= first <= 12 and 1 <= second <= 12
