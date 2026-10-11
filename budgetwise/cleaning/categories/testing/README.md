@@ -1,31 +1,42 @@
 # cleaning/categories/testing
 
-Henrieta · domain reviewer Sarah
+Henrietta · `P2.2` · domain reviewer Sarah
 
-## Required cases
+## What is tested
 
-- [ ] `Food`, `FOOD`, `food`, `Foods`, `Fod`, `Foodd` all → `Food`
-- [ ] `Rent`, `RENT`, `rent`, `Rentt`, `Rnt` all → `Rent`
-- [ ] `Travel`, `TRAVEL`, `Traval`, `Travl` all → `Travel`
-- [ ] `""` → `("Uncategorized", "missing_category")`
-- [ ] `"   "` → `("Uncategorized", "missing_category")`
-- [ ] `Wobble` → `("Uncategorized", "unknown_category")`
-- [ ] **Every one of the 47 raw variants maps to something** — not one falls through
-- [ ] The returned name is always in the canonical set
+`test_parser.py` checks `normalize_category()` against all 46 nonblank category variants found in the raw dataset, plus missing, whitespace and unknown inputs.
 
-The completeness test matters most. Write it as a loop over the distinct raw
-values and assert each result is in the canonical set — that is the only way to
-prove the mapping is genuinely closed.
+| Group | Inputs | Expected result | Tests |
+|---|---|---|---|
+| Food | `Food`, `food`, `FOOD`, `Foods`, `Fod`, `Foodd` | `Food` | 6 |
+| Rent | `Rent`, `rent`, `RENT`, `Rentt`, `Rnt` | `Rent` | 5 |
+| Transportation | `Travel`, `travel`, `TRAVEL`, `Traval`, `Travl` | `Transportation` | 5 |
+| Entertainment | `Entertainment`, `entertainment`, `Entertain`, `Entrtnmnt` | `Entertainment` | 4 |
+| Utilities | `Utilities`, `utilities`, `Utility`, `Utilties`, `Utlities` | `Utilities` | 5 |
+| Education | `Education`, `education`, `Educaton`, `EDU` | `Education` | 4 |
+| Healthcare | `Health`, `health`, `HEALTH`, `Helth` | `Healthcare` | 4 |
+| Savings | `Savings`, `savings`, `SAVINGS`, `Saving` | `Savings` | 4 |
+| Other | `Other`, `Others`, `others`, `OTHERS`, `Misc` | `Other` | 5 |
+| Exact only | `Freelance`, `Investment`, `Bonus`, `Salary` | unchanged | 4 |
+| Whitespace | `"  Food  "` | `("Food", "CATEGORY_NORMALIZED")` | 1 |
+| Missing | `""`, `"   "`, `None` | `("Uncategorized", "CATEGORY_UNCATEGORIZED")` | 3 |
+| Unknown | `CarPayment` | `("Uncategorized", "UNKNOWN_CATEGORY")` | 1 |
+| **Total** | | | **51** |
 
-## Fixtures
+Reason codes checked:
 
-`fixtures/category_variants.csv` — all 47 raw strings with their expected
-normalized name. Doubles as the table the report needs.
+- The input is already the approved name, e.g. `"Food"`: reason is `None`.
+- Any other recognized variant, including extra spaces: `CATEGORY_NORMALIZED`.
+- Missing input: `CATEGORY_UNCATEGORIZED`.
+- Not in the mapping: `UNKNOWN_CATEGORY`.
+
+
 
 ## Run
 
+From the project root:
+
 ```bash
-python -m unittest discover
+python -m unittest budgetwise.cleaning.categories.testing.test_parser -v
 ```
 
-A run collecting 0 tests is not a pass.

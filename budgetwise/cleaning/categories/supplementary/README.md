@@ -1,13 +1,34 @@
 # cleaning/categories/supplementary
 
-| File | Task | Feeds |
+Supporting material for category cleaning (`P1.2` profiling, `P2.2` implementation).
+
+## Where the evidence lives
+
+| What | Where | Feeds |
 |---|---|---|
-| `category_profile.md` | `P1.2` | report — implementation details |
-| `mapping_rationale.md` | `G1` | report — §4.5 requires the mapping included |
+| Raw category profile: all variants and their counts | Bahareh's Phase 1 report: **[insert report title / file path]** | report, implementation details |
+| Raw-to-approved category mapping | `config/category_mapping.csv` | report, §4.5 requires the mapping to be included |
+| Decision on the approved category set | `docs/decisions.md`, decision `D04` | report, design decisions |
 
-`category_profile.md` records all 47 raw variants with counts, and which are case
-variants versus genuine typos.
+## Category profile summary
 
-`mapping_rationale.md` records the canonical set the team chose and why —
-especially how Freelance, Bonus, Savings, and Misc were handled, since the
-assignment's example list has no place for them.
+The raw dataset (`data/raw/budgetwise_finance_dataset.csv`, 15,900 rows) has 46 nonblank category variants plus blank values. After normalization they map to 14 approved categories:
+
+| Approved category | Raw variants | Rows |
+|---|---|---|
+| Food | `Food`, `food`, `FOOD`, `Foods`, `Fod`, `Foodd` | 3,356 |
+| Rent | `Rent`, `rent`, `RENT`, `Rentt`, `Rnt` | 2,712 |
+| Transportation | `Travel`, `travel`, `TRAVEL`, `Traval`, `Travl` | 1,985 |
+| Utilities | `Utilities`, `utilities`, `Utility`, `Utilties`, `Utlities` | 1,589 |
+| Entertainment | `Entertainment`, `entertainment`, `Entertain`, `Entrtnmnt` | 1,335 |
+| Education | `Education`, `education`, `Educaton`, `EDU` | 1,036 |
+| Other | `Other`, `Others`, `others`, `OTHERS`, `Misc` | 740 |
+| Healthcare | `Health`, `health`, `HEALTH`, `Helth` | 623 |
+| Freelance | `Freelance` | 490 |
+| Investment | `Investment` | 482 |
+| Bonus | `Bonus` | 442 |
+| Salary | `Salary` | 430 |
+| Savings | `Savings`, `savings`, `SAVINGS`, `Saving` | 395 |
+| Uncategorized | blank | 285 |
+| **Total** | | **15,900** |
+

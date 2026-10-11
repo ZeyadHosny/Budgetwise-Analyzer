@@ -1,47 +1,52 @@
 # cleaning/categories/implementation
 
-Henrieta · `P2.2` · domain reviewer Sarah
+Henrietta · `P2.2` · domain reviewer Sarah
 
-## Write this
+## What this does
+
+`parser.py` provides one public function:
 
 ```python
-normalize(raw: str) -> tuple[str, str | None]
-    success → ("Food", None)
-    missing → ("Uncategorized", "missing_category")
-    unknown → ("Uncategorized", "unknown_category")
+normalize_category(raw: str | None) -> tuple[str, str | None]
 ```
 
-Always returns a usable name. Never `None`, never a dropped row.
+| Situation | Returns |
+|---|---|
+| Already the approved name | `("Food", None)` |
+| Changed: case, spelling, abbreviation, or extra spaces | `("Food", "CATEGORY_NORMALIZED")` |
+| Missing: `None`, `""`, or whitespace only | `("Uncategorized", "CATEGORY_UNCATEGORIZED")` |
+| Unknown: not in the mapping | `("Uncategorized", "UNKNOWN_CATEGORY")` |
+
+It always returns a usable name. It never returns `None` as the category and never drops a row.
 
 ## The mapping lives in config, not in code
 
-`config/category_mapping.csv` holds `raw,normalized` pairs. Load it once. Keeping
-it as data rather than a dictionary literal means §4.5's "include this mapping in
-your report" is satisfied by attaching a file everyone can read.
+`config/category_mapping.csv` holds `raw,normalized` pairs for all 46 nonblank variants found in the raw dataset. `_load_mapping()` reads it once when the module is imported. Keys are stripped and lowercased, so lookups ignore case.
 
-## A problem to raise at G1
+Keeping the mapping as data rather than a dictionary in the code means §4.5's "include this mapping in your report" is met by attaching the CSV file.
 
-The assignment's example canonical set is:
+## Approved categories
 
-> Food, Rent, Transportation, Entertainment, Shopping, Utilities, Healthcare,
-> Education, Salary, Investment, Other, Uncategorized
+The team chose a closed set of 14 categories:
 
-The raw data also contains **Freelance (490), Bonus (442), Savings (110)** and
-**Misc**, which have no home in that list. It is an example, not a mandate — but
-whatever set the team picks must be closed and documented.
+```
+Food, Rent, Transportation, Entertainment, Utilities, Education, Healthcare,
+Savings, Other, Freelance, Investment, Bonus, Salary, Uncategorized
+```
 
-Do not decide this alone. It changes every total in the report.
+- `Travel` and its variants map to `Transportation`.
+- `Misc` and `Others` map to `Other`.
+- `Freelance`, `Bonus`, `Savings`, `Salary`, and `Investment` are kept as their own categories because they appear often in the raw data.
+- `Shopping`, from the assignment's example list, is not used because it does not appear in the data.
 
-## Rules
+## How it works
 
-- Normalize case and strip whitespace before looking up.
-- The mapping is **closed** — no silent pass-through of unknown strings.
-- Unknown → `"Uncategorized"` plus `unknown_category`, so the log shows what was
-  missed and the mapping can be extended.
-- Count normalizations. §5 requires "number of categories normalized".
+1. `None`, `""`, or whitespace only → `Uncategorized` + `CATEGORY_UNCATEGORIZED`.
+2. Strip spaces and lowercase the value, then look it up in the mapping.
+3. Found → return the approved name. If the raw value differs from the approved name in any way, including extra spaces, also return `CATEGORY_NORMALIZED`. If it is identical, the reason is `None`.
+4. Not found → `Uncategorized` + `UNKNOWN_CATEGORY`, so the log shows what was missed and the mapping can be extended.
 
-## Do not
 
-- Guess with fuzzy matching. A documented table is the requirement; a similarity
-  score cannot be printed in a report.
-- Import pandas or numpy — violates §2.
+## Connection to the pipeline
+
+`budgetwise/pipeline/implementation/runner.py` calls `normalize_category()` on every row. It writes the reason codes to `output/logs/errors.log` in lowercase and counts normalizations (`categories_normalized`) for the §5 summary.
