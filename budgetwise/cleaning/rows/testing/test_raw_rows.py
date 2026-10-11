@@ -261,6 +261,31 @@ class RepeatedIdTests(unittest.TestCase):
                         make_row(transaction_id="T1"))
         self.assertEqual(find_repeated_ids(rows), {"T4999": 3})
 
+    def test_rows_without_an_id_are_never_repeated_ids(self):
+        # Several rows with NO id do not "share" an id.
+        rows = numbered(
+            make_row(transaction_id=""), make_row(transaction_id="", amount="1"),
+            make_row(transaction_id="   "), make_row(transaction_id="   ", amount="2"),
+            make_row(transaction_id=None), make_row(transaction_id=None, amount="3"),
+            make_row(transaction_id=7), make_row(transaction_id=7, amount="4"),
+        )
+        self.assertEqual(find_repeated_ids(rows), {})
+
+    def test_eligible_repeated_id_is_still_counted_beside_missing_ids(self):
+        rows = numbered(
+            make_row(), make_row(amount="1"),                     # T4999 twice
+            make_row(transaction_id=""), make_row(transaction_id="", amount="2"),
+        )
+        self.assertEqual(find_repeated_ids(rows), {"T4999": 2})
+
+    def test_spaces_around_an_id_do_not_make_it_a_different_id(self):
+        rows = numbered(make_row(transaction_id="T4999"), make_row(transaction_id=" T4999 ", amount="1"))
+        self.assertEqual(find_repeated_ids(rows), {"T4999": 2})
+
+    def test_rows_that_are_not_records_are_ignored(self):
+        rows = [(2, "junk"), (3, None), (4, make_row()), (5, make_row(amount="1"))]
+        self.assertEqual(find_repeated_ids(rows), {"T4999": 2})
+
 
 @unittest.skipUnless(DATASET_PATH, "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):

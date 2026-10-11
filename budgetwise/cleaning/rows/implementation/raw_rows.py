@@ -208,11 +208,23 @@ def find_repeated_ids(numbered_rows):
     On the raw file this gives the Phase 1 figure (1,680). On rows that have
     already had exact duplicates removed, it gives only the IDs shared by
     rows that genuinely differ. Those rows are kept and flagged.
+
+    WHICH IDS COUNT
+      * A row with no ID (missing, None, blank, only spaces, or not text) is
+        ignored. Two rows that both lack an ID do not share an ID.
+      * IDs are compared after removing spaces at the ends, so " T4999" and
+        "T4999" are the same ID. The pipeline stores IDs the same way, so
+        this function and the pipeline always agree.
     """
     counts = Counter()
     for _, row in numbered_rows:
         try:
-            counts[row.get("transaction_id")] += 1
+            transaction_id = row.get("transaction_id")
         except AttributeError:
-            continue
+            continue                      # not a record at all
+        if not isinstance(transaction_id, str):
+            continue                      # None, or a number: no ID
+        transaction_id = transaction_id.strip()
+        if transaction_id:                # blank or spaces only: no ID
+            counts[transaction_id] += 1
     return {transaction_id: count for transaction_id, count in counts.items() if count > 1}
