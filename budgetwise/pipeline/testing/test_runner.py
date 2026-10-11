@@ -31,6 +31,53 @@ except ImportError:
     HAVE_MODELS = False
 NEEDS_MODELS = unittest.skipUnless(HAVE_MODELS, "budgetwise.models has no classes yet")
 
+RUNNER = "budgetwise.pipeline.implementation.runner"
+
+
+# ---- checks on teammates' code that the review asks Sarah to verify -------
+# Each test below that depends on a fix owned by someone else is skipped
+# until that fix is merged, and then starts running by itself.
+def _amount_syntax_is_validated():
+    """True once parse_amount() rejects '1-2' (review item S09, Patrick)."""
+    from budgetwise.cleaning.amounts import parse_amount
+    try:
+        return parse_amount("1-2")[0] is None
+    except Exception:
+        return False
+
+
+def _loader_keeps_row_structure():
+    """True once load_rows() no longer pads a short row with blanks or drops
+    surplus fields (review item S05, Patrick)."""
+    from budgetwise.loader import load_rows
+    folder = tempfile.TemporaryDirectory()
+    try:
+        path = os.path.join(folder.name, "probe.csv")
+        with open(path, "w", encoding="utf-8", newline="") as handle:
+            handle.write(HEADER + "\nT0001,U001\n")
+        rows = [row for _, row in load_rows(path)]
+        return rows[0].get("notes") != ""
+    except Exception:
+        return False
+    finally:
+        folder.cleanup()
+
+
+def _loader_rejects_duplicate_headers():
+    """True once a header naming a column twice is refused (S05, Patrick)."""
+    from budgetwise.loader import load_rows
+    folder = tempfile.TemporaryDirectory()
+    try:
+        path = os.path.join(folder.name, "probe.csv")
+        with open(path, "w", encoding="utf-8", newline="") as handle:
+            handle.write(HEADER + ",amount\n")
+        list(load_rows(path))
+        return False
+    except Exception:
+        return True
+    finally:
+        folder.cleanup()
+
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 3))
 DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
 
@@ -146,7 +193,13 @@ class CleaningTests(PipelineTestCase):
         self.assertEqual(self.reasons_on_line(self.result, 5), ["missing_required_field"])
 
     def test_short_row_is_skipped_without_crashing(self):
-        self.assertEqual(self.reasons_on_line(self.result, 10), ["missing_required_field"])
+        # Today the loader pads a short row with blanks, so the row check
+        # reports the missing transaction_type. Once the loader keeps the
+        # row's real shape (review S05) it is reported as malformed instead.
+        # Either way the row is skipped, logged once, and nothing crashes.
+        reasons = self.reasons_on_line(self.result, 10)
+        self.assertEqual(len(reasons), 1)
+        self.assertIn(reasons[0], ("missing_required_field", "malformed_row"))
 
     def test_missing_category_becomes_uncategorized(self):
         self.assertEqual(self.by_line[9]["category"], "Uncategorized")
@@ -281,6 +334,74 @@ class ObjectTests(PipelineTestCase):
 
 
 @NEEDS_MODELS
+class NoFactoryTests(unittest.TestCase):
+    """The pipeline still builds the right subclass if create() is absent."""
+
+    def setUp(self):
+        from budgetwise.pipeline.implementation import runner
+        self.runner = runner
+        self.record = {"transaction_type": "Expense", "transaction_id": "T1",
+                       "user_id": "U1", "date": "2023-01-05", "category": "Food",
+                       "amount": 10.0, "payment_mode": "Cash",
+                       "original_currency": "plain"}
+
+    def build(self, kind):
+        self.record["transaction_type"] = kind
+        with mock.patch.object(self.runner.Transaction, "create", new=None):
+            return self.runner._build_transaction(self.record)
+
+    def test_expense_becomes_expense_object(self):
+        self.assertIsInstance(self.build("Expense"), self.runner.ExpenseTransaction)
+
+    def test_income_becomes_income_object(self):
+        self.assertIsInstance(self.build("Income"), self.runner.IncomeTransaction)
+
+    def test_other_type_is_refused_not_treated_as_income(self):
+        with self.assertRaises(ValueError):
+            self.build("Transfer")
+
+
+@NEEDS_MODELS
+@unittest.skipUnless(os.path.exists(DATASET_PATH), "raw dataset not found in data/raw/")
+class AccountTests(unittest.TestCase):
+    """Each returned transaction goes into the cash or the bank account."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.folder = tempfile.TemporaryDirectory()
+        log = ErrorLog(os.path.join(cls.folder.name, "errors.log"))
+        cls.result = run(DATASET_PATH, error_log=log)
+        log.close()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.folder.cleanup()
+
+    def test_both_accounts_are_returned(self):
+        self.assertEqual(sorted(self.result["accounts"]), ["bank", "cash"])
+
+    def test_cash_account_holds_only_cash(self):
+        modes = {t.payment_mode for t in self.result["accounts"]["cash"].transactions()}
+        self.assertEqual(modes, {"Cash"})
+
+    def test_bank_account_never_holds_cash_or_unknown(self):
+        modes = {t.payment_mode for t in self.result["accounts"]["bank"].transactions()}
+        self.assertFalse(modes & {"Cash", "Unknown"})
+
+    def test_every_transaction_is_in_one_account_or_counted(self):
+        accounts = self.result["accounts"]
+        placed = accounts["cash"].transaction_count() + accounts["bank"].transaction_count()
+        self.assertEqual(placed + self.result["counts"]["no_account"],
+                         len(self.result["transactions"]))
+
+    def test_accounts_hold_the_same_objects_as_the_list(self):
+        listed = {id(t) for t in self.result["transactions"]}
+        for account in self.result["accounts"].values():
+            for transaction in account.transactions():
+                self.assertIn(id(transaction), listed)
+
+
+@NEEDS_MODELS
 class FilterTests(PipelineTestCase):
     def setUp(self):
         super().setUp()
@@ -318,6 +439,303 @@ class FilterTests(PipelineTestCase):
     def test_filters_do_not_change_the_cleaning_counts(self):
         counts = run(self.path, category="Food", error_log=self.error_log)["counts"]
         self.assertEqual((counts["input"], counts["valid"], counts["returned"]), (9, 4, 2))
+
+    def test_filtering_leaves_every_cleaning_count_and_record_unchanged(self):
+        # Review item S07: only "returned" and "no_account" may differ.
+        everything = run(self.path, error_log=self.error_log)
+        filtered = run(self.path, category="Food", error_log=self.error_log)
+        self.assertEqual(filtered["records"], everything["records"])
+        for name in ("input", "duplicates", "skipped", "valid", "corrected",
+                     "flagged", "repeated_ids", "by_reason", "objects_built"):
+            self.assertEqual(filtered["counts"][name], everything["counts"][name], name)
+
+
+# ==========================================================================
+# REGRESSION TESTS FOR THE PHASE 2 REVIEW  (items S04, S06, S07, S12)
+# ==========================================================================
+CLEAN_ROW = "{id},U001,2023-01-0{day},Expense,Food,{amount},Cash,Pune,{note}"
+
+
+class RowValidationTests(PipelineTestCase):
+    """S04: every problem validate_raw_row() finds reaches the log."""
+
+    def setUp(self):
+        super().setUp()
+        self.result = clean_file(self.write_csv([
+            "X99,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch",     # 2 odd id: KEPT
+            ",U002,2023-01-02,Expense,Food,10,Cash,Pune,Lunch",        # 3 no id: skipped
+            "T0003,,2023-01-03,Refund,Food,10,Cash,Pune,Lunch",        # 4 two problems
+            "T0004,U004,2023-01-04,Expense,Food,10,Cash,Pune,Lunch",   # 5 clean
+        ]), self.error_log)
+        self.issues = [(line, field, reason) for line, field, reason, _ in self.result["issues"]]
+
+    def test_unusual_id_is_kept_and_flagged(self):
+        self.assertEqual([r["transaction_id"] for r in self.result["records"]], ["X99", "T0004"])
+        self.assertIn((2, "transaction_id", "malformed_row"), self.issues)
+        self.assertEqual(self.result["counts"]["flagged"], 1)
+
+    def test_missing_id_is_skipped_and_the_field_is_recorded(self):
+        self.assertIn((3, "transaction_id", "missing_required_field"), self.issues)
+        self.assertEqual(self.result["counts"]["skipped"], 2)
+
+    def test_every_problem_on_a_row_is_logged_not_just_the_first(self):
+        on_line_4 = [(field, reason) for line, field, reason in self.issues if line == 4]
+        self.assertEqual(on_line_4, [("user_id", "missing_required_field"),
+                                     ("transaction_type", "missing_required_field")])
+
+    def test_the_log_file_itself_holds_the_field_and_the_detail(self):
+        lines = self.error_log.read()
+        odd = [line for line in lines if line.startswith("line=2 ")]
+        self.assertEqual(len(odd), 1)
+        self.assertIn("field=transaction_id reason=malformed_row", odd[0])
+        self.assertIn("X99", odd[0])                       # the raw value
+        missing = [line for line in lines if line.startswith("line=3 ")]
+        self.assertEqual(len(missing), 1)
+        self.assertIn("field=transaction_id reason=missing_required_field", missing[0])
+
+    def test_clean_row_has_no_issues(self):
+        self.assertEqual([issue for issue in self.issues if issue[0] == 5], [])
+
+
+class FlaggedCountTests(PipelineTestCase):
+    """S06: repeated-ID flags are included in the flagged row count."""
+
+    def clean(self, *lines):
+        return clean_file(self.write_csv(lines), self.error_log)["counts"]
+
+    def test_two_clean_rows_sharing_an_id_are_both_flagged(self):
+        counts = self.clean(
+            CLEAN_ROW.format(id="T0001", day=1, amount=10, note="Lunch"),
+            CLEAN_ROW.format(id="T0001", day=2, amount=20, note="Dinner"),
+        )
+        self.assertEqual(counts["repeated_ids"], 1)                     # one distinct ID
+        self.assertEqual(counts["by_reason"]["repeated_transaction_id"], 2)   # two rows
+        self.assertEqual(counts["flagged"], 2)
+        self.assertEqual(counts["corrected"], 0)
+
+    def test_a_second_concern_on_a_row_does_not_count_it_twice(self):
+        counts = self.clean(
+            CLEAN_ROW.format(id="T0001", day=1, amount=10, note="..."),   # + note concern
+            CLEAN_ROW.format(id="T0001", day=2, amount=20, note="Dinner"),
+        )
+        self.assertEqual(counts["flagged"], 2)
+
+    def test_a_row_can_be_both_corrected_and_flagged_once_each(self):
+        counts = self.clean(
+            "T0001,U001,01/02/2023,Expense,Fod,₹10,cash,Pune,...",       # corrected + flagged
+            CLEAN_ROW.format(id="T0002", day=2, amount=20, note="Dinner"),  # neither
+        )
+        self.assertEqual((counts["corrected"], counts["flagged"]), (1, 1))
+
+    def test_rows_with_no_issue_are_in_neither_count(self):
+        counts = self.clean(CLEAN_ROW.format(id="T0001", day=1, amount=10, note="Lunch"))
+        self.assertEqual((counts["corrected"], counts["flagged"], counts["by_reason"]), (0, 0, {}))
+
+
+class FailureBoundaryTests(PipelineTestCase):
+    """S12: an unexpected failure on one row never stops the later rows."""
+
+    LINES = [
+        CLEAN_ROW.format(id="T0001", day=1, amount=10, note="Lunch"),
+        CLEAN_ROW.format(id="T0002", day=2, amount=20, note="Dinner"),
+        CLEAN_ROW.format(id="T0003", day=3, amount=30, note="Tea"),
+    ]
+
+    def test_failure_inside_the_duplicate_check_is_contained(self):
+        calls = {"n": 0}
+
+        def failing_once(raw, seen):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise TypeError("unhashable type: 'list'")
+            return False
+
+        with mock.patch(RUNNER + ".is_duplicate", failing_once):
+            result = clean_file(self.write_csv(self.LINES), self.error_log)
+        self.assertIsNone(result["error"])
+        self.assertEqual([r["transaction_id"] for r in result["records"]], ["T0001", "T0003"])
+        counts = result["counts"]
+        self.assertEqual((counts["input"], counts["valid"], counts["skipped"]), (3, 2, 1))
+
+    def test_the_diagnostic_names_the_real_error_not_a_missing_field(self):
+        with mock.patch(RUNNER + ".parse_date", side_effect=RuntimeError("boom")):
+            result = clean_file(self.write_csv(self.LINES[:1]), self.error_log)
+        self.assertEqual(result["counts"]["by_reason"], {"malformed_row": 1})
+        self.assertIn("RuntimeError: boom", result["issues"][0][3])
+        self.assertIn("RuntimeError: boom", self.error_log.read()[0])
+
+    def test_two_loads_keep_independent_counts(self):
+        path = self.write_csv(SMALL_FILE)
+        first = clean_file(path, self.error_log)
+        second = clean_file(path, self.error_log)
+        self.assertEqual(first["counts"], second["counts"])
+        self.assertEqual(len(first["issues"]), len(second["issues"]))
+        # The log file is in append mode (Patrick's choice), so it holds both.
+        self.assertEqual(len(self.error_log.read()), 2 * len(first["issues"]))
+
+
+@NEEDS_MODELS
+class ObjectFailureTests(PipelineTestCase):
+    """S07: a record the classes refuse is counted consistently everywhere."""
+
+    def setUp(self):
+        super().setUp()
+        path = self.write_csv([
+            CLEAN_ROW.format(id="T0001", day=1, amount=10, note="Lunch"),
+            CLEAN_ROW.format(id="T0002", day=2, amount=20, note="Dinner"),
+            CLEAN_ROW.format(id="T0003", day=3, amount=30, note="Tea"),
+        ])
+        real_build = __import__(RUNNER, fromlist=["x"])._build_transaction
+
+        def refuse_one(record):
+            if record["transaction_id"] == "T0002":
+                raise ValueError("refused by the model")
+            return real_build(record)
+
+        with mock.patch(RUNNER + "._build_transaction", refuse_one):
+            self.result = run(path, error_log=self.error_log)
+        self.counts = self.result["counts"]
+
+    def test_cleaning_counts_are_not_changed_by_an_object_failure(self):
+        self.assertEqual((self.counts["input"], self.counts["valid"],
+                          self.counts["skipped"], self.counts["duplicates"]), (3, 3, 0, 0))
+        self.assertEqual(len(self.result["records"]), 3)       # unfiltered cleaned records
+
+    def test_object_counts_reconcile_with_the_cleaned_records(self):
+        self.assertEqual((self.counts["objects_built"], self.counts["objects_failed"]), (2, 1))
+        self.assertEqual(self.counts["objects_built"] + self.counts["objects_failed"],
+                         self.counts["valid"])
+        self.assertEqual(self.counts["returned"], 2)
+        self.assertEqual([t.transaction_id for t in self.result["transactions"]],
+                         ["T0001", "T0003"])
+
+    def test_the_failure_is_in_by_reason_the_issues_and_the_log(self):
+        self.assertEqual(self.counts["by_reason"], {"transaction_not_built": 1})
+        self.assertEqual(sum(self.counts["by_reason"].values()), len(self.result["issues"]))
+        lines = self.error_log.read()
+        self.assertEqual(len(lines), 1)
+        self.assertIn("line=3 field=row reason=transaction_not_built", lines[0])
+        self.assertIn("refused by the model", lines[0])
+
+    def test_the_row_that_failed_is_counted_as_flagged(self):
+        self.assertEqual(self.counts["flagged"], 1)
+
+    def test_the_failed_object_is_in_neither_account(self):
+        accounts = self.result["accounts"]
+        placed = accounts["cash"].transaction_count() + accounts["bank"].transaction_count()
+        self.assertEqual(placed + self.counts["no_account"], 2)
+
+
+@NEEDS_MODELS
+class ClassUseTests(PipelineTestCase):
+    """Every model class the pipeline uses, and how it uses it."""
+
+    def setUp(self):
+        super().setUp()
+        from budgetwise.models import (Account, BankAccount, CashAccount, Transaction)
+        self.Account, self.Transaction = Account, Transaction
+        self.CashAccount, self.BankAccount = CashAccount, BankAccount
+        self.result = run(self.write_csv([
+            "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch",
+            "T0002,U002,2023-01-02,Income,Salary,500,UPI,Pune,Pay",
+            "T0003,U003,2023-01-03,Expense,Rent,300,Card,Pune,Rent",
+            "T0004,U004,2023-01-04,Expense,Food,40,,Pune,Lunch",       # no payment mode
+        ]), error_log=self.error_log)
+
+    def test_every_object_is_a_child_class_and_also_a_transaction(self):
+        kinds = [type(t) for t in self.result["transactions"]]
+        self.assertEqual(kinds, [ExpenseTransaction, IncomeTransaction,
+                                 ExpenseTransaction, ExpenseTransaction])
+        for transaction in self.result["transactions"]:
+            self.assertIsInstance(transaction, self.Transaction)      # inheritance
+            self.assertIsNot(type(transaction), self.Transaction)     # never the parent
+
+    def test_accounts_are_the_two_child_classes_of_account(self):
+        accounts = self.result["accounts"]
+        self.assertIs(type(accounts["cash"]), self.CashAccount)
+        self.assertIs(type(accounts["bank"]), self.BankAccount)
+        for account in accounts.values():
+            self.assertIsInstance(account, self.Account)
+
+    def test_each_transaction_is_added_to_the_account_for_its_payment_mode(self):
+        accounts = self.result["accounts"]
+        self.assertEqual([t.transaction_id for t in accounts["cash"].transactions()], ["T0001"])
+        self.assertEqual([t.transaction_id for t in accounts["bank"].transactions()],
+                         ["T0002", "T0003"])
+        self.assertEqual(self.result["counts"]["no_account"], 1)      # T0004, pending GAP-1
+
+    def test_account_totals_come_from_the_objects_it_holds(self):
+        bank = self.result["accounts"]["bank"]
+        self.assertEqual(bank.transaction_count(), 2)
+        self.assertEqual(bank.total_spent(), 300.0)
+        self.assertEqual(bank.total_received(), 500.0)
+
+
+# ==========================================================================
+# INTEGRATION CHECKS ON OTHER PEOPLE'S FEATURES  (review items S05 and S09)
+# ==========================================================================
+class AmountBoundaryTests(PipelineTestCase):
+    """S09: the 100,000,000 threshold and the sign rule, through the pipeline."""
+
+    def clean(self, amount, kind="Expense"):
+        line = f"T0001,U001,2023-01-01,{kind},Food,{amount},Cash,Pune,Lunch"
+        return clean_file(self.write_csv([line]), self.error_log)
+
+    def test_just_under_the_threshold_is_accepted(self):
+        self.assertEqual(self.clean("99999999")["records"][0]["amount"], 99_999_999.0)
+
+    def test_the_threshold_itself_is_rejected_and_logged(self):
+        result = self.clean("100000000")
+        self.assertEqual(result["records"], [])
+        self.assertEqual(result["counts"]["by_reason"], {"sentinel_amount": 1})
+        self.assertIn("field=amount reason=sentinel_amount", self.error_log.read()[0])
+
+    def test_negative_expense_keeps_a_positive_amount_and_its_direction(self):
+        record = self.clean("-1000")["records"][0]
+        self.assertEqual((record["amount"], record["transaction_type"]), (1000.0, "Expense"))
+
+    @unittest.skipUnless(_amount_syntax_is_validated(),
+                         "waiting for the amount parser fix (review S09, Patrick)")
+    def test_malformed_minus_signs_are_rejected_not_silently_changed(self):
+        result = self.clean("1-2")              # must never become 12
+        self.assertEqual(result["records"], [])
+        self.assertEqual(result["counts"]["skipped"], 1)
+
+
+class LoaderStructureTests(PipelineTestCase):
+    """S05: malformed CSV structure, end to end."""
+
+    def test_explicit_blank_final_field_is_a_valid_row(self):
+        result = clean_file(self.write_csv(
+            ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,"]), self.error_log)
+        self.assertEqual(len(result["records"]), 1)
+        self.assertEqual(result["records"][0]["notes_quality"], "missing")
+
+    @unittest.skipUnless(_loader_keeps_row_structure(),
+                         "waiting for the loader fix (review S05, Patrick)")
+    def test_missing_final_field_is_malformed_not_a_blank_note(self):
+        result = clean_file(self.write_csv(
+            ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune"]), self.error_log)
+        self.assertEqual(result["records"], [])
+        self.assertIn("malformed_row", result["counts"]["by_reason"])
+
+    @unittest.skipUnless(_loader_keeps_row_structure(),
+                         "waiting for the loader fix (review S05, Patrick)")
+    def test_rows_differing_only_in_a_surplus_field_are_not_duplicates(self):
+        result = clean_file(self.write_csv([
+            "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,EXTRA-A",
+            "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,EXTRA-B",
+        ]), self.error_log)
+        self.assertEqual(result["counts"]["duplicates"], 0)
+        self.assertEqual(result["counts"]["skipped"], 2)       # both malformed
+
+    @unittest.skipUnless(_loader_rejects_duplicate_headers(),
+                         "waiting for the header check fix (review S05, Patrick)")
+    def test_duplicate_header_name_gives_a_clear_file_error(self):
+        result = clean_file(self.write_csv(
+            ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,99"],
+            header=HEADER + ",amount"), self.error_log)
+        self.assertIn("could not load", result["error"])
 
 
 # ==========================================================================
@@ -364,6 +782,15 @@ class FullDatasetTests(unittest.TestCase):
         for record in self.result["records"]:
             if record["date"] is not None:
                 self.assertRegex(record["date"], r"^\d{4}-\d{2}-\d{2}$")
+
+    def test_flagged_and_corrected_counts_cover_every_reason(self):
+        # S06 on the real data: every repeated-ID row is a flagged row, and
+        # no count can exceed the number of valid rows.
+        self.assertEqual(self.reasons["repeated_transaction_id"], 1846)
+        self.assertGreaterEqual(self.counts["flagged"], 1846)
+        self.assertLessEqual(self.counts["flagged"], self.counts["valid"])
+        self.assertLessEqual(self.counts["corrected"], self.counts["valid"])
+        self.assertEqual(sum(self.reasons.values()), len(self.result["issues"]))
 
     def test_income_and_expense_totals(self):
         totals = {"Income": 0.0, "Expense": 0.0}
