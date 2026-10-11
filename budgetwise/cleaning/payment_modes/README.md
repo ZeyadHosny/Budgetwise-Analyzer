@@ -1,39 +1,106 @@
-# cleaning/payment_modes
+# Payment Mode Cleaning
 
-Maps raw payment-mode strings onto a fixed set of names.
+Cleans raw payment-mode values and maps each one to a single standard name.
 
-## 1. What this folder does
+## Responsibility
 
-Raw payment modes vary in case, spelling, abbreviations, and spacing
-(`upi`, `UPI`, `Crd`, `Csh`, `BankTransfer`, `Bank_Transfer`, `Bank Transfr`, ` cash `).
+| Item | Details |
+|---|---|
+| Responsible | Henrietta |
+| Domain reviewer | Sarah |
+| PR approval | Zeyad or Patrick |
+| Tasks | `P1` payment-mode profiling (Bahareh) and `P2.5` implementation |
+| Status | Implemented and under review |
 
-This module maps each one to a canonical name and returns a reason code whenever
-it changed the value.
+## Purpose
 
-Canonical names: `UPI`, `Card`, `Cash`, `Bank Transfer`, plus `Unknown` for
-anything missing or unrecognized.
+The raw dataset's `payment_mode` column has 20 distinct values. They vary in:
 
-Examples of the updated mappings:
+- capitalization: `upi`, `UPi`, `CARD`
+- abbreviations: `Crd`, `Csh`
+- spacing and separators: `BankTransfer`, `Bank_Transfer`
+- spelling: `Bank Transfr`
+- missing values: blank
 
+Values can also carry extra spaces, such as `" Card "`.
 
-Crd / CRD              -> Card
-Csh / csh              -> Cash
-BankTransfer           -> Bank Transfer
-Bank_Transfer          -> Bank Transfer
-Bank Transfr           -> Bank Transfer
+This module maps every variant to one standard name and returns a reason code whenever the value was changed or could not be identified.
 
-## Reason codes
-PAYMENT_MODE_NORMALIZED
-Used when a recognized payment mode is changed to its approved form.
-This includes:
-- capitalization changes
-- abbreviations
-- spelling corrections
-- missing spaces
-- underscores
-- leading or trailing spaces
+Standard names: `UPI`, `Card`, `Cash`, `Bank Transfer`, plus `Unknown` for anything missing or unrecognized.
+
+## Public Function
+
+```python
+from budgetwise.cleaning.payment_modes import normalize_payment_mode
+
+normalize_payment_mode(raw: str | None) -> tuple[str, str | None]
+```
+
+### Returns
+
+A tuple `(normalized_payment_mode, reason_code)`:
+
+| Situation | Returns |
+|---|---|
+| Value is already the standard name (`"Card"`) | `("Card", None)` |
+| Value was changed: case, abbreviation, spelling, separator, or extra spaces | `("Card", "PAYMENT_MODE_NORMALIZED")` |
+| Value is `None`, `""`, or whitespace only | `("Unknown", "PAYMENT_MODE_UNKNOWN")` |
+| Value is not recognized | `("Unknown", "PAYMENT_MODE_UNKNOWN")` |
+
+The function always returns a usable name and never causes a row to be dropped.
+
+### How it works
+
+1. `None`, `""`, or whitespace only returns `Unknown`.
+2. The value is stripped of surrounding spaces and lowercased for lookup.
+3. Recognized values return the standard name. If the original value differs from the standard name in any way, including extra spaces, the reason is `PAYMENT_MODE_NORMALIZED`.
+4. Anything else returns `Unknown` with `PAYMENT_MODE_UNKNOWN`, so it shows up in the error log instead of passing through silently.
+
+## Mapping
+
+The mapping is closed. Unrecognized values are never passed through unchanged.
+
+| Standard name | Raw variants in the data | Rows |
+|---|---|---|
+| UPI | `UPI`, `UPi`, `Upi`, `upi` | 3,660 |
+| Card | `Card`, `CARD`, `card`, `Crd`, `CRD` | 3,854 |
+| Cash | `Cash`, `CASH`, `cash`, `Csh`, `csh` | 3,799 |
+| Bank Transfer | `Bank Transfer`, `bank transfer`, `BankTransfer`, `Bank_Transfer`, `Bank Transfr` | 3,779 |
+| Unknown | blank | 808 |
+| **Total** | 20 distinct values | **15,900** |
+
+Counts are raw rows in `data/raw/budgetwise_finance_dataset.csv`, before the pipeline removes duplicates.
+
+### Reference
+
+The variants above come from the Phase 1 payment-mode profiling in Bahareh's Phase 1 report: **[insert report title / file path]**.
+
+## Reason Codes
+
+| Reason code | Meaning |
+|---|---|
+| `PAYMENT_MODE_NORMALIZED` | A recognized payment mode was changed to its standard name (capitalization, abbreviation, spelling, missing space, underscore, or surrounding spaces) |
+| `PAYMENT_MODE_UNKNOWN` | The payment mode was missing, blank, or not recognized; set to `Unknown` |
+| `None` | The value was already the standard name; nothing to log |
+
+The cleaning pipeline (`budgetwise/pipeline/implementation/runner.py`) writes these codes to `output/logs/errors.log` in lowercase (`payment_mode_normalized`, `payment_mode_unknown`).
+|
 
 ## Testing
-Run the payment-mode tests with:
-## Bash
-python -m unittest budgetwise.cleaning.payment_modes.testing.test_parser
+
+Tests are in `testing/test_parser.py`:
+
+- `test_all_profiled_payment_mode_variants`: all 20 profiled values, checked with `subTest` and an assertion that exactly 20 cases are listed
+- `test_card_with_spaces` and `test_bank_transfer_with_spaces`: surrounding spaces → `PAYMENT_MODE_NORMALIZED`
+- `test_missing_spaces`: whitespace only → `Unknown`
+- `test_missing_none`: `None` → `Unknown`
+- `test_unknown_payment_mode`: unrecognized value → `Unknown`
+
+Run from the project root:
+
+```bash
+python -m unittest budgetwise.cleaning.payment_modes.testing.test_parser -v
+```
+
+Expected result: 6 tests (covering the 20 profiled cases plus 5 edge cases), all passing.
+
