@@ -4,37 +4,36 @@ Maps raw payment-mode strings onto a fixed set of names.
 
 ## 1. What this folder does
 
-Raw payment modes vary in case and spacing (`upi`, `UPI`, ` cash `). This
-module maps each one to a canonical name and returns a reason code whenever
+Raw payment modes vary in case, spelling, abbreviations, and spacing
+(`upi`, `UPI`, `Crd`, `Csh`, `BankTransfer`, `Bank_Transfer`, `Bank Transfr`, ` cash `).
+
+This module maps each one to a canonical name and returns a reason code whenever
 it changed the value.
 
 Canonical names: `UPI`, `Card`, `Cash`, `Bank Transfer`, plus `Unknown` for
 anything missing or unrecognized.
 
-## 2. How other modules use it
+Examples of the updated mappings:
 
-```python
-from budgetwise.cleaning.payment_modes import normalize_payment_mode
 
-mode, reason = normalize_payment_mode("UPI")     # ("UPI", None)
-mode, reason = normalize_payment_mode("upi")     # ("UPI", "PAYMENT_MODE_NORMALIZED")
-mode, reason = normalize_payment_mode("")        # ("Unknown", "PAYMENT_MODE_UNKNOWN")
-```
+Crd / CRD              -> Card
+Csh / csh              -> Cash
+BankTransfer           -> Bank Transfer
+Bank_Transfer          -> Bank Transfer
+Bank Transfr           -> Bank Transfer
 
-## 3. What it produces
+## Reason codes
+PAYMENT_MODE_NORMALIZED
+Used when a recognized payment mode is changed to its approved form.
+This includes:
+- capitalization changes
+- abbreviations
+- spelling corrections
+- missing spaces
+- underscores
+- leading or trailing spaces
 
-| Input | Returns | Reason |
-|---|---|---|
-| `UPI` | `"UPI"` | — |
-| `upi` | `"UPI"` | `PAYMENT_MODE_NORMALIZED` |
-| `bank transfer` | `"Bank Transfer"` | `PAYMENT_MODE_NORMALIZED` |
-| `""` / `None` | `"Unknown"` | `PAYMENT_MODE_UNKNOWN` |
-| `Cheque` | `"Unknown"` | `PAYMENT_MODE_UNKNOWN` |
-
-## 4. Folders
-
-| Folder | Contents |
-|---|---|
-| `implementation/` | `parser.py` |
-| `testing/` | `test_parser.py` |
-| `supplementary/` | profiling notes |
+## Testing
+Run the payment-mode tests with:
+## Bash
+python -m unittest budgetwise.cleaning.payment_modes.testing.test_parser
