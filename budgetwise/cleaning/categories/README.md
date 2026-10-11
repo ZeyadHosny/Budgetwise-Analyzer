@@ -1,78 +1,127 @@
-# cleaning/categories
+# Category Cleaning
+This feature cleans and standardizes transaction category values into a fixed set of approved categories.
 
-Maps messy raw category strings onto a fixed, documented set of names.
+## Responsibility
 
-| | |
+| Item | Details |
 |---|---|
-| **Responsible** | Henrieta |
-| **Domain reviewer** | Bahareh (`P1.2`) · Sarah (`P2.2`) |
-| **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
-| **Tasks** | `P1.2` profiling · `P2.2` implementation |
-| **Status** | Not started |
+| Responsible | Henrieta |
+| Domain reviewers | Bahareh (`P1.2`) and Sarah (`P2.2`) |
+| PR approval | Zeyad or Patrick |
+| Tasks | `P1.2` profiling and `P2.2` implementation |
+| Status | Implemented and under review |
 
-## 1. What this folder does
+## Purpose
+The raw dataset contains category values with:
 
-The main dataset holds **47 distinct category strings** for what are really
-about a dozen categories. The damage is case variation and typos:
+- different capitalization
+- spelling mistakes
+- abbreviations
+- extra spaces
+- missing values
 
-```
-FOOD 583 · Food 579 · food 567 · Foods 567 · Fod 535 · Foodd 525
-RENT 574 · Rent 571 · rent 534 · Rentt 517 · Rnt 516
-TRAVEL 403 · Travel 422 · travel 381 · Traval 411 · Travl 368
-```
 
-plus 285 blank values.
+These values are converted into approved category names.
 
-§4.5 requires a **closed** mapping: every raw string maps to a known name, and
-the mapping is documented in the report. Closed means no silent pass-through —
-an unrecognized string is a decision, not a default.
 
-## 2. How other modules use it
+FOOD    -> Food
+Fod     -> Food
+Rentt   -> Rent
+Traval  -> Transportation
+Helth   -> Healthcare
+Misc    -> Other
 
-```python
-from budgetwise.cleaning.categories import normalize
 
-name, reason = normalize("Foodd")      # ("Food", None)
-name, reason = normalize("")           # ("Uncategorized", "missing_category")
-```
+Missing or blank categories are kept in the dataset and mapped to:
 
-Only `pipeline/` calls this.
+Uncategorized
 
-## 3. What it produces
 
-| Input | Returns | Reason |
-|---|---|---|
-| `Food` | `"Food"` | — |
-| `FOOD` | `"Food"` | — case variant |
-| `Foodd` | `"Food"` | — typo in the mapping |
-| `Rnt` | `"Rent"` | — typo in the mapping |
-| `""` | `"Uncategorized"` | `missing_category` |
-| `Wobble` | `"Uncategorized"` | `unknown_category` |
+## Approved Categories
 
-A missing category is **never** dropped — §4.5 requires `"Uncategorized"`.
+The approved categories:
 
-## 4. Requirements and tasks covered
+Food
+Rent
+Transportation
+Entertainment
+Utilities
+Education
+Healthcare
+Savings
+Other
+Freelance
+Investment
+Bonus
+Salary
+Uncategorized
 
-| Requirement | Source | Task |
-|---|---|---|
-| Missing category assigned `"Uncategorized"`, never dropped | §4.5 | `P2.2` |
-| A documented, closed raw-to-normalized mapping | §4.5 | `P1.2` `P2.2` |
-| The mapping included in the report | §4.5 | `P4.4` |
-| Use sets to identify unique categories | §4.2 | `P3.1` |
-| Number of categories normalized | §5 | `P3.5` |
+## Category Mapping
 
-## 5. Folders
+The raw-to-normalized category mapping is stored in:
 
-| Folder | Contents |
+config/category_mapping.cs
+
+The mapping is closed, meaning unknown values are not allowed to pass through unchanged.
+
+## Public Function
+
+Other parts of the project can use:
+
+
+from budgetwise.cleaning.categories import normalize_category
+
+
+The function returns:
+
+(normalized_category, reason_code)
+
+
+## Reason Codes
+
+| Reason Code | Meaning |
 |---|---|
-| `implementation/` | `normalizer.py`, `mapping.py` |
-| `testing/` | `test_normalizer.py`, `fixtures/category_variants.csv` |
-| `supplementary/` | `category_profile.md`, `mapping_rationale.md` |
+| `CATEGORY_NORMALIZED` | The category was corrected or standardized |
+| `CATEGORY_UNCATEGORIZED` | The category was missing or blank |
+| `UNKNOWN_CATEGORY` | The value was not found in the approved mapping |
 
-## 6. Done when
 
-- [ ] All 47 raw variants map to a name — none fall through
-- [ ] Blank maps to `"Uncategorized"` with the right reason code
-- [ ] The canonical set agreed at `G1` and written in `mapping_rationale.md`
-- [ ] `config/category_mapping.csv` matches the code exactly
-- [ ] `category_profile.md` written — report material
+## Main Files
+
+budgetwise/cleaning/categories/
+├── implementation/
+│   └── parser.py
+├── testing/
+│   └── test_parser.py
+├── supplementary/
+├── __init__.py
+└── README.md
+
+
+## Implementation Update
+
+Whitespace handling was corrected so values with extra spaces are recorded as normalized.
+
+
+## Testing
+
+The tests cover:
+
+- capitalization differences
+- spelling mistakes
+- abbreviations
+- extra spaces
+- missing values
+- unknown categories
+
+
+## Project Connection
+
+The category work is completed in two stages:
+
+
+P1.2 -> profile and organize raw category values
+P2.2 -> implement category normalization
+
+The category variants identified during `P1.2` are used to build the normalization rules for `P2.2`.
+
