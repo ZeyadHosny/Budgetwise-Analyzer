@@ -9,7 +9,17 @@ Command, from the repository root:
 python -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
 ```
 
-Python version, branch and commit: fill in after running on the real branch.
+## Run details
+
+| | |
+|---|---|
+| Run by | Sarah, 2026-10-10, from the repository root |
+| Command | `python3 -m unittest budgetwise.cleaning.rows.testing.test_raw_rows` |
+| Branch and commit | `fix/p2-4-repeated-id-missing-ids` at commit `251fc81` |
+| Python | `python3` in the VS Code terminal. VS Code showed Python 3.14.7 as its interpreter; confirm with `python3 --version` |
+| Result | `Ran 47 tests in 0.101s`, `OK`: 47 passed, 0 failed, 0 errors, 0 skipped |
+| Dataset | present in `data/raw/`, so the 7 dataset tests ran |
+| Merged | First version from `feat/p2-4-cleaning-rows`. The S03 correction and this evidence in #13 |
 
 ## Duplicates and malformed rows
 
@@ -39,17 +49,26 @@ The figure depends on which rows are counted, so each population is stated.
 - The other 926 sit on rows that differ, so removing rows by ID alone would
   have deleted legitimate transactions. All of those rows are kept.
 - 888 is lower than 926 because some of those rows are later skipped for a
-  blank or sentinel amount. That step belongs to the pipeline.
+  blank or sentinel amount. That step belongs to the pipeline. The 888 IDs
+  and the 1,846 rows carrying them are measured by the pipeline, in
+  `budgetwise/pipeline/supplementary/pipeline_evidence.md`, not here.
 - Rows with no ID are never counted as sharing an ID. The dataset has none,
   so this rule changes no figure here. It protects against bad input.
 
 ## Speed
 
-Splitting duplicates, finding repeated IDs twice and validating every row
-takes about 0.1 seconds on the 15,900 rows. Duplicates and repeated IDs are
-each found in one pass, using a set and a counter.
+Measured, not estimated:
+
+| What | Time | Where |
+|---|---|---|
+| All 47 tests, including the 7 that read the full 15,900-row file | 0.101 seconds | the run above |
+| Splitting duplicates, finding repeated IDs twice and validating every row of the full file | about 0.09 seconds | a timed run in a test copy of the repository |
+
+Duplicates and repeated IDs are each found in one pass, using a set and a
+counter.
 
 ## Tests
 
-47 tests, all passing. Seven use the full dataset and are skipped if the CSV
-is not in `data/raw/`.
+47 tests: 40 that use small hand-written rows and 7 that use the full
+dataset. All 47 passed in the run above. The 7 dataset tests are skipped if
+the CSV is not in `data/raw/`.

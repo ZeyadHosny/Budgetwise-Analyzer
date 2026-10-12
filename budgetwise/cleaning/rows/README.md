@@ -8,7 +8,7 @@ Detects duplicate rows and checks that a row has what it needs.
 | **Domain reviewer** | Patrick (`P2.4`) |
 | **PR approval** | Zeyad or Patrick. See `CONTRIBUTING.md` |
 | **Tasks** | `P2.4` implementation. Profiling is Bahareh's Phase 1 report (`P1.1`) |
-| **Status** | Implemented and merged. Phase 2 review correction S03 applied |
+| **Status** | First version merged from `feat/p2-4-cleaning-rows`. Review correction S03 and this README merged in #13 |
 
 ## 1. What this folder does
 
@@ -21,7 +21,11 @@ lowercase, no parsing.
 
 **Repeated IDs.** **1,680** `transaction_id` values appear more than once in
 the raw file. Section 4.5 is explicit that a repeated ID on rows that differ
-is *not* a duplicate and must not be dropped. Those rows are kept and flagged.
+is *not* a duplicate and must not be dropped. **A repeated ID alone never
+removes a row.** Those rows are kept and flagged. A row that carries a
+repeated ID can still be removed for a different reason: because it is an
+exact copy of an earlier row, or because it fails the required-field check,
+or, in the pipeline, because its amount is unusable.
 
 **Required fields.** A row needs all nine fields, and a usable
 `transaction_id`, `user_id` and `transaction_type`. Without those it cannot
@@ -141,13 +145,21 @@ in `data/raw/`.
 - [x] A test proves case variants are treated as different raw rows
 - [x] Rows missing a required field are rejected; rows missing only `date` kept
 - [x] Rows with no ID are never reported as sharing an ID
-- [x] Runs over 15,900 rows without noticeable delay (about 0.1 seconds)
+- [x] Runs over 15,900 rows without noticeable delay (see the timing in
+      `supplementary/row_evidence.md`)
 
 Rejecting a row for a missing `amount` is done in `pipeline/`, not here.
 
 ## 7. Open points for the pipeline integration
 
-- The loader currently fills a short row with blanks and drops surplus
-  fields, so the "fewer or more than nine fields" checks only take effect
-  once the loader keeps the row's real shape (review S05, Patrick).
+- **Loader check with Patrick (review S05).** `validate_raw_row` expects a
+  field that is absent from the line to arrive as `None`, and extra values to
+  arrive in a list under the key `None`, which is how `csv.DictReader` reports
+  them. Patrick's `load_rows` currently fills a short row with empty strings
+  and drops extra values, so an absent field looks like a blank one and the
+  "too few" and "too many fields" checks cannot fire. The tests in this folder
+  build rows with `csv.DictReader`, so they prove the checks work, not that
+  the real loader feeds them correctly. That end-to-end check is in the
+  pipeline tests (`LoaderStructureTests`), which are expected failures until
+  the loader is fixed.
 - Reason-code names and casing are not yet approved by the team (review S08).
