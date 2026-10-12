@@ -3,11 +3,11 @@ EXPENSE_TYPE = "Expense"
 INCOME_TYPE = "Income"
 
 # Expense categories the team agreed can be cut.
-DISCRETIONARY_CATEGORIES = ("Food", "Travel", "Entertainment")
+DISCRETIONARY_CATEGORIES = ("Food", "Transportation", "Entertainment")
 # Expense categories the team agreed cannot be cut.
-ESSENTIAL_CATEGORIES = ("Rent", "Utilities", "Education", "Health")
+ESSENTIAL_CATEGORIES = ("Rent", "Utilities", "Education", "Healthcare")
 # Expense categories that are neither.
-UNCLASSIFIED_CATEGORIES = ("Savings", "Others", "Uncategorized")
+UNCLASSIFIED_CATEGORIES = ("Savings", "Other", "Uncategorized")
 
 # Income categories that are worked for.
 EARNED_INCOME_CATEGORIES = ("Salary", "Bonus", "Freelance")
