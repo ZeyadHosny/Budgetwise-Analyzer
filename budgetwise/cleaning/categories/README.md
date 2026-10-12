@@ -1,78 +1,122 @@
-# cleaning/categories
+# Category Cleaning
 
-Maps messy raw category strings onto a fixed, documented set of names.
+This feature cleans and standardizes transaction category values into a fixed set of approved categories.
 
-| | |
+## Responsibility
+
+| Item | Details |
 |---|---|
-| **Responsible** | Henrieta |
-| **Domain reviewer** | Bahareh (`P1.2`) · Sarah (`P2.2`) |
-| **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
-| **Tasks** | `P1.2` profiling · `P2.2` implementation |
-| **Status** | Not started |
+| Responsible | Henrietta |
+| Domain reviewers | Bahareh (`P1.2`) and Sarah (`P2.2`) |
+| PR approval | Zeyad or Patrick |
+| Tasks | `P1.2` profiling and `P2.2` implementation |
+| Status | Implemented and under review |
 
-## 1. What this folder does
+## Purpose
 
-The main dataset holds **47 distinct category strings** for what are really
-about a dozen categories. The damage is case variation and typos:
+The raw dataset contains category values with:
+
+- different capitalization
+- spelling mistakes
+- abbreviations
+- extra spaces
+- missing values
+
+These values are converted into approved category names. Examples:
 
 ```
-FOOD 583 · Food 579 · food 567 · Foods 567 · Fod 535 · Foodd 525
-RENT 574 · Rent 571 · rent 534 · Rentt 517 · Rnt 516
-TRAVEL 403 · Travel 422 · travel 381 · Traval 411 · Travl 368
+FOOD    -> Food
+Fod     -> Food
+Rentt   -> Rent
+Traval  -> Transportation
+Helth   -> Healthcare
+Misc    -> Other
 ```
 
-plus 285 blank values.
+Missing or blank categories are kept in the dataset and mapped to `Uncategorized`.
 
-§4.5 requires a **closed** mapping: every raw string maps to a known name, and
-the mapping is documented in the report. Closed means no silent pass-through —
-an unrecognized string is a decision, not a default.
+## Approved Categories
 
-## 2. How other modules use it
+The 14 approved categories:
+
+```
+Food            Rent            Transportation   Entertainment
+Utilities       Education       Healthcare       Savings
+Other           Freelance       Investment       Bonus
+Salary          Uncategorized
+```
+
+## Category Mapping
+
+The raw-to-normalized category mapping is stored in:
+
+```
+config/category_mapping.csv
+```
+
+It covers all 46 nonblank category variants found in the raw dataset. The mapping is closed, so unknown values are never passed through unchanged.
+
+### Reference
+
+The category variants and counts come from Bahareh's Phase 1 category profiling (`P1.2`)
+## Public Function
 
 ```python
-from budgetwise.cleaning.categories import normalize
+from budgetwise.cleaning.categories import normalize_category
 
-name, reason = normalize("Foodd")      # ("Food", None)
-name, reason = normalize("")           # ("Uncategorized", "missing_category")
+normalize_category(raw: str | None) -> tuple[str, str | None]
 ```
 
-Only `pipeline/` calls this.
+The function returns `(normalized_category, reason_code)`:
 
-## 3. What it produces
-
-| Input | Returns | Reason |
-|---|---|---|
-| `Food` | `"Food"` | — |
-| `FOOD` | `"Food"` | — case variant |
-| `Foodd` | `"Food"` | — typo in the mapping |
-| `Rnt` | `"Rent"` | — typo in the mapping |
-| `""` | `"Uncategorized"` | `missing_category` |
-| `Wobble` | `"Uncategorized"` | `unknown_category` |
-
-A missing category is **never** dropped — §4.5 requires `"Uncategorized"`.
-
-## 4. Requirements and tasks covered
-
-| Requirement | Source | Task |
-|---|---|---|
-| Missing category assigned `"Uncategorized"`, never dropped | §4.5 | `P2.2` |
-| A documented, closed raw-to-normalized mapping | §4.5 | `P1.2` `P2.2` |
-| The mapping included in the report | §4.5 | `P4.4` |
-| Use sets to identify unique categories | §4.2 | `P3.1` |
-| Number of categories normalized | §5 | `P3.5` |
-
-## 5. Folders
-
-| Folder | Contents |
+| Situation | Returns |
 |---|---|
-| `implementation/` | `normalizer.py`, `mapping.py` |
-| `testing/` | `test_normalizer.py`, `fixtures/category_variants.csv` |
-| `supplementary/` | `category_profile.md`, `mapping_rationale.md` |
+| Value is already the approved name (`"Food"`) | `("Food", None)` |
+| Value was changed: case, spelling, abbreviation, or extra spaces | `("Food", "CATEGORY_NORMALIZED")` |
+| Value is `None`, `""`, or whitespace only | `("Uncategorized", "CATEGORY_UNCATEGORIZED")` |
+| Value is not in the mapping | `("Uncategorized", "UNKNOWN_CATEGORY")` |
 
-## 6. Done when
+The function always returns a usable category name and never causes a row to be dropped.
 
-- [ ] All 47 raw variants map to a name — none fall through
-- [ ] Blank maps to `"Uncategorized"` with the right reason code
-- [ ] The canonical set agreed at `G1` and written in `mapping_rationale.md`
-- [ ] `config/category_mapping.csv` matches the code exactly
-- [ ] `category_profile.md` written — report material
+## Reason Codes
+
+| Reason Code | Meaning |
+|---|---|
+| `CATEGORY_NORMALIZED` | The category was corrected or standardized, including removing extra spaces |
+| `CATEGORY_UNCATEGORIZED` | The category was missing or blank |
+| `UNKNOWN_CATEGORY` | The value was not found in the approved mapping |
+
+The cleaning pipeline (`budgetwise/pipeline/implementation/runner.py`) writes these codes to `output/logs/errors.log` in lowercase (`category_normalized`, `category_uncategorized`, `unknown_category`).
+
+
+## Implementation Update
+
+Whitespace handling was corrected so values with extra spaces (for example `" Food "`) are recorded as `CATEGORY_NORMALIZED`.
+
+## Testing
+
+The tests cover:
+
+- all 46 profiled nonblank variants (capitalization, spelling mistakes, abbreviations)
+- extra spaces
+- missing values: `""`, `"   "`, and `None`
+- unknown categories
+
+Run from the project root:
+
+```bash
+python -m unittest budgetwise.cleaning.categories.testing.test_parser -v
+```
+
+Expected result: 51 tests, all passing.
+
+## Project Connection
+
+The category work is completed in two stages:
+
+```
+P1.2 -> profile and organize raw category values (Bahareh)
+P2.2 -> implement category normalization (Henrietta)
+```
+
+The category variants identified during `P1.2` are used to build the normalization rules for `P2.2`.
