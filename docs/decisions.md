@@ -126,7 +126,9 @@ Rules for these two:
 
 Counts for building objects are kept separate (`objects_built`,
 `objects_failed`), so a class refusing a record never changes `valid` or
-`skipped`.
+`skipped`. Such a record is logged as `transaction_not_built`, and because
+that is not a correction it currently makes the row **flagged**. The code,
+`interfaces.md` and this entry all say the same; the team should confirm it.
 
 **Why:** §5 requires valid, corrected and skipped to be reported separately.
 Without one definition the numbers cannot be compared between runs. Counting a
@@ -147,6 +149,8 @@ report · `interfaces.md`.
   duplicates are removed)? The Phase 2 specification's wording is looser.
 - Should a payment mode or location set to `Unknown` count as corrected, as it
   does now, or as flagged?
+- Should a record the model classes refuse count as flagged, as it does now,
+  or only in `objects_failed`?
 
 ## D11 — One shared reason-code vocabulary
 

@@ -2,7 +2,7 @@
 
 **Status: outstanding.** Owner: Zeyad · Task: `P1.5` · Agreed at: `G1`
 
-**Updated 2026-10-11 by Sarah** for `P2.1`, `P2.4`, `P2.7` and `P2.10` only:
+**Updated 2026-10-11 and 2026-10-12 by Sarah** for `P2.1`, `P2.4`, `P2.7` and `P2.10` only:
 the rows marked *implemented* below, and the section "What `clean_file()` and
 `run()` return". These now match the code and each feature's `__init__.py`.
 Rows owned by other people are unchanged and still need their owners to confirm.
@@ -40,9 +40,10 @@ checks. **They must agree.** See `CONTRIBUTING.md` §6.
 | `cleaning/rows` | `find_repeated_ids` | `(numbered_rows) -> dict[str, int]` · *implemented* · IDs on two or more rows, with the row count | Sarah (`P2.4`) |
 | `cleaning/notes` | `classify_note_quality` | `(raw_note) -> tuple[str, str, list[str]]` · *implemented* · returns `(note, quality, reasons_list)` | Sarah (`P2.7`) |
 | `errorlog` | `ErrorLog.record` | `(line, field, reason, raw) -> None` | Patrick (`P2.8`). Previously listed under Sarah |
-| `models` | `Transaction` | see `budgetwise/models/README.md` | Zeyad |
-| `pipeline` | `clean_file` | `(path, error_log=None) -> dict` · *implemented, pull request #10* | Sarah (`P2.10`) |
-| `pipeline` | `run` | `(path, start=None, end=None, category=None, error_log=None) -> dict` · *implemented, pull request #10* · there is no `LoadResult` class | Sarah (`P2.10`), models with Zeyad |
+| `models` | `Transaction`, `ExpenseTransaction`, `IncomeTransaction` | `(transaction_id, user_id, date, category, amount, payment_mode='', original_currency='plain')` · *implemented, merged in #16* · no `create()` factory | Zeyad (`P3.1`) |
+| `models` | `Account.add_transaction` | `(transaction) -> None` · *implemented, merged in #16* · inherited by `CashAccount`, `BankAccount`, `UnknownAccount` | Zeyad (`P3.1`) |
+| `pipeline` | `clean_file` | `(path, error_log=None) -> dict` · *implemented, merged in #10* | Sarah (`P2.10`) |
+| `pipeline` | `run` | `(path, start=None, end=None, category=None, error_log=None) -> dict` · *implemented, merged in #10; fix for the real model classes in a follow-up pull request* · there is no `LoadResult` class | Sarah (`P2.10`), models with Zeyad |
 
 The signatures above are proposals drawn from each feature's README. Confirm,
 amend, or replace them at `G1`, then uncomment the matching `__init__.py` lines.
@@ -66,6 +67,39 @@ amend, or replace them at `G1`, then uncomment the matching `__init__.py` lines.
   `NOTES_MISSING`, `NOTES_LOW_INFORMATION`. `None` gives an empty note.
 - A **raw row** passed to these functions is a `dict` of column name to text.
   **Numbered rows** are `(line_number, raw_row)` pairs, as `load_rows` yields.
+- **Malformed raw rows.** `validate_raw_row` follows the shapes
+  `csv.DictReader` produces:
+
+  | Line in the file | Shape of the raw row | Result |
+  |---|---|---|
+  | all nine fields | nine keys, each a string (possibly `""`) | checked normally |
+  | a field missing at the end | that key's value is `None` | not usable: "too few fields" |
+  | extra values at the end | the extras in a list under the key `None` | not usable: "too many fields" |
+  | not a `dict` at all | anything else | not usable, never raises |
+
+  Patrick's `load_rows` currently fills a missing field with `""` and drops
+  extra values, so these two cases reach the cleaners as an ordinary row. The
+  loader and this table need to agree (review S05).
+
+### Model classes, as merged in #16
+
+The pipeline builds one object per cleaned record and reads it back only
+through getters, because every attribute is private.
+
+| Class | Getters and methods the pipeline and tests use |
+|---|---|
+| `ExpenseTransaction`, `IncomeTransaction` | `get_transaction_id()`, `get_user_id()`, `get_date()`, `get_category()`, `get_amount()`, `get_payment_mode()`, `get_original_currency()`, `get_transaction_type()`, `get_signed_amount()`, `has_date()`, `get_month()`, `to_dict()` |
+| `CashAccount`, `BankAccount`, `UnknownAccount` | `add_transaction()`, `get_transactions()` (a copy), `get_transaction_count()`, `get_total_spent()`, `get_total_received()`, `is_reconcilable()`, `describe()`, `get_kind()` |
+
+`Transaction` has no `create()` factory. The pipeline builds the child that
+matches `transaction_type` and raises `ValueError` for any other value, which
+it logs as `transaction_not_built`. If a factory is added later, the pipeline
+uses it.
+
+**If the model classes cannot be imported,** `clean_file` still works, and
+`run` returns the cleaned records with no transactions, empty `accounts`, and
+`error` set to `"rows were cleaned, but budgetwise.models has no Transaction
+class yet"`. The pipeline tests treat a missing model package as an error.
 
 ## What `clean_file()` and `run()` return
 
@@ -83,7 +117,7 @@ fills the accounts.
 | `issues` | both | `list[tuple]` | `(line_number, field, reason, raw_value)` for every logged event |
 | `error` | both | `str \| None` | `None`, or a message if the file could not be read |
 | `transactions` | `run` only | `list` | `ExpenseTransaction` / `IncomeTransaction` objects that pass the filters |
-| `accounts` | `run` only | `dict` | `{"cash": CashAccount, "bank": BankAccount}` holding those same objects |
+| `accounts` | `run` only | `dict` | `{"cash": CashAccount, "bank": BankAccount, "unknown": UnknownAccount}` holding those same objects |
 
 **A cleaned record** has these keys:
 
@@ -118,15 +152,22 @@ fills the accounts.
 | `objects_built` | `run` only: cleaned records that became objects |
 | `objects_failed` | `run` only: cleaned records the classes refused |
 | `returned` | `run` only: objects left after the filters |
-| `no_account` | `run` only: returned objects in neither account |
 
-Two rules always hold:
+Rules:
 
-- `input = valid + skipped + duplicates`
-- `objects_built + objects_failed = valid`
+- `input = valid + skipped + duplicates` always holds, from both functions.
+- `objects_built + objects_failed = valid` holds **only once `run` has finished
+  building objects**. It does not hold for `clean_file`, which builds none, or
+  when `run` stops early because the file could not be read or the model
+  classes are missing. In those cases both object counts are `0`.
+- Every returned object is in exactly one account: cash for `Cash`; bank for
+  `Card`, `UPI`, `Bank Transfer`; unknown for anything else, in practice a
+  blank payment mode shown as `Unknown`.
+- A record the classes refuse is logged as `transaction_not_built` and so is
+  counted once in `flagged`. Whether it should be is still open (`D08`).
 
-The menu's filters change `transactions`, `accounts`, `returned` and
-`no_account` only. They never change `records` or the cleaning counts.
+The menu's filters change `transactions`, `accounts` and `returned` only. They
+never change `records` or the cleaning counts.
 
 ## Shapes that need agreeing
 
