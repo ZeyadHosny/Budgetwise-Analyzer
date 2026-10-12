@@ -5,60 +5,63 @@ from budgetwise.cleaning.payment_modes import normalize_payment_mode
 
 class TestPaymentModeParser(unittest.TestCase):
 
-    def test_exact_upi(self):
-        self.assertEqual(
-            normalize_payment_mode("UPI"),
-            ("UPI", None)
-        )
+    def test_all_profiled_payment_mode_variants(self):
+        cases = [
+            # UPI
+            ("UPI", ("UPI", None)),
+            ("UPi", ("UPI", "PAYMENT_MODE_NORMALIZED")),
+            ("Upi", ("UPI", "PAYMENT_MODE_NORMALIZED")),
+            ("upi", ("UPI", "PAYMENT_MODE_NORMALIZED")),
 
-    def test_lowercase_upi(self):
-        self.assertEqual(
-            normalize_payment_mode("upi"),
-            ("UPI", "PAYMENT_MODE_NORMALIZED")
-        )
+            # Card
+            ("Card", ("Card", None)),
+            ("CARD", ("Card", "PAYMENT_MODE_NORMALIZED")),
+            ("card", ("Card", "PAYMENT_MODE_NORMALIZED")),
+            ("Crd", ("Card", "PAYMENT_MODE_NORMALIZED")),
+            ("CRD", ("Card", "PAYMENT_MODE_NORMALIZED")),
 
-    def test_exact_card(self):
-        self.assertEqual(
-            normalize_payment_mode("Card"),
-            ("Card", None)
-        )
+            # Cash
+            ("Cash", ("Cash", None)),
+            ("CASH", ("Cash", "PAYMENT_MODE_NORMALIZED")),
+            ("cash", ("Cash", "PAYMENT_MODE_NORMALIZED")),
+            ("Csh", ("Cash", "PAYMENT_MODE_NORMALIZED")),
+            ("csh", ("Cash", "PAYMENT_MODE_NORMALIZED")),
 
-    def test_lowercase_card(self):
+            # Bank Transfer
+            ("Bank Transfer", ("Bank Transfer", None)),
+            ("bank transfer", ("Bank Transfer", "PAYMENT_MODE_NORMALIZED")),
+            ("BankTransfer", ("Bank Transfer", "PAYMENT_MODE_NORMALIZED")),
+            ("Bank_Transfer", ("Bank Transfer", "PAYMENT_MODE_NORMALIZED")),
+            ("Bank Transfr", ("Bank Transfer", "PAYMENT_MODE_NORMALIZED")),
+
+            # Profiled missing value
+            ("", ("Unknown", "PAYMENT_MODE_UNKNOWN")),
+        ]
+
+        # 20 profiled cases
+        self.assertEqual(len(cases), 20)
+
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                self.assertEqual(
+                    normalize_payment_mode(raw),
+                    expected
+                )
+
+    # Whitespace
+    def test_card_with_spaces(self):
         self.assertEqual(
-            normalize_payment_mode("card"),
+            normalize_payment_mode("  Card  "),
             ("Card", "PAYMENT_MODE_NORMALIZED")
         )
 
-    def test_exact_cash(self):
+    def test_bank_transfer_with_spaces(self):
         self.assertEqual(
-            normalize_payment_mode("Cash"),
-            ("Cash", None)
-        )
-
-    def test_lowercase_cash(self):
-        self.assertEqual(
-            normalize_payment_mode("cash"),
-            ("Cash", "PAYMENT_MODE_NORMALIZED")
-        )
-
-    def test_exact_bank_transfer(self):
-        self.assertEqual(
-            normalize_payment_mode("Bank Transfer"),
-            ("Bank Transfer", None)
-        )
-
-    def test_lowercase_bank_transfer(self):
-        self.assertEqual(
-            normalize_payment_mode("bank transfer"),
+            normalize_payment_mode("  Bank Transfer  "),
             ("Bank Transfer", "PAYMENT_MODE_NORMALIZED")
         )
 
-    def test_missing_empty_string(self):
-        self.assertEqual(
-            normalize_payment_mode(""),
-            ("Unknown", "PAYMENT_MODE_UNKNOWN")
-        )
-
+    # Missing values
     def test_missing_spaces(self):
         self.assertEqual(
             normalize_payment_mode("   "),
@@ -71,6 +74,7 @@ class TestPaymentModeParser(unittest.TestCase):
             ("Unknown", "PAYMENT_MODE_UNKNOWN")
         )
 
+    # Unknown value
     def test_unknown_payment_mode(self):
         self.assertEqual(
             normalize_payment_mode("Cheque"),
