@@ -2,7 +2,7 @@
 
 DATA 5010 — Project 1: Personal Finance & Spending Analyzer
 Due **Mon Oct 19, 2026, 11:59 PM EST** · Late deliverables are not accepted
-Last updated: 2026-09-29
+Last updated: 2026-10-11 (Phase 2 status for `P2.1`, `P2.4`, `P2.7`, `P2.10`)
 
 Every requirement in `Project-1.pdf`, in the order the assignment states them,
 each mapped to its task in `DATA5010_Project1_Timeline_TeamPlan.xlsx`.
@@ -26,6 +26,59 @@ the line says so.
 
 Tick a box only when the work is merged to `main` and tested, not when it is
 written. Cite the requirement in your pull request under "Closes".
+
+---
+
+## Phase 2 status: `P2.1`, `P2.4`, `P2.7` and `P2.10` (Sarah)
+
+Added 2026-10-11. Links each requirement owned by these four tasks to the code
+that delivers it and the tests that check it. Task IDs follow the current
+workbook. Baselines are from Bahareh's Phase 1 profiling report (`P1.1`).
+
+### Requirement to code to test
+
+| Requirement | Source | Task | Code | Tests |
+|---|---|---|---|---|
+| Parse the four date formats into `YYYY-MM-DD` | §4.1, §4.5 | `P2.1` | `parse_date()` in `budgetwise/cleaning/dates/implementation/parser.py` | `ValidFormatTests`, `FullDatasetTests` in `budgetwise/cleaning/dates/testing/test_parser.py` |
+| Slash dates read month first; hyphen dates read day first | §4.5 | `P2.1` | `DATE_FORMATS` in `parser.py` | `AmbiguousDateTests` |
+| Missing or unparseable date returns `None` with a reason; never raises | §4.5 | `P2.1` | `parse_date()` | `MissingDateTests`, `InvalidDateTests` |
+| A duplicate is a fully identical raw row, found with a set | §4.1, §4.2, §4.5 | `P2.4` | `raw_duplicate_key()`, `is_duplicate()`, `split_exact_duplicates()` in `budgetwise/cleaning/rows/implementation/raw_rows.py` | `DuplicateKeyTests`, `IsDuplicateTests`, `ExactDuplicateTests` in `budgetwise/cleaning/rows/testing/test_raw_rows.py` |
+| A repeated `transaction_id` on differing rows is kept and flagged | §4.5 | `P2.4` | `find_repeated_ids()` | `RepeatedIdTests`, `FullDatasetTests` |
+| Malformed or incomplete rows handled without crashing | §4.1 | `P2.4` | `validate_raw_row()`, `has_required_fields()` | `ValidateRawRowTests`, `HasRequiredFieldsTests` |
+| Meaningful notes preserved exactly; blank, N/A and placeholders flagged | Phase 2 specification (not named in the PDF) | `P2.7` | `classify_note_quality()` in `budgetwise/cleaning/notes/implementation/note_quality.py` | `MeaningfulNoteTests`, `LowInformationNoteTests`, `FullDatasetTests` in `budgetwise/cleaning/notes/testing/test_note_quality.py` |
+| Duplicate detection runs on raw rows before normalization | §4.5 | `P2.10` | step 2 of `_clean_rows()` in `budgetwise/pipeline/implementation/runner.py` | `OrderTests` in `budgetwise/pipeline/testing/test_runner.py` |
+| Skipped, corrected and flagged rows logged with a reason | §4.1 | `P2.10` with `P2.8` | `_record_issue()` in `runner.py`, writing through `ErrorLog.record()` | `CleaningTests`, `RowValidationTests` |
+| The program must not crash on bad input | §4.1 | `P2.10` | per-row guard in `_clean_rows()` | `BadInputTests`, `FailureBoundaryTests` |
+| Counts reconcile: input = valid + skipped + duplicates | §5 | `P2.10` | `_empty_counts()`, `_summarise()` in `runner.py` | `CleaningTests`, `FlaggedCountTests`, `FullDatasetTests` |
+| Transactions stored as a list of objects | §4.2 | `P2.10` with `P3.1` | `run()` and `_build_objects()` in `runner.py` | `ObjectTests`, `ClassUseTests` (skipped until the model classes are merged) |
+| Load a subset by date range or by category | §4.1 | `P2.10` with `P3.5` | `_passes_filters()` in `runner.py` | `FilterTests` (skipped until the model classes are merged) |
+
+### Have the tests actually been run?
+
+Yes. Run by Sarah on 2026-10-10 from the repository root with `python3`, on the
+branch of each pull request, with the dataset present in `data/raw/`.
+
+| Task | Command | Result | Where the code is |
+|---|---|---|---|
+| `P2.1` | `python3 -m unittest budgetwise.cleaning.dates.testing.test_parser` | 24 tests, OK | Feature merged to `main`. Review fix S02 in pull request #12, awaiting approval |
+| `P2.4` | `python3 -m unittest budgetwise.cleaning.rows.testing.test_raw_rows` | 47 tests, OK | Feature merged to `main`. Review fix S03 in pull request #13, awaiting approval |
+| `P2.7` | `python3 -m unittest budgetwise.cleaning.notes.testing.test_note_quality` | 12 tests, OK | Feature merged to `main`. Documentation update in pull request #14, awaiting approval |
+| `P2.10` | `python3 -m unittest budgetwise.pipeline.testing.test_runner` | 86 tests, OK, 37 skipped | **Not merged.** Pull request #10, awaiting approval |
+
+The 37 skipped pipeline tests have not been run and prove nothing yet: 33 wait
+for the model classes in `budgetwise/models` (`P3.1`), 3 for the loader fix and
+1 for the amount parser fix. They start running by themselves once those are
+merged.
+
+Full-dataset results from the run above: 15,900 input = 14,651 valid + 349
+skipped + 900 duplicates. Detail is in each feature's `supplementary/` folder.
+
+### Which boxes are ticked, and why
+
+A box is ticked only when the work is merged to `main` and tested. On that
+rule, the date parsing lines and the two duplicate definitions below are
+ticked. Every line that depends on the pipeline stays unticked until pull
+request #10 is merged, even though its tests pass on the branch.
 
 ---
 
@@ -84,12 +137,12 @@ narrow.
 ## §4.1 — Data ingestion and cleaning
 
 - [ ] **Read transaction data from the BudgetWise CSV file(s)** → **A TASK NEEDS TO BE CREATED** (see task 1)
-- [ ] Parse and standardize the multiple date formats into a single consistent format → `P1.1` `P2.1` Bahareh
+- [x] Parse and standardize the multiple date formats into a single consistent format → `P2.1` Sarah · profiling `P1.1` Bahareh
 - [ ] Normalize inconsistent currency symbols and formats in the amount field into a single numeric representation → `P1.3` `P2.3` Patrick
-- [ ] Handle malformed or incomplete rows — missing values, bad dates, unparseable amounts — using `try`/`except` → `P1.4` `P2.4` Sarah
-- [ ] **The program must not crash on bad input** → `P2.4` Sarah · `P4.1` Sarah
-- [ ] Detect and remove or flag duplicate transaction entries → `P1.4` `P2.4` Sarah
-- [ ] Log skipped, corrected, or flagged rows to **`errors.log`**, each with a brief reason → `P2.4` Sarah
+- [ ] Handle malformed or incomplete rows — missing values, bad dates, unparseable amounts — using `try`/`except` → `P2.4` Sarah (row checks, merged) · `P2.10` Sarah (applied per row, pull request #10)
+- [ ] **The program must not crash on bad input** → `P2.4` Sarah · `P2.10` Sarah (pull request #10) · `P4.1` Sarah
+- [ ] Detect and remove or flag duplicate transaction entries → `P2.4` Sarah (detection, merged) · `P2.10` Sarah (removal and logging, pull request #10)
+- [ ] Log skipped, corrected, or flagged rows to **`errors.log`**, each with a brief reason → `P2.8` Patrick (logger) · `P2.10` Sarah (pipeline writes every issue, pull request #10)
 - [ ] Support loading the dataset, or a subset, through a menu-driven interface → `P1.5` Zeyad (skeleton) · `P3.4` Sarah (implementation)
 - [ ] The menu is interactive — a `while` loop reading `input()`, **not a one-shot script** → `P3.4` Sarah
 
@@ -119,9 +172,9 @@ The assignment prints the menu it expects, so each option is checked separately.
 
 ## §4.2 — Data organization
 
-- [ ] Store transactions as a **list** of objects → `P2.5` Zeyad · depends on the loader above
+- [ ] Store transactions as a **list** of objects → `P2.10` Sarah (pull request #10) · needs the model classes, `P3.1` Zeyad
 - [ ] Use **dictionaries** to aggregate totals by category and by month → `P3.1` Henrieta
-- [ ] Use **sets** to identify unique categories and detect duplicate transactions → `P3.1` Henrieta · `P2.4` Sarah
+- [ ] Use **sets** to identify unique categories and detect duplicate transactions → `P3.1` Henrieta (unique categories) · `P2.4` Sarah (duplicates: set-based, merged and tested)
 - [ ] Use **tuples** for fixed keys, for example `(year, month)` → `P3.1` Henrieta
 
 > §4.2 also asks for unique **merchants**. Neither CSV has a merchant column —
@@ -190,12 +243,12 @@ program runs correctly.
 
 ### Dates
 
-- [ ] Convert all valid dates to **`YYYY-MM-DD`** → `P2.1` Bahareh
-- [ ] Where day and month are both ≤ 12, read **slash-separated** dates as `MM/DD/YYYY` → `P2.1` Bahareh
-- [ ] Where day and month are both ≤ 12, read **hyphen-separated two-digit-year** dates as `DD-MM-YY` → `P2.1` Bahareh
+- [x] Convert all valid dates to **`YYYY-MM-DD`** → `P2.1` Sarah
+- [x] Where day and month are both ≤ 12, read **slash-separated** dates as `MM/DD/YYYY` → `P2.1` Sarah
+- [x] Where day and month are both ≤ 12, read **hyphen-separated two-digit-year** dates as `DD-MM-YY` → `P2.1` Sarah · four-digit-year hyphen dates also read day first, see `decisions.md`
 - [ ] Document this date convention in the report → `P4.4` Henrieta
-- [ ] Any date that cannot be parsed by these rules is logged and **excluded from date-based analysis** → `P2.1` Bahareh
-- [ ] A missing date is logged and excluded from date-based analysis, but the row **may still count toward category totals** → `P2.1` Bahareh · `P3.1` Henrieta
+- [ ] Any date that cannot be parsed by these rules is logged and **excluded from date-based analysis** → `P2.1` Sarah (returns `None` with a reason, merged) · `P2.10` Sarah (logs it, pull request #10)
+- [ ] A missing date is logged and excluded from date-based analysis, but the row **may still count toward category totals** → `P2.1` Sarah · `P2.10` Sarah (row kept with no date, pull request #10) · `P3.1` Henrieta
 
 ### Categories
 
@@ -212,10 +265,10 @@ program runs correctly.
 
 ### Rows
 
-- [ ] A duplicate is a **fully identical row** → `P1.4` `P2.4` Sarah
-- [ ] A repeated `transaction_id` on rows that otherwise differ is **not** a duplicate and must not be dropped → `P1.4` `P2.4` Sarah
-- [ ] Duplicate detection is performed on the original **raw rows, before normalization** → `P1.4` `P2.4` Sarah
-- [ ] Any date or amount format not covered by the parsing logic is logged and skipped — never crashes, never silently misparsed → `P2.1` Bahareh · `P2.3` Patrick
+- [x] A duplicate is a **fully identical row** → `P2.4` Sarah
+- [x] A repeated `transaction_id` on rows that otherwise differ is **not** a duplicate and must not be dropped → `P2.4` Sarah
+- [ ] Duplicate detection is performed on the original **raw rows, before normalization** → `P2.4` Sarah (key uses raw values, merged) · `P2.10` Sarah (order enforced, pull request #10)
+- [ ] Any date or amount format not covered by the parsing logic is logged and skipped — never crashes, never silently misparsed → `P2.1` Sarah · `P2.3` Patrick
 
 ### Provenance
 
@@ -353,6 +406,11 @@ owner and a slot in the schedule before the work it blocks can proceed.
 | 2 | **Repository creation and access** — create the GitHub repository, invite all five members, enable branch protection, agree the Python version | §5 (a GitHub link is required) | every task producing code | Zeyad |
 | 3 | **Peer assessment signatures** — collect and verify signatures and written contribution descriptions from all five members, and confirm they appear in the submitted PDF | §5 | `DUE` | Sarah collects; Bahareh confirms |
 | 4 | **Phase 2 entry point** — something runnable that loads and cleans the full dataset, so `G2` can be demonstrated | `G2` exit criteria | `G2` | Sarah or Zeyad |
+
+> **Update 2026-10-11.** Tasks 1 and 4 now have workbook tasks. Reading the
+> file is `P2.9` (loader, Patrick). Passing rows to the cleaners, assembling
+> objects and giving `G2` something runnable is `P2.10` (pipeline, Sarah):
+> `clean_file()` and `run()` in `budgetwise/pipeline`, pull request #10.
 
 **Task 1 is the urgent one.** Four members build cleaning modules in parallel
 during Phase 2 with no agreed structure to plug into, and `G2` is the first
