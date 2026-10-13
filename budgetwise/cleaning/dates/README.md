@@ -8,7 +8,7 @@ Parses every date in the raw data into a single standard format.
 | **Domain reviewer** | Henrieta (`P2.1`) |
 | **PR approval** | Zeyad or Patrick. See `CONTRIBUTING.md` |
 | **Tasks** | `P2.1` implementation. Profiling is Bahareh's Phase 1 report (`P1.1`) |
-| **Status** | Implemented and merged. Phase 2 review correction S02 applied |
+| **Status** | First version merged from `feat/p2-1-cleaning-dates`. Review correction S02 and this README merged in #12 |
 
 ## 1. What this folder does
 
@@ -71,27 +71,35 @@ report evidence. Parsing does not depend on them.
 | `07/08/2023` | `"2023-07-08"` | `DATE_NORMALIZED`. Slash, so month first |
 | `03-04-22` | `"2022-04-03"` | `DATE_NORMALIZED`. Hyphen, so day first |
 | `14-07-2023` | `"2023-07-14"` | `DATE_NORMALIZED` |
+| `" 2023-07-14 "` (outer spaces) | `"2023-07-14"` | `DATE_NORMALIZED`. Spaces removed |
 | `""`, spaces, `N/A`, `None` | `None` | `MISSING_DATE` |
 | `14th July`, `8/5/2022` | `None` | `INVALID_DATE`. No format matches |
 | `31-02-23`, `31/02/2023` | `None` | `INVALID_DATE`. Right shape, not a real date |
 | a number or other non-text value | `None` | `INVALID_DATE` |
 
-A date already in `YYYY-MM-DD` form returns no reason, because nothing was
-changed.
+Only a date that is **exactly** `YYYY-MM-DD`, with nothing around it, returns
+no reason, because nothing was changed. The same date with spaces at either
+end, such as `" 2023-07-14 "`, returns `"2023-07-14"` with `DATE_NORMALIZED`,
+because the spaces were removed.
 
-Rows returning `None` are kept. They are left out of date-based analysis but
-still count toward category totals (section 4.5).
+An invalid or missing date never removes a row. `parse_date` only returns
+`None`; the pipeline keeps the row, leaves it out of date-based analysis such
+as monthly totals and date-range loading, and still counts it toward category
+totals (section 4.5).
 
 **Ambiguous dates.** A date is ambiguous when its day and month are both 12
 or less, so it could be read either way. The rules above settle every one.
 `is_ambiguous_date` counts them for the report. It only counts dates that
 `parse_date` accepts, so `00/05/2023` is not counted: it is not a date at all.
 
-**Reason codes.** This folder returns `DATE_NORMALIZED`, `MISSING_DATE` and
-`INVALID_DATE`. The pipeline writes them to the log in lowercase. The
-`errorlog` list has `missing_date`, `unrecognized_date_format` and
-`impossible_date` instead. The two lists need to be agreed by the team
-(review S08).
+**Reason codes, still to agree with Patrick.** This folder returns
+`DATE_NORMALIZED`, `MISSING_DATE` and `INVALID_DATE`. The pipeline writes them
+to the log in lowercase. Patrick's `errorlog` list has `missing_date`,
+`unrecognized_date_format` and `impossible_date`. Lowercasing makes
+`MISSING_DATE` match, but it cannot make the other names match:
+`date_normalized` has no entry in his list, and `invalid_date` covers what his
+list splits into two codes. One vocabulary has to be agreed and recorded
+(review S08, `docs/decisions.md` D11). Until then these codes are unchanged.
 
 Expected on the main dataset: 15,414 dates parsed, 486 missing, 0 invalid.
 

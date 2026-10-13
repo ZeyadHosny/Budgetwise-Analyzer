@@ -9,7 +9,20 @@ Command, from the repository root:
 python -m unittest budgetwise.cleaning.dates.testing.test_parser -v
 ```
 
-Python version, branch and commit: fill in after running on the real branch.
+## Run details
+
+| | |
+|---|---|
+| Run by | Sarah, 2026-10-10, from the repository root |
+| Command | `python3 -m unittest budgetwise.cleaning.dates.testing.test_parser` |
+| Branch and commit | `fix/p2-1-date-ambiguity-helper` at commit `2301c4f` |
+| Python | `python3` in the VS Code terminal. VS Code showed Python 3.14.7 as its interpreter; confirm with `python3 --version` |
+| Result | `Ran 24 tests in 0.157s`, `OK`: 24 passed, 0 failed, 0 errors, 0 skipped |
+| Dataset | present in `data/raw/`, so the 4 dataset tests ran |
+| Merged | First version from `feat/p2-1-cleaning-dates`. The S02 correction and this evidence in #12 |
+
+The dataset figures below were also measured in a separate test copy of the
+repository and agree with this run, since the dataset tests passed.
 
 ## Formats
 
@@ -66,5 +79,6 @@ Rows with no date are kept. They are left out of date-based analysis only.
 
 ## Tests
 
-24 tests, all passing. Four use the full dataset and are skipped if the CSV
-is not in `data/raw/`.
+24 tests: 20 that use small hand-written inputs and 4 that use the full
+dataset. All 24 passed in the run above. The 4 dataset tests are skipped if
+the CSV is not in `data/raw/`.
