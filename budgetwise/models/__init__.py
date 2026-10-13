@@ -1,4 +1,4 @@
-"""The object model. Transaction and Account hierarchies.
+"""The object model. Transaction, Account, and Budget classes.
 Depends on nothing else in the package."""
 
 # Contract. Everything other features may use from this folder.
@@ -25,4 +25,5 @@ from .implementation.account import (
     BANK_KIND,
     UNKNOWN_KIND,
 )
+from .implementation.budget import Budget
 

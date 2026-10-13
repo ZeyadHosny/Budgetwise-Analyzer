@@ -9,5 +9,5 @@
     "Utilities": 3000,
     "Entertainment": 2500
   },
-  "unbudgeted_categories": "DECIDE at G1 - skip them, or report as unbudgeted?"
+  "unbudgeted_categories": "Report categories with spending and no configured limit as unbudgeted."
 }
