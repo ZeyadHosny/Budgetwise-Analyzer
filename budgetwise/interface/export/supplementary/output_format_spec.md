@@ -48,6 +48,16 @@ The summary contains already-calculated figures; export does not recompute them.
 | `totals.expenses` | Expense total for the selected transactions |
 | `totals.net` | Selected income minus selected expenses |
 | `top_categories` | Up to five `[category, total]` expense pairs from the selection, highest total first |
+| `budget_comparisons` | Monthly budget results for each selected month with dated expenses |
+
+Each `budget_comparisons` entry contains `month` (`YYYY-MM`), `period`, and
+`categories`. `period` records the selected `start`, `end`, and `full_month`
+flag. Each category result contains `category`, `limit`, `actual`, `status`,
+and `difference`, as returned by the `Budget` model through
+`compare_to_budget`. Status is `over`, `under`, `exact`, or `unbudgeted`;
+unbudgeted categories have null `limit` and `difference`. When `full_month` is
+false, `actual` covers only the selected part of that month and is compared
+with the full monthly limit.
 
 Example:
 
@@ -61,6 +71,16 @@ Example:
   "counts": {"input": 15900, "valid": 14651, "duplicates": 900},
   "timings": {"load": 0.04, "clean": 0.5},
   "totals": {"income": 14082330.0, "expenses": 79441210.0, "net": -65358880.0},
-  "top_categories": [["Food", 8210400.0], ["Rent", 7980120.0]]
+  "top_categories": [["Food", 8210400.0], ["Rent", 7980120.0]],
+  "budget_comparisons": [
+    {
+      "month": "2023-07",
+      "period": {"start": "2023-07-01", "end": "2023-07-31", "full_month": true},
+      "categories": [
+        {"category": "Food", "limit": 248500.0, "actual": 250000.0,
+         "status": "over", "difference": 1500.0}
+      ]
+    }
+  ]
 }
 ```

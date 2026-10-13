@@ -37,6 +37,9 @@ export_summary(summary_dict, dataset="budgetwise_finance_dataset")
 
 Called from `menu/` after a load completes.
 For date-range and category queries, both files contain only the selected transactions; the JSON records the filter used. Cleaning counts still describe the complete source file.
+The JSON also includes per-month budget statuses from the configured limits.
+For partial date-range months, the period coverage is identified explicitly;
+the selected spend is compared against the full monthly limit.
 
 ## 3. What it produces
 
