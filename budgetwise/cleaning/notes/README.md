@@ -5,10 +5,10 @@ Classifies the quality of each note. The note text is never changed.
 | | |
 |---|---|
 | **Responsible** | Sarah |
-| **Domain reviewer** | As listed in the workbook reviewer matrix for `P2.7` |
+| **Domain reviewer** | Henrieta (`P2.7`) |
 | **PR approval** | Zeyad or Patrick. See `CONTRIBUTING.md` |
 | **Tasks** | `P2.7` implementation. Profiling is Bahareh's Phase 1 report (`P1.1`) |
-| **Status** | Implemented and merged. No defect found in the Phase 2 review |
+| **Status** | First version merged from `feat/p2-7-cleaning-notes`. No defect found in the Phase 2 review. This README and the evidence merged in #14 |
 
 ## 1. What this folder does
 
@@ -31,7 +31,9 @@ each can be matched to its own Phase 1 count.
 The six known placeholders are `...`, `!!!`, `xyz123`, `test`, `misc` and
 `asdfgh`. This is a closed list taken from Phase 1.
 
-A note never removes a row. Every row is kept whatever its note says.
+**Note quality alone never removes a row.** Every row is kept whatever its
+note says. A row can still be removed for another reason, such as being an
+exact duplicate or having no usable amount, but never because of its note.
 
 ## 2. How other modules use it
 
@@ -73,13 +75,14 @@ Everything the folder exports:
 
 How the input is handled:
 
-- **The text is returned exactly as given**, including capitals and spaces at
-  the ends. Only the comparison ignores capitals and outer spaces.
+- **Text is returned exactly as given**, including capitals and spaces at
+  the ends. Only the comparison ignores capitals and outer spaces. This
+  promise applies to text: the two cases below are the only ones where the
+  value returned is not the value passed in.
 - **The whole note is compared**, not part of it. `test` is a placeholder, but
   `test drive fee` is a real note.
 - **`None` becomes an empty note.** There is no text to keep, so the note
-  returned is `""` and the quality is `missing`. This is the only case where
-  the returned note differs from the input.
+  returned is `""` and the quality is `missing`.
 - **A value that is not text is converted to text** with `str()`, then
   classified like any other note. A number such as `123` becomes `"123"` and
   is `meaningful`. Values read from a CSV file are always text, so this only
@@ -123,5 +126,7 @@ in `data/raw/`.
 - [x] Every note in the dataset is returned unchanged
 - [x] All four quality counts match Phase 1
 - [x] Each of the six placeholders is flagged, in any capitals
-- [x] A note that only contains a placeholder word is still meaningful
+- [x] A note that is exactly a placeholder, such as `test`, is flagged; a
+      longer note that contains one, such as `test drive fee`, stays meaningful
+- [x] Note quality never removes a row
 - [x] `None` and non-text input do not raise
