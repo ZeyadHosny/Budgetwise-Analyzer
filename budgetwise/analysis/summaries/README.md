@@ -1,122 +1,162 @@
-# analysis/summaries
+# Summary Analysis
 
-Summary totals and spending rankings over cleaned transactions.
+Calculates financial totals and spending rankings from cleaned transactions.
 
 | Item | Details |
 |---|---|
 | Responsible | Bahareh |
-| Domain reviewer | Henrieta |
-| PR approval | Zeyad or Patrick — see `CONTRIBUTING.md` |
 | Task | P3.3 |
-| Status | Implemented; 27 dictionary-based tests passed. Model integration and full-data validation pending. |
-| Dependency | P3.2 aggregation; G2 for final validation |
+| Status | Implemented; 39 summary tests passed in a local review copy |
+| Dependencies | Public aggregation interface; real models for integration tests |
+| Final validation | Pending rerun on the final approved cleaning baseline |
 
-## 1. Purpose
+## 1. Outputs
 
-This module provides six outputs:
+The public interface provides:
 
-- Total income
-- Total expenses
-- Net balance
-- Monthly expenses
-- Top spending categories
-- Largest individual expenses
+| Function | Result |
+|---|---|
+| `total_income(transactions)` | Total income |
+| `total_expenses(transactions)` | Total expenses |
+| `net_balance(transactions)` | Income minus expenses |
+| `monthly_expenses(transactions)` | Expense totals keyed by `("YYYY", "MM")` |
+| `top_categories(transactions, n=5)` | Category and expense-total pairs |
+| `top_expenses(transactions, n=5)` | Original expense records or objects |
 
-Overall totals, monthly totals, and category rankings use the public
-`budgetwise.analysis.aggregation` interface.
+Totals, monthly expenses and category rankings use the public aggregation
+interface. Individual expense rankings read transaction records directly.
 
-Individual expense rankings examine the transactions directly because
-category totals cannot identify the largest individual transactions.
+## 2. Supported inputs
 
-## 2. Public interface
+Functions accept cleaned dictionaries or Transaction objects providing
+the agreed getters.
+
+The caller selects which transactions to analyze. Functions do not load
+files or receive an Account object directly.
+
+After a successful `budgetwise.pipeline.run()` call:
 
 ```python
 from budgetwise.analysis.summaries import (
-    total_income,
     total_expenses,
-    net_balance,
     monthly_expenses,
     top_categories,
-    top_expenses,
 )
+
+# Overall report for the selected pipeline result
+overall_expenses = total_expenses(result["transactions"])
+
+# Cash report
+cash_transactions = result["accounts"]["cash"].get_transactions()
+cash_expenses = total_expenses(cash_transactions)
+
+# Bank report
+bank_transactions = result["accounts"]["bank"].get_transactions()
+bank_monthly = monthly_expenses(bank_transactions)
+
+# Unknown-payment report
+unknown_transactions = result["accounts"]["unknown"].get_transactions()
+unknown_categories = top_categories(unknown_transactions)
 ```
 
-| Call | Returns |
-|---|---|
-| `total_income(transactions)` | Total income as a float |
-| `total_expenses(transactions)` | Total expenses as a float |
-| `net_balance(transactions)` | Income minus expenses as a float |
-| `monthly_expenses(transactions)` | Dictionary mapping `("YYYY", "MM")` to expense totals |
-| `top_categories(transactions, n=5)` | List of `(category, expense_total)` pairs |
-| `top_expenses(transactions, n=5)` | List of original expense dictionaries or objects |
+Check pipeline errors and object-build failures before presenting a result
+as complete.
 
-The interface accepts cleaned dictionaries or model objects with the
-required getters. Current summary tests verify dictionary inputs;
-integration with the actual model classes remains pending.
+Accounts hold the same transaction objects as the selected master list.
+Do not add master totals to account totals: that would count records twice.
 
-## 3. Input and calculation rules
+For an overall largest-expense ranking, use the ordered master list.
+Concatenating account lists can change the order of equal-amount expenses.
 
-- Inputs must already be cleaned; this module does not repeat cleaning.
+## 3. Calculation rules
+
+- Inputs must already be cleaned.
 - Amounts are unsigned magnitudes.
-- Income and expense classification comes from `transaction_type`.
-- Undated records remain in overall totals and both rankings.
+- Income versus expense comes from `transaction_type`, not amount sign.
+- Undated records remain in overall totals and rankings.
 - Undated expenses are excluded from monthly totals.
-- Month keys are returned in chronological order by aggregation.
-- Category rankings sort by total descending, then category name ascending.
-- Individual expense rankings sort by amount descending and preserve
-  input order for equal amounts.
-- The same ordered input produces the same ranking.
+- Months are returned in chronological order.
+- Category ties use ascending category names.
+- Individual expense ties preserve supplied input order.
 - Input records are not modified or deduplicated.
+- Repeated transaction IDs alone do not remove records.
 
-## 4. Ranking limits and empty input
+Net balance represents income minus expenses over the selected records.
+It is not an account balance including opening balances.
 
-Both ranking functions default to `n=5`.
+## 4. Limits and empty input
 
-- `n=0` returns an empty list.
-- Fewer than `n` available results returns all available results.
-- Negative `n` raises `ValueError`.
-- Noninteger `n`, including booleans, raises `TypeError`.
-- Income records are excluded from both spending rankings.
+Ranking functions default to five results.
 
-Empty input returns zero for overall totals and net balance,
-an empty dictionary for monthly expenses, and empty lists for rankings.
+- Zero returns an empty list.
+- Fewer available results returns all available results.
+- Negative limits raise `ValueError`.
+- Noninteger limits, including booleans, raise `TypeError`.
+
+Empty input returns zero overall totals, an empty monthly dictionary,
+and empty rankings.
 
 ## 5. Files
 
 | Folder | Files |
 |---|---|
 | `implementation/` | `totals.py`, `rankings.py` |
-| `testing/` | `fixture.py`, `test_totals.py`, `test_rankings.py` |
+| `testing/` | `fixture.py`, `test_totals.py`, `test_rankings.py`, `test_account_summaries.py` |
 | `supplementary/` | `manual_verification.md` |
 
-## 6. Validation
+## 6. Tests
 
 Run from the repository root:
 
 ```bash
-python -m unittest budgetwise.analysis.summaries.testing.test_totals budgetwise.analysis.summaries.testing.test_rankings -v
+python -m unittest budgetwise.analysis.summaries.testing.test_totals budgetwise.analysis.summaries.testing.test_rankings budgetwise.analysis.summaries.testing.test_account_summaries -v
 ```
 
-Observed result on the supplied branch ZIP with Python 3.12.14:
+The existing tests contain 27 dictionary-based cases. The new integration
+file adds 12 tests using real ExpenseTransaction, IncomeTransaction,
+CashAccount, BankAccount and UnknownAccount classes.
+
+Integration coverage includes:
+- All six outputs for overall and individual account selections.
+- Hand-calculated expectations.
+- Dictionary/object equivalence.
+- Exactly-once fixture account coverage.
+- Undated expenses and income.
+- Stable ranking ties and original-object identity.
+- Repeated transaction IDs.
+- Empty accounts and unchanged inputs.
+- Shared amount updates without cached totals.
+
+Observed on October 13, 2026, using Python 3.12.14 in a local review copy of
+`Budgetwise-Analyzer-feature-P3.7-exports.zip`, after adding the integration file:
 
 ```text
-Ran 27 tests
+Ran 39 tests
 
 OK
 ```
 
-The ten-record fixture includes hand-calculated expectations,
-undated transactions, and equal-amount ties.
+This result describes the review copy. Verify the actual integration branch
+after committing the files.
 
-See [manual verification](supplementary/manual_verification.md)
-for expected versus actual results, execution details,
-and the repository-wide test findings.
+These are fixture tests; they do not establish pipeline routing or
+full-dataset correctness by themselves. Separate full-dataset review
+findings are recorded in `supplementary/manual_verification.md`.
 
-## 7. Remaining work
+## 7. Reporting and exports
 
-- Verify summaries with the actual Transaction model classes.
-- Reconcile all summaries on the full cleaned dataset after G2.
-- Record the exact commit and dataset used for final validation.
+Summary functions return analysis values; formatting belongs to the menu
+and export features.
 
-The current sample results are fixture results, not full-dataset figures.
-Budget comparisons belong to `analysis/budgets`.
+- Monthly tuple keys need an explicit JSON-compatible representation.
+- `top_expenses()` returns original objects or dictionaries, which an
+  exporter must serialize using the agreed record fields.
+- Budget comparisons belong to `analysis/budgets`.
+- Account report selection belongs to the caller/menu.
+
+## 8. Remaining validation
+
+- Verify the committed integration branch.
+- Preserve historical and current execution evidence separately.
+- Record the exact revision and dataset for final validation after G2.
+- Verify menu/report/export integration on the final application.
