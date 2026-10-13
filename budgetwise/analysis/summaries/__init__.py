@@ -1,7 +1,26 @@
-"""Headline figures — income, expenses, balance, monthly, top five."""
+"""
+Public interface for summary analysis (task P3.3, Bahareh).
 
-# Contract — uncomment once implementation/totals.py exists.
-# from .implementation.totals import (
-#     total_income, total_expenses, net_balance, monthly_expenses,
-# )
-# from .implementation.rankings import top_categories
+Expose total income, total expenses, net balance, monthly expenses,
+top spending categories, and largest individual expenses.
+"""
+
+from .implementation.totals import (
+    total_income,
+    total_expenses,
+    net_balance,
+    monthly_expenses,
+)
+from .implementation.rankings import (
+    top_categories,
+    top_expenses,
+)
+
+__all__ = [
+    "total_income",
+    "total_expenses",
+    "net_balance",
+    "monthly_expenses",
+    "top_categories",
+    "top_expenses",
+]

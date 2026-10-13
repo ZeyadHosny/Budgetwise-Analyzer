@@ -1,49 +1,50 @@
 # analysis/summaries/implementation
 
-Bahareh · `P3.2` · domain reviewer Henrieta
+**Task:** P3.3  
+**Responsible:** Bahareh
 
-## Write these
+## Modules
+
+| Module | Functions |
+|---|---|
+| `totals.py` | `total_income`, `total_expenses`, `net_balance`, `monthly_expenses` |
+| `rankings.py` | `top_categories`, `top_expenses` |
+
+## Dependencies
+
+Totals and category rankings use the public interface:
 
 ```python
-total_income(transactions)        -> float
-total_expenses(transactions)      -> float
-net_balance(transactions)         -> float     income - expenses
-monthly_expenses(transactions)    -> dict[tuple[str, str], float]
-top_categories(transactions, n=5) -> list[tuple[str, float]]
+from budgetwise.analysis.aggregation import (
+    totals_by_category,
+    totals_by_month,
+)
 ```
 
-## Build on aggregation, do not re-count
+No imports reach into another feature's implementation folder.
 
-```python
-from budgetwise.analysis.aggregation import totals_by_category, totals_by_month
-```
+Individual expense rankings read cleaned records directly through
+dictionary keys or the model getters `get_amount()` and
+`get_transaction_type()`.
 
-`P3.2`'s collaborator is Henrieta for exactly this reason. Two independent loops
-over the same data eventually disagree, and then the report has two answers to
-one question with no way to tell which is right.
+## Rules
 
-## Two things to get right
+- Inputs are already cleaned; amounts are unsigned.
+- Transaction direction comes from `transaction_type`.
+- Undated records remain in overall totals and rankings.
+- Monthly expenses exclude undated records.
+- Category ties use ascending category names.
+- Expense ties preserve input order.
+- Original records are not modified or deduplicated.
 
-**Direction comes from `transaction_type`.** §4.5 is explicit: the amount is an
-unsigned magnitude, and income versus expense is decided by the field, never by
-a minus sign. The raw data has 153 negative amounts; every one of them is a
-magnitude whose direction is set elsewhere.
+## Public access
 
-**Ties in the top five need a rule.** If two categories total the same, decide
-now how to order them — alphabetically is fine — and write it down. Without a
-rule the ranking can change between runs on the same data, which looks like a
-bug in the report.
+Other features should import these functions from
+`budgetwise.analysis.summaries`, not from this implementation folder.
 
-## Trends
+## Validation
 
-§2 asks for "spending summaries, budget comparisons, **and trends**", but §4.4
-never defines a trend output. `monthly_expenses` is the material for it. Note
-what the months actually show — growth, seasonality, a flat line — in
-`manual_verification.md` so `P4.4` has something to write.
+The 27 dictionary-based summary tests passed on the supplied branch ZIP.
+Actual model integration and full-data reconciliation remain pending.
 
-## Do not
-
-- Re-implement grouping — use `aggregation`
-- Use the sign of `amount` to classify a transaction
-- Print — `interface/` does that
-- Import pandas or numpy — violates §2
+See [manual verification](../supplementary/manual_verification.md).
