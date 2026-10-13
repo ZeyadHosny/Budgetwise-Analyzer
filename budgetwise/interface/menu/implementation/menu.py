@@ -8,6 +8,13 @@
 import sys
 from datetime import datetime
 from pathlib import Path
+from budgetwise.analysis.summaries import (
+    net_balance,
+    top_categories,
+    total_expenses,
+    total_income,
+)
+from budgetwise.interface.export import export_cleaned, export_summary
 from budgetwise.pipeline import run
 
 # The heading printed above the options on every pass of the loop.
@@ -31,9 +38,9 @@ DATE_FORMAT = "%Y-%m-%d"
 # The 14 canonical categories agreed at G1. Task P2.2 produces these from
 # the 47 raw spellings in the dataset.
 CATEGORIES = (
-    "Bonus", "Education", "Entertainment", "Food", "Freelance", "Health",
-    "Investment", "Others", "Rent", "Salary", "Savings", "Travel",
-    "Uncategorized", "Utilities",
+    "Bonus", "Education", "Entertainment", "Food", "Freelance",
+    "Healthcare", "Investment", "Other", "Rent", "Salary", "Savings",
+    "Transportation", "Uncategorized", "Utilities",
 )
 # How many category names to print per line when listing the options.
 CATEGORIES_PER_LINE = 4
@@ -229,6 +236,42 @@ def format_summary(result):
     return "\n".join(lines)
 
 
+def export_run(result, dataset, selection=None):
+    """Export the transactions selected by this menu load."""
+    records = result.get("records")
+    if records is None or (result.get("error") and not records):
+        return
+    transactions = result.get("transactions")
+    if transactions is None or (result.get("error") and not transactions):
+        return
+
+    counts = result.get("counts", {})
+    cleaning_count_keys = (
+        "input", "valid", "duplicates", "skipped", "corrected", "flagged",
+        "categories_normalized", "repeated_ids", "by_reason",
+    )
+    summary = {
+        "scope": "transactions selected by menu query",
+        "selection": selection or {"type": "all"},
+        "selected_transactions": len(transactions),
+        "counts": {
+            key: counts[key] for key in cleaning_count_keys if key in counts
+        },
+        "timings": result.get("timings", {}),
+        "totals": {
+            "income": total_income(transactions),
+            "expenses": total_expenses(transactions),
+            "net": net_balance(transactions),
+        },
+        "top_categories": top_categories(transactions, n=5),
+    }
+    generated_at = datetime.now()
+    cleaned_path = export_cleaned(transactions, dataset, when=generated_at)
+    summary_path = export_summary(summary, dataset, when=generated_at)
+    print(f"  Cleaned CSV: {cleaned_path}")
+    print(f"  JSON summary: {summary_path}")
+
+
 # Function to raise when the pipeline is not available
 def missing_pipeline(*args, **kwargs):
     """
@@ -285,11 +328,15 @@ def run_menu(pipeline_run=run, dataset=DATASET):
             if choice == "1":
                 result = pipeline_run(dataset)
                 print(format_summary(result))
+                export_run(result, dataset, {"type": "all"})
 
             elif choice == "2":
                 start, end = prompt_date_range()
                 result = pipeline_run(dataset, start=start, end=end)
                 print(format_summary(result))
+                export_run(result, dataset, {
+                    "type": "date_range", "start": start, "end": end,
+                })
                 print(f"  Range {start} to {end}. Rows with no date are "
                       f"excluded from a date range - section 4.5.")
 
@@ -297,6 +344,9 @@ def run_menu(pipeline_run=run, dataset=DATASET):
                 category = prompt_category()
                 result = pipeline_run(dataset, category=category)
                 print(format_summary(result))
+                export_run(result, dataset, {
+                    "type": "category", "category": category,
+                })
                 print(f"  Category {category}. The filter runs after "
                       f"normalization, so 'Fod' and 'Foodd' match too.")
 
@@ -343,7 +393,7 @@ def demo_run(dataset_path, start=None, end=None, category=None):
         ("T3133", "2024-07-17", "Rent", 9567.0),
         ("T12350", None, "Food", 6299.0),
         ("T9824", "2024-12-12", "Salary", 62061.0),
-        ("T2699", "2023-02-25", "Travel", 2553.0),
+        ("T2699", "2023-02-25", "Transportation", 2553.0),
     ]
     kept = rows
     if start and end:

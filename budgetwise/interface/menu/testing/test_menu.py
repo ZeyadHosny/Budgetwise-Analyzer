@@ -147,6 +147,13 @@ class TestCategory(unittest.TestCase):
     - Menu option 3, matching against the 14 canonical categories.
     """
 
+    def test_choices_match_normalized_category_names(self):
+      self.assertEqual(menu.CATEGORIES, (
+        "Bonus", "Education", "Entertainment", "Food", "Freelance",
+        "Healthcare", "Investment", "Other", "Rent", "Salary",
+        "Savings", "Transportation", "Uncategorized", "Utilities",
+      ))
+
     # Test that an exact category name is accepted
     def test_exact_match(self):
         """
@@ -278,6 +285,51 @@ class TestLoop(unittest.TestCase):
         with patch("builtins.input", side_effect=["1", "5"]):
             menu.run_menu(pipeline_run=menu.demo_run)
 
+    def test_successful_load_exports_cleaned_records_and_summary(self):
+        record = {
+            "transaction_id": "E1",
+            "user_id": "U1",
+            "date": "2026-01-05",
+            "transaction_type": "Expense",
+            "category": "Food",
+            "amount": 50.0,
+            "original_currency": "plain",
+        }
+        unselected_record = {
+            "transaction_id": "I1",
+            "user_id": "U1",
+            "date": "2026-01-06",
+            "transaction_type": "Income",
+            "category": "Salary",
+            "amount": 500.0,
+            "original_currency": "plain",
+        }
+        result = {
+            "records": [record, unselected_record],
+            "transactions": [record],
+            "counts": {"input": 2, "valid": 2, "returned": 1},
+            "timings": {"load": 0.1, "clean": 0.2},
+            "error": None,
+        }
+        with patch("builtins.input", side_effect=["1", "5"]), \
+             patch.object(menu, "export_cleaned", return_value=Path("clean.csv")) as csv_export, \
+             patch.object(menu, "export_summary", return_value=Path("summary.json")) as json_export:
+            menu.run_menu(pipeline_run=lambda dataset: result, dataset="sample.csv")
+
+        csv_export.assert_called_once()
+        self.assertEqual(csv_export.call_args.args, ([record], "sample.csv"))
+        self.assertEqual(json_export.call_args.args[1], "sample.csv")
+        self.assertIs(csv_export.call_args.kwargs["when"],
+                      json_export.call_args.kwargs["when"])
+        summary = json_export.call_args.args[0]
+        self.assertEqual(summary["counts"], {"input": 2, "valid": 2})
+        self.assertEqual(summary["selection"], {"type": "all"})
+        self.assertEqual(summary["selected_transactions"], 1)
+        self.assertEqual(summary["totals"], {
+            "income": 0.0, "expenses": 50.0, "net": -50.0,
+        })
+        self.assertEqual(summary["top_categories"], [("Food", 50.0)])
+
     # Test that bad input does not end the program
     def test_invalid_then_exit(self):
         """
@@ -307,7 +359,7 @@ class TestLoop(unittest.TestCase):
           lets the menu be built and demonstrated independently.
         """
         with patch("builtins.input", side_effect=["1", "5"]):
-            menu.run_menu()
+            menu.run_menu(pipeline_run=None)
 
 
 class TestSummary(unittest.TestCase):
