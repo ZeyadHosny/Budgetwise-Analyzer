@@ -103,29 +103,18 @@ except ImportError:
 CASH_MODES = {"Cash"}
 BANK_MODES = {"Card", "UPI", "Bank Transfer"}
 
-# --------------------------------------------------------------------------
-# REASON CODES
-# All in one place, in the lowercase style of errorlog's Reason list, so the
-# team can change the vocabulary here once it is agreed. The cleaners return
-# their own codes; _reason_list() puts those in the same style.
-# --------------------------------------------------------------------------
-DUPLICATE_ROW = Reason.DUPLICATE_ROW                    # row skipped
-MISSING_REQUIRED_FIELD = Reason.MISSING_REQUIRED_FIELD  # row skipped
-UNRECOGNIZED_AMOUNT = Reason.UNRECOGNIZED_AMOUNT_FORMAT  # row skipped
-MALFORMED_ROW = "malformed_row"                         # skipped or flagged
-REPEATED_TRANSACTION_ID = "repeated_transaction_id"     # flagged, row kept
-CURRENCY_LABEL_STRIPPED = "currency_label_stripped"     # corrected
-NEGATIVE_AMOUNT_MAGNITUDE = "negative_amount_magnitude"  # corrected
-FILE_NOT_LOADED = "file_not_loaded"
-OBJECT_NOT_BUILT = "transaction_not_built"              # flagged
-
 # Reasons that mean "a value was changed to its standard form" (corrected).
 # Any other reason on a row we keep means "kept, but with a concern" (flagged).
 CORRECTED_REASONS = {
-    "date_normalized", "category_normalized", "category_uncategorized",
-    "payment_mode_normalized", "payment_mode_unknown",
-    "location_normalized", "location_unknown",
-    CURRENCY_LABEL_STRIPPED, NEGATIVE_AMOUNT_MAGNITUDE,
+    Reason.DATE_NORMALIZED.lower(),
+    Reason.CATEGORY_NORMALIZED.lower(),
+    Reason.CATEGORY_UNCATEGORIZED.lower(),
+    Reason.PAYMENT_MODE_NORMALIZED.lower(),
+    Reason.PAYMENT_MODE_UNKNOWN.lower(),
+    Reason.LOCATION_NORMALIZED.lower(),
+    Reason.LOCATION_UNKNOWN.lower(),
+    Reason.CURRENCY_LABEL_STRIPPED,
+    Reason.NEGATIVE_AMOUNT_MAGNITUDE,
 }
 
 NO_CURRENCY_LABEL = "plain"
@@ -189,7 +178,7 @@ def _clean_rows(path, error_log):
         numbered_rows = list(load_rows(path))
     except Exception as error:       # missing file, bad header, bad encoding
         result["error"] = f"could not load {path}: {error}"
-        record_issue(0, "file", FILE_NOT_LOADED, str(error))
+        record_issue(0, "file", Reason.FILE_NOT_LOADED, str(error))
         return result
     loaded = time.perf_counter()
     result["timings"]["load"] = round(loaded - started, 4)
@@ -204,13 +193,13 @@ def _clean_rows(path, error_log):
             # STEP 2: exact duplicate? Checked on the untouched raw row.
             if is_duplicate(raw, seen_rows):
                 counts["duplicates"] += 1
-                record_issue(line_number, "row", DUPLICATE_ROW, _row_id(raw))
+                record_issue(line_number, "row", Reason.DUPLICATE_ROW, _row_id(raw))
                 continue
             # STEPS 3 to 5.
             record = _clean_one_row(line_number, raw, record_issue)
         except Exception as error:
             record = None
-            record_issue(line_number, "row", MALFORMED_ROW,
+            record_issue(line_number, "row", Reason.MALFORMED_ROW,
                          f"could not be processed: {type(error).__name__}: {error}")
 
         if record is None:
@@ -231,7 +220,7 @@ def _clean_rows(path, error_log):
     for record in records:
         if record["transaction_id"] in repeated:
             record_issue(record["line_number"], "transaction_id",
-                         REPEATED_TRANSACTION_ID, record["transaction_id"])
+                         Reason.REPEATED_TRANSACTION_ID, record["transaction_id"])
     counts["repeated_ids"] = len(repeated)
 
     result["timings"]["clean"] = round(time.perf_counter() - loaded, 4)
@@ -249,9 +238,9 @@ def _clean_one_row(line_number, raw, record_issue):
     usable, problems = validate_raw_row(raw)
     for column, detail in problems:
         if not usable and column in REQUIRED_COLUMNS:
-            record_issue(line_number, column, MISSING_REQUIRED_FIELD, detail)
+            record_issue(line_number, column, Reason.MISSING_REQUIRED_FIELD, detail)
         else:
-            record_issue(line_number, column, MALFORMED_ROW, detail)
+            record_issue(line_number, column, Reason.MALFORMED_ROW, detail)
     if not usable:
         return None            # skipped. A usable row with a problem carries on.
 
@@ -259,7 +248,9 @@ def _clean_one_row(line_number, raw, record_issue):
     raw_amount = raw["amount"]
     amount, symbol, amount_reason = parse_amount(raw_amount)
     if amount is None or not math.isfinite(amount):
-        record_issue(line_number, "amount", amount_reason or UNRECOGNIZED_AMOUNT, raw_amount)
+        record_issue(line_number, "amount",
+                     amount_reason or Reason.UNRECOGNIZED_AMOUNT_FORMAT,
+                     raw_amount)
         return None
     # The parser strips the currency label and the minus sign without saying
     # so. Section 4.5 wants the original label logged, so it is noted here.
@@ -271,9 +262,9 @@ def _clean_one_row(line_number, raw, record_issue):
         # Only a real label counts as stripped. If the parser ever reports
         # "plain" for an amount with no label, nothing was stripped.
         if symbol and symbol != NO_CURRENCY_LABEL:
-            record_issue(line_number, "amount", CURRENCY_LABEL_STRIPPED, raw_amount)
+            record_issue(line_number, "amount", Reason.CURRENCY_LABEL_STRIPPED, raw_amount)
         if "-" in raw_amount:
-            record_issue(line_number, "amount", NEGATIVE_AMOUNT_MAGNITUDE, raw_amount)
+            record_issue(line_number, "amount", Reason.NEGATIVE_AMOUNT_MAGNITUDE, raw_amount)
 
     # STEP 5: the other columns. None of these can make the row invalid.
     date, date_reasons = parse_date(raw["date"])            # date may be None
@@ -392,7 +383,8 @@ def _build_objects(result, error_log, start, end, category):
         except Exception as error:      # the class refused the values
             counts["objects_failed"] += 1
             _record_issue(result, error_log, record["line_number"], "row",
-                          OBJECT_NOT_BUILT, f"{type(error).__name__}: {error}")
+                          Reason.TRANSACTION_NOT_BUILT,
+                          f"{type(error).__name__}: {error}")
             continue
         counts["objects_built"] += 1
 

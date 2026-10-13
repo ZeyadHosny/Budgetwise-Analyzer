@@ -9,13 +9,15 @@ import unittest
 from collections import Counter
 
 from budgetwise.cleaning.dates import (
-    DATE_NORMALIZED,
-    INVALID_DATE,
-    MISSING_DATE,
     find_date_format,
     is_ambiguous_date,
     parse_date,
 )
+from budgetwise.errorlog import Reason
+
+DATE_NORMALIZED = Reason.DATE_NORMALIZED
+INVALID_DATE = Reason.INVALID_DATE
+MISSING_DATE = Reason.MISSING_DATE
 
 # ---- helper: load one column of the real dataset, if the file is here ----
 # The raw dataset lives in data/raw/ at the top of the repository.

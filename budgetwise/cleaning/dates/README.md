@@ -57,7 +57,6 @@ Everything the folder exports:
 | `parse_date` | `(raw_date)` | `(date, reasons)`. `date` is `'YYYY-MM-DD'` text or `None`. `reasons` is a **list**, empty when there is nothing to report |
 | `find_date_format` | `(raw)` | the format name a raw date matches, or `None` |
 | `is_ambiguous_date` | `(raw)` | `True` if a real slash or hyphen date has day and month both from 1 to 12 |
-| `DATE_NORMALIZED`, `MISSING_DATE`, `INVALID_DATE` | | reason codes |
 
 `find_date_format` and `is_ambiguous_date` are only used to produce the
 report evidence. Parsing does not depend on them.
@@ -72,7 +71,7 @@ report evidence. Parsing does not depend on them.
 | `03-04-22` | `"2022-04-03"` | `DATE_NORMALIZED`. Hyphen, so day first |
 | `14-07-2023` | `"2023-07-14"` | `DATE_NORMALIZED` |
 | `" 2023-07-14 "` (outer spaces) | `"2023-07-14"` | `DATE_NORMALIZED`. Spaces removed |
-| `""`, spaces, `N/A`, `None` | `None` | `MISSING_DATE` |
+| `""`, spaces, `N/A`, `None` | `None` | `missing_date` |
 | `14th July`, `8/5/2022` | `None` | `INVALID_DATE`. No format matches |
 | `31-02-23`, `31/02/2023` | `None` | `INVALID_DATE`. Right shape, not a real date |
 | a number or other non-text value | `None` | `INVALID_DATE` |
@@ -92,11 +91,12 @@ or less, so it could be read either way. The rules above settle every one.
 `is_ambiguous_date` counts them for the report. It only counts dates that
 `parse_date` accepts, so `00/05/2023` is not counted: it is not a date at all.
 
-**Reason codes, still to agree with Patrick.** This folder returns
-`DATE_NORMALIZED`, `MISSING_DATE` and `INVALID_DATE`. The pipeline writes them
-to the log in lowercase. Patrick's `errorlog` list has `missing_date`,
+**Reason codes, still to agree with Patrick.** The parser uses the centralized
+`Reason.DATE_NORMALIZED`, `Reason.MISSING_DATE` and `Reason.INVALID_DATE`
+codes. The pipeline writes them to the log in lowercase. Patrick's `errorlog`
+list has `missing_date`,
 `unrecognized_date_format` and `impossible_date`. Lowercasing makes
-`MISSING_DATE` match, but it cannot make the other names match:
+`missing_date` match, but it cannot make the other names match:
 `date_normalized` has no entry in his list, and `invalid_date` covers what his
 list splits into two codes. One vocabulary has to be agreed and recorded
 (review S08, `docs/decisions.md` D11). Until then these codes are unchanged.

@@ -20,7 +20,7 @@ Henrietta · `P2.2` · domain reviewer Sarah
 | Exact only | `Freelance`, `Investment`, `Bonus`, `Salary` | unchanged | 4 |
 | Whitespace | `"  Food  "` | `("Food", "CATEGORY_NORMALIZED")` | 1 |
 | Missing | `""`, `"   "`, `None` | `("Uncategorized", "CATEGORY_UNCATEGORIZED")` | 3 |
-| Unknown | `CarPayment` | `("Uncategorized", "UNKNOWN_CATEGORY")` | 1 |
+| Unknown | `CarPayment` | `("Uncategorized", "unknown_category")` | 1 |
 | **Total** | | | **51** |
 
 Reason codes checked:
@@ -28,7 +28,7 @@ Reason codes checked:
 - The input is already the approved name, e.g. `"Food"`: reason is `None`.
 - Any other recognized variant, including extra spaces: `CATEGORY_NORMALIZED`.
 - Missing input: `CATEGORY_UNCATEGORIZED`.
-- Not in the mapping: `UNKNOWN_CATEGORY`.
+- Not in the mapping: `unknown_category`.
 
 
 

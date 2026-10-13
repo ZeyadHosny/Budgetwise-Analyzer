@@ -32,6 +32,7 @@ REASON CODES AND FUNCTION NAME
 
 import re
 from datetime import datetime
+from budgetwise.errorlog import Reason
 
 # Each format: (name, exact shape, how Python should read it).
 # The shapes are strict about digit counts, so "8/5/2022" or "2022/08/05"
@@ -44,12 +45,6 @@ DATE_FORMATS = (
 )
 
 MISSING_VALUES = ("", "n/a")
-
-# Reason codes
-DATE_NORMALIZED = "DATE_NORMALIZED"    # corrected: non-ISO date converted
-MISSING_DATE = "MISSING_DATE"          # flagged: date is blank
-INVALID_DATE = "INVALID_DATE"          # flagged: cannot be parsed by the rules
-
 
 def find_date_format(raw):
     """Return the format name a raw date matches, or None."""
@@ -67,12 +62,12 @@ def parse_date(raw_date):
     # 1. Missing?
     raw = raw_date
     if raw is None:
-        return None, [MISSING_DATE]
+        return None, [Reason.MISSING_DATE]
     if not isinstance(raw, str):
-        return None, [INVALID_DATE]
+        return None, [Reason.INVALID_DATE]
     text = raw.strip()
     if text.lower() in MISSING_VALUES:
-        return None, [MISSING_DATE]
+        return None, [Reason.MISSING_DATE]
 
     # 2. Find the format whose shape matches, then let Python read it.
     for name, shape, read_format in DATE_FORMATS:
@@ -82,15 +77,15 @@ def parse_date(raw_date):
             except ValueError:
                 # Right shape but not a real date, e.g. 31-02-23, or a slash
                 # date like 25/12/2023 where the "month" would be 25.
-                return None, [INVALID_DATE]
+                return None, [Reason.INVALID_DATE]
             value = parsed.strftime("%Y-%m-%d")
             # Already in the target format: nothing to report.
             if value == raw:
                 return value, []
-            return value, [DATE_NORMALIZED]
+            return value, [Reason.DATE_NORMALIZED]
 
     # 3. No format matched: report it, never guess.
-    return None, [INVALID_DATE]
+    return None, [Reason.INVALID_DATE]
 
 
 def is_ambiguous_date(raw):

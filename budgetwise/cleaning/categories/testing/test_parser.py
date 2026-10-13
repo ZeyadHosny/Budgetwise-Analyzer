@@ -1,6 +1,7 @@
 import unittest
 
 from budgetwise.cleaning.categories import normalize_category
+from budgetwise.errorlog import Reason
 
 
 class TestCategoryParser(unittest.TestCase):
@@ -320,7 +321,7 @@ class TestCategoryParser(unittest.TestCase):
     def test_unknown_category(self):
         self.assertEqual(
             normalize_category("CarPayment"),
-            ("Uncategorized", "UNKNOWN_CATEGORY")
+            ("Uncategorized", Reason.UNKNOWN_CATEGORY)
         )
 
 

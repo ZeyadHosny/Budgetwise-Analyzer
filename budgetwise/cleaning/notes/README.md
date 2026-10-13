@@ -54,9 +54,9 @@ Everything the folder exports:
 | Name | What it is |
 |---|---|
 | `classify_note_quality(raw_note)` | returns `(note, quality, reasons)` |
-| `MEANINGFUL`, `LOW_INFORMATION`, `MISSING`, `NOT_AVAILABLE` | the four quality labels |
-| `NOTES_MISSING`, `NOTES_LOW_INFORMATION` | the two reason codes |
-| `PLACEHOLDER_NOTES` | the six placeholders |
+
+Reason codes come from `budgetwise.errorlog.Reason`; quality labels and the
+placeholder list are implementation details.
 
 ## 3. What it produces
 

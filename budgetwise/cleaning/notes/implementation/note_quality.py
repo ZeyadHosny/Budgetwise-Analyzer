@@ -20,6 +20,8 @@ Returns THREE things (spec: "preserved note + quality flag / reason metadata"):
 note is the text exactly as it was ('' if there was none).
 """
 
+from budgetwise.errorlog import Reason
+
 # Quality flags
 MEANINGFUL = "meaningful"
 MISSING = "missing"                    # blank
@@ -29,15 +31,10 @@ LOW_INFORMATION = "low_information"    # known placeholder
 # Closed list of placeholders found in Phase 1 (compared in lowercase).
 PLACEHOLDER_NOTES = ("...", "!!!", "xyz123", "test", "misc", "asdfgh")
 
-# Reason codes (both are flags; the row is always kept)
-NOTES_MISSING = "NOTES_MISSING"
-NOTES_LOW_INFORMATION = "NOTES_LOW_INFORMATION"
-
-
 def classify_note_quality(raw_note):
     """Return (note text unchanged, quality, reasons). Never crashes."""
     if raw_note is None:
-        return "", MISSING, [NOTES_MISSING]
+        return "", MISSING, [Reason.NOTES_MISSING]
     if not isinstance(raw_note, str):
         raw_note = str(raw_note)
 
@@ -46,11 +43,11 @@ def classify_note_quality(raw_note):
     comparable = raw_note.strip().lower()
 
     if comparable == "":
-        return raw_note, MISSING, [NOTES_MISSING]
+        return raw_note, MISSING, [Reason.NOTES_MISSING]
     if comparable == "n/a":
         # Same reason code as blank, but a separate quality flag, so the
         # blank and N/A counts can each be reconciled with Phase 1.
-        return raw_note, NOT_AVAILABLE, [NOTES_MISSING]
+        return raw_note, NOT_AVAILABLE, [Reason.NOTES_MISSING]
     if comparable in PLACEHOLDER_NOTES:
-        return raw_note, LOW_INFORMATION, [NOTES_LOW_INFORMATION]
+        return raw_note, LOW_INFORMATION, [Reason.NOTES_LOW_INFORMATION]
     return raw_note, MEANINGFUL, []
