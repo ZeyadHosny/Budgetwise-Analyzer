@@ -15,7 +15,7 @@ clean_file(path, error_log=None) -> dict
 
 run(path, start=None, end=None, category=None, error_log=None) -> dict
     Same cleaning, then builds the transaction objects, applies the menu's
-    filters and fills the two accounts. This is what the menu calls.
+    filters and fills the three accounts. This is what the menu calls.
 ```
 
 `start` and `end` are `'YYYY-MM-DD'` text, both inclusive. `category` is a
@@ -34,7 +34,7 @@ not `result.counts`. There is no `LoadResult` class.
 | `issues` | both | list of `(line_number, field, reason, raw_value)` |
 | `error` | both | `None`, or a message if the file could not be read |
 | `transactions` | `run` | list of `ExpenseTransaction` / `IncomeTransaction` that pass the filters |
-| `accounts` | `run` | `{"cash": CashAccount, "bank": BankAccount}` holding those same objects |
+| `accounts` | `run` | `{"cash": CashAccount, "bank": BankAccount, "unknown": UnknownAccount}` holding those same objects |
 
 Each record has these keys: `line_number`, `transaction_id`, `user_id`,
 `transaction_type`, `date` (`'YYYY-MM-DD'` or `None`), `category`, `amount`
@@ -53,7 +53,7 @@ print(result["counts"]["input"], result["counts"]["valid"])    # 15900 14651
 
 result = run("data/raw/budgetwise_finance_dataset.csv", category="Food")
 print(len(result["transactions"]))
-print(result["accounts"]["cash"].transaction_count())
+print(result["accounts"]["cash"].get_transaction_count())
 ```
 
 ## Order is mandatory
@@ -69,9 +69,9 @@ print(result["accounts"]["cash"].transaction_count())
    cleaning.locations.normalize_location
    cleaning.notes.classify_note_quality
 6. cleaning.rows.find_repeated_ids        repeated IDs flagged, rows KEPT
-7. models.Transaction.create(...)         Expense or Income object
+7. models.ExpenseTransaction(...)         or IncomeTransaction(...), by transaction_type
 8. date-range and category filters
-9. account.add(transaction)               cash or bank, by payment mode
+9. account.add_transaction(transaction)   cash, bank or unknown, by payment mode
 ```
 
 Step 2 cannot move. Section 4.5: *"Duplicate detection must be performed on
@@ -108,10 +108,12 @@ Object counts. These describe steps 7 to 9 and are zero from `clean_file`.
 | `objects_built` | cleaned records that became objects |
 | `objects_failed` | cleaned records the classes refused |
 | `returned` | objects left after the filters |
-| `no_account` | returned objects in neither account |
 
-`objects_built + objects_failed = valid`. An object failure does not change
-any cleaning count.
+Once object building has finished, `objects_built + objects_failed = valid`.
+This does not hold from `clean_file`, which builds no objects, or when `run`
+stops early because the file could not be read or the model classes are
+missing. An object failure does not change any cleaning count, but the row
+is counted once as flagged, because `transaction_not_built` is logged on it.
 
 ## Row status
 
@@ -134,15 +136,21 @@ final cleaned records. `repeated_ids` is the last of these.
 
 | Class | Use |
 |---|---|
-| `Transaction` | parent, never built directly. `create()` picks the child |
+| `Transaction` | parent, never built directly. No factory: the pipeline builds the child for `transaction_type` |
 | `ExpenseTransaction`, `IncomeTransaction` | one object per cleaned row |
-| `Account` | parent, never built directly. Supplies `add()` |
-| `CashAccount`, `BankAccount` | one of each per load |
+| `Account` | parent, never built directly. Supplies `add_transaction()` |
+| `CashAccount`, `BankAccount`, `UnknownAccount` | one of each per load |
 | `Budget` | not used here. It belongs to the budget analysis (P3.4) |
 
 Cash goes to the cash account. Card, UPI and Bank Transfer go to the bank
-account. Any other payment mode goes to neither and is counted in
-`no_account`, until the team decides where Unknown belongs.
+account. Anything else, in practice a blank payment mode shown as `Unknown`,
+goes to the unknown account.
+
+Every value on a model object is private. Read it through its getter:
+`get_transaction_id()`, `get_date()`, `get_category()`, `get_amount()`,
+`get_payment_mode()`, `get_signed_amount()`, and on an account
+`get_transactions()`, `get_transaction_count()`, `get_total_spent()`,
+`get_total_received()`.
 
 If `budgetwise.models` has no classes, `clean_file` still works and `run`
 returns the cleaned records with a message in `error`.

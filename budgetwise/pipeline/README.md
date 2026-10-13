@@ -8,7 +8,7 @@ Runs raw rows through every cleaner and builds the cleaned dataset.
 | **Domain reviewer** | Patrick (`P2.10`). All team at `G2` |
 | **PR approval** | Zeyad or Patrick. See `CONTRIBUTING.md` |
 | **Tasks** | `P2.10` implementation · `G2` integration |
-| **Status** | Implemented, with the Phase 2 review corrections applied. Object building waits for the classes in `budgetwise/models` |
+| **Status** | Merged (#10). Integrated with Zeyad's model classes (#16) in the follow-up pull request |
 
 ## 1. What this folder does
 
@@ -35,7 +35,7 @@ all cleaned rows
   9. repeated IDs flagged   cleaning/rows    rows are KEPT
  10. transaction object     models           Expense or Income
  11. menu filters           date range, category
- 12. account                models           cash or bank
+ 12. account                models           cash, bank or unknown
 ```
 
 Only two things remove a row: it cannot be used at all (duplicate, or a
@@ -49,7 +49,7 @@ from budgetwise.pipeline import clean_file, run
 
 result = run("data/raw/budgetwise_finance_dataset.csv")
 result["transactions"]     # list of ExpenseTransaction / IncomeTransaction
-result["accounts"]         # {"cash": CashAccount, "bank": BankAccount}
+result["accounts"]         # {"cash": CashAccount, "bank": BankAccount, "unknown": UnknownAccount}
 result["counts"]           # dict of the numbers the report needs
 result["timings"]          # seconds for load and clean
 result["error"]            # None, or a message if the file could not be read
@@ -72,7 +72,7 @@ Both return a **dictionary**. There is no `LoadResult` class, so write
 | Key | Example on the full dataset | Feeds |
 |---|---|---|
 | `transactions` | list of 14,651 objects | all of `analysis/` |
-| `accounts` | one `CashAccount`, one `BankAccount` | report: cash versus bank |
+| `accounts` | one `CashAccount`, one `BankAccount`, one `UnknownAccount` | report: cash versus bank |
 | `records` | list of 14,651 dictionaries, unfiltered | export, metrics |
 | `counts["input"]` | 15,900 | report: number of input records |
 | `counts["valid"]` | 14,651 | report: number of valid records |
@@ -99,41 +99,42 @@ encapsulation. The pipeline is where the classes first meet the data.
 
 | Class | Kind | What the pipeline does with it |
 |---|---|---|
-| `Transaction` | parent | Never built directly. Its `create()` factory reads `transaction_type` and returns one of its two children |
+| `Transaction` | parent | Never built directly. It has no factory, so the pipeline builds the child that matches `transaction_type` |
 | `ExpenseTransaction` | child of `Transaction` | One object for every cleaned Expense row |
 | `IncomeTransaction` | child of `Transaction` | One object for every cleaned Income row |
-| `Account` | parent | Never built directly. It supplies `add()`, which both children inherit |
+| `Account` | parent | Never built directly. It supplies `add_transaction()`, which all three children inherit |
 | `CashAccount` | child of `Account` | One per load. Holds the Cash transactions |
 | `BankAccount` | child of `Account` | One per load. Holds Card, UPI and Bank Transfer |
+| `UnknownAccount` | child of `Account` | One per load. Holds rows whose payment mode is blank, shown as `Unknown` |
 | `Budget` | stands alone | Not used here. It compares monthly totals with limits, which is the budget analysis (`P3.4`) |
 
 How they work together for one row:
 
 ```
 cleaned values
-   -> Transaction.create(...)            picks the child class
-   -> ExpenseTransaction or IncomeTransaction
+   -> ExpenseTransaction(...) or IncomeTransaction(...)   chosen by transaction_type
    -> appended to result["transactions"]      the list of objects (section 4.2)
-   -> cash.add(txn) or bank.add(txn)          the SAME object, not a copy
+   -> cash, bank or unknown .add_transaction(txn)   the SAME object, not a copy
 ```
 
 - **Inheritance.** Every object in the list is a child class, and also a
   `Transaction`. Code that only needs an amount or a date can treat them all
-  alike. Code that needs the direction calls `signed_amount()`, which each
+  alike. Code that needs the direction calls `get_signed_amount()`, which each
   child answers differently.
-- **Encapsulation.** The pipeline never reaches into `_amount` or
-  `_transactions`. It passes cleaned values to `create()` and `add()`, and the
-  classes check them. An amount is cleaned to an unsigned number first, so the
+- **Encapsulation.** Every attribute on the model classes is private. The
+  pipeline passes cleaned values to the constructor and to
+  `add_transaction()`, and reads values back only through getters such as
+  `get_amount()`. The classes check what they are given. An amount is cleaned to an unsigned number first, so the
   class always receives a value it accepts.
 - **Two containers, one set of objects.** The list answers "what was spent on
   Food". The accounts answer "how much went through cash and how much through
-  the bank".
+  the bank, and how much has no recorded payment method".
 - **Efficiency.** Each cleaned row is visited once to build its object, apply
   the filters and place it in an account.
 
-A payment mode that is neither cash nor a bank channel, such as `Unknown`,
-goes in neither account and is counted in `counts["no_account"]`, until the
-team decides where it belongs. Those objects are still in the list, so they
+A payment mode that is neither cash nor a bank channel, in practice a blank
+one shown as `Unknown`, goes in the `UnknownAccount`. Zeyad's model provides
+that account for exactly these rows. All objects are also in the list, so they
 count in every total.
 
 If the classes refuse a row, it is logged as `transaction_not_built` and
@@ -159,13 +160,13 @@ counted in `counts["objects_failed"]`. The cleaning counts do not change.
 | Folder | Contents |
 |---|---|
 | `implementation/` | `runner.py` |
-| `testing/` | `test_runner.py`, 86 tests |
+| `testing/` | `test_runner.py`, 90 tests |
 | `supplementary/` | `pipeline_evidence.md` |
 
 Run the tests from the repository root:
 
 ```bash
-python -m unittest budgetwise.pipeline.testing.test_runner -v
+python3 -m unittest budgetwise.pipeline.testing.test_runner -v
 ```
 
 Each subfolder has its own README with the detail.
@@ -177,16 +178,13 @@ Each subfolder has its own README with the detail.
 - [x] Duplicate detection demonstrably runs before normalization
 - [x] Every skipped, corrected or flagged row appears in `errors.log`
 - [x] `counts["input"]` equals the file's row count exactly
-- [ ] Object, filter and account tests run against the real classes in
-      `budgetwise/models` (33 tests wait for these)
+- [x] Object, filter and account tests run against the real classes in
+      `budgetwise/models` (merged in #16)
 
 ## 8. Open points
 
 | Point | Owner |
 |---|---|
-| Model classes not yet in `budgetwise/models` | Zeyad |
-| Payment-mode spellings such as `Crd` and `Csh` map to `Unknown` | Henrieta |
 | Loader pads short rows and drops surplus fields | Patrick |
 | `parse_amount` removes every minus sign, so `1-2` becomes 12 | Patrick |
 | Reason-code names and casing not yet approved | Sarah and Patrick |
-| Which account holds an `Unknown` payment mode | Zeyad and Henrieta |

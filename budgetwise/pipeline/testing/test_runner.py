@@ -10,8 +10,13 @@ HOW THESE TESTS WORK
     together.
   * Each test gives the pipeline its own ErrorLog in the temporary folder,
     so the tests never write to the real output/logs/errors.log.
-  * Tests that need transaction objects are skipped until budgetwise.models
-    has its classes. The cleaning tests run without them.
+  * The object, filter and account tests use Zeyad's real classes from
+    budgetwise.models (pull request #16). They read every value through the
+    classes' getters, for example get_amount(), because the attributes are
+    private.
+  * Tests that check Patrick's loader and amount parser are marked as
+    expected failures while those defects exist, so they run and show up in
+    the result instead of being skipped. Once a fix is merged they pass.
   * FullDatasetTests check the counts on all 15,900 rows. They are skipped
     if the dataset is not in data/raw/.
 """
@@ -24,19 +29,18 @@ from unittest import mock
 from budgetwise.errorlog import ErrorLog
 from budgetwise.pipeline import clean_file, run
 
-try:
-    from budgetwise.models import ExpenseTransaction, IncomeTransaction
-    HAVE_MODELS = True
-except ImportError:
-    HAVE_MODELS = False
-NEEDS_MODELS = unittest.skipUnless(HAVE_MODELS, "budgetwise.models has no classes yet")
+# The model classes are merged (pull request #16), so they are required.
+from budgetwise.models import (Account, BankAccount, CashAccount, ExpenseTransaction,
+                               IncomeTransaction, Transaction, UnknownAccount)
 
 RUNNER = "budgetwise.pipeline.implementation.runner"
 
 
 # ---- checks on teammates' code that the review asks Sarah to verify -------
-# Each test below that depends on a fix owned by someone else is skipped
-# until that fix is merged, and then starts running by itself.
+# Each test below checks behaviour owned by someone else. While their fix is
+# not merged, the test is marked as an EXPECTED FAILURE: it still runs, and
+# the result line reports it ("expected failures=4"), so the defect is never
+# hidden as a skip. Once the fix is merged the test simply passes.
 def _amount_syntax_is_validated():
     """True once parse_amount() rejects '1-2' (review item S09, Patrick)."""
     from budgetwise.cleaning.amounts import parse_amount
@@ -61,6 +65,11 @@ def _loader_keeps_row_structure():
         return False
     finally:
         folder.cleanup()
+
+
+def until_fixed(is_fixed):
+    """Run the test normally once the fix exists; until then, expect it to fail."""
+    return (lambda test: test) if is_fixed else unittest.expectedFailure
 
 
 def _loader_rejects_duplicate_headers():
@@ -162,6 +171,11 @@ class CleaningTests(PipelineTestCase):
             "payment_mode": "Cash", "location": "Pune",
             "notes": "Lunch", "notes_quality": "meaningful",
         })
+
+    def test_a_plain_amount_is_not_logged_as_a_stripped_label(self):
+        # Row 4 has the plain amount "500": nothing was stripped.
+        self.assertNotIn("currency_label_stripped", self.reasons_on_line(self.result, 4))
+        self.assertEqual(self.by_line[4]["original_currency"], "plain")
 
     def test_stripped_label_and_sign_are_logged(self):
         reasons = self.reasons_on_line(self.result, 2)
@@ -291,14 +305,13 @@ class BadInputTests(PipelineTestCase):
 # ==========================================================================
 # BUILDING OBJECTS  (run) - these need budgetwise.models
 # ==========================================================================
-@NEEDS_MODELS
 class ObjectTests(PipelineTestCase):
     def setUp(self):
         super().setUp()
         self.result = run(self.write_csv(SMALL_FILE), error_log=self.error_log)
         self.by_id = {}
         for transaction in self.result["transactions"]:
-            self.by_id.setdefault(transaction.transaction_id, []).append(transaction)
+            self.by_id.setdefault(transaction.get_transaction_id(), []).append(transaction)
 
     def test_transactions_are_a_list_of_objects(self):
         self.assertIsNone(self.result["error"])
@@ -312,18 +325,20 @@ class ObjectTests(PipelineTestCase):
 
     def test_cleaned_values_reach_the_object(self):
         transaction = self.by_id["T0001"][0]
-        self.assertEqual(transaction.date, "2022-08-05")
-        self.assertEqual(transaction.category, "Food")
-        self.assertEqual(transaction.amount, 3888.0)
+        self.assertEqual(transaction.get_date(), "2022-08-05")
+        self.assertEqual(transaction.get_category(), "Food")
+        self.assertEqual(transaction.get_amount(), 3888.0)
+        self.assertEqual(transaction.get_original_currency(), "₹")
 
     def test_amount_is_unsigned_and_direction_comes_from_type(self):
         transaction = self.by_id["T0001"][0]          # raw amount was negative
-        self.assertGreater(transaction.amount, 0)
-        self.assertLess(transaction.signed_amount(), 0)       # it is an Expense
-        self.assertGreater(self.by_id["T0002"][0].signed_amount(), 0)
+        self.assertGreater(transaction.get_amount(), 0)
+        self.assertLess(transaction.get_signed_amount(), 0)       # it is an Expense
+        self.assertGreater(self.by_id["T0002"][0].get_signed_amount(), 0)
 
     def test_row_with_no_date_becomes_an_object_without_a_date(self):
-        self.assertIsNone(self.by_id["T0002"][0].date)
+        self.assertIsNone(self.by_id["T0002"][0].get_date())
+        self.assertFalse(self.by_id["T0002"][0].has_date())
 
     def test_repeated_id_rows_are_both_objects(self):
         self.assertEqual(len(self.by_id["T0001"]), 2)
@@ -333,9 +348,12 @@ class ObjectTests(PipelineTestCase):
             self.assertNotIn(transaction_id, self.by_id)
 
 
-@NEEDS_MODELS
 class NoFactoryTests(unittest.TestCase):
-    """The pipeline still builds the right subclass if create() is absent."""
+    """Transaction has no create() factory, so the pipeline picks the subclass.
+
+    The pipeline also still uses create() if a later version adds one. Both
+    paths are tested here.
+    """
 
     def setUp(self):
         from budgetwise.pipeline.implementation import runner
@@ -347,22 +365,28 @@ class NoFactoryTests(unittest.TestCase):
 
     def build(self, kind):
         self.record["transaction_type"] = kind
-        with mock.patch.object(self.runner.Transaction, "create", new=None):
-            return self.runner._build_transaction(self.record)
+        return self.runner._build_transaction(self.record)
+
+    def test_the_real_transaction_class_has_no_factory(self):
+        self.assertFalse(callable(getattr(Transaction, "create", None)))
 
     def test_expense_becomes_expense_object(self):
-        self.assertIsInstance(self.build("Expense"), self.runner.ExpenseTransaction)
+        self.assertIsInstance(self.build("Expense"), ExpenseTransaction)
 
     def test_income_becomes_income_object(self):
-        self.assertIsInstance(self.build("Income"), self.runner.IncomeTransaction)
+        self.assertIsInstance(self.build("Income"), IncomeTransaction)
 
     def test_other_type_is_refused_not_treated_as_income(self):
         with self.assertRaises(ValueError):
             self.build("Transfer")
 
+    def test_a_factory_is_used_if_one_is_added_later(self):
+        made = ExpenseTransaction("T9", "U9", None, "Food", 1.0)
+        with mock.patch.object(Transaction, "create", create=True,
+                               new=mock.Mock(return_value=made)):
+            self.assertIs(self.build("Expense"), made)
 
-@NEEDS_MODELS
-@unittest.skipUnless(os.path.exists(DATASET_PATH), "raw dataset not found in data/raw/")
+
 class AccountTests(unittest.TestCase):
     """Each returned transaction goes into the cash or the bank account."""
 
@@ -378,30 +402,32 @@ class AccountTests(unittest.TestCase):
         cls.folder.cleanup()
 
     def test_both_accounts_are_returned(self):
-        self.assertEqual(sorted(self.result["accounts"]), ["bank", "cash"])
+        self.assertEqual(sorted(self.result["accounts"]), ["bank", "cash", "unknown"])
 
     def test_cash_account_holds_only_cash(self):
-        modes = {t.payment_mode for t in self.result["accounts"]["cash"].transactions()}
+        modes = {t.get_payment_mode() for t in self.result["accounts"]["cash"].get_transactions()}
         self.assertEqual(modes, {"Cash"})
 
     def test_bank_account_never_holds_cash_or_unknown(self):
-        modes = {t.payment_mode for t in self.result["accounts"]["bank"].transactions()}
-        self.assertFalse(modes & {"Cash", "Unknown"})
+        modes = {t.get_payment_mode() for t in self.result["accounts"]["bank"].get_transactions()}
+        self.assertEqual(modes, {"Card", "UPI", "Bank Transfer"})
 
-    def test_every_transaction_is_in_one_account_or_counted(self):
-        accounts = self.result["accounts"]
-        placed = accounts["cash"].transaction_count() + accounts["bank"].transaction_count()
-        self.assertEqual(placed + self.result["counts"]["no_account"],
-                         len(self.result["transactions"]))
+    def test_unknown_account_holds_only_unknown_payment_modes(self):
+        modes = {t.get_payment_mode() for t in self.result["accounts"]["unknown"].get_transactions()}
+        self.assertEqual(modes, {"Unknown"})
+
+    def test_every_transaction_is_in_exactly_one_account(self):
+        placed = sum(account.get_transaction_count()
+                     for account in self.result["accounts"].values())
+        self.assertEqual(placed, len(self.result["transactions"]))
 
     def test_accounts_hold_the_same_objects_as_the_list(self):
         listed = {id(t) for t in self.result["transactions"]}
         for account in self.result["accounts"].values():
-            for transaction in account.transactions():
+            for transaction in account.get_transactions():
                 self.assertIn(id(transaction), listed)
 
 
-@NEEDS_MODELS
 class FilterTests(PipelineTestCase):
     def setUp(self):
         super().setUp()
@@ -409,7 +435,7 @@ class FilterTests(PipelineTestCase):
 
     def ids(self, **filters):
         result = run(self.path, error_log=self.error_log, **filters)
-        return [t.transaction_id for t in result["transactions"]]
+        return [t.get_transaction_id() for t in result["transactions"]]
 
     def test_date_range_keeps_only_rows_inside_it(self):
         self.assertEqual(self.ids(start="2023-01-01", end="2023-12-31"), ["T0001", "T0006"])
@@ -441,7 +467,7 @@ class FilterTests(PipelineTestCase):
         self.assertEqual((counts["input"], counts["valid"], counts["returned"]), (9, 4, 2))
 
     def test_filtering_leaves_every_cleaning_count_and_record_unchanged(self):
-        # Review item S07: only "returned" and "no_account" may differ.
+        # Review item S07: only "returned" and the accounts may differ.
         everything = run(self.path, error_log=self.error_log)
         filtered = run(self.path, category="Food", error_log=self.error_log)
         self.assertEqual(filtered["records"], everything["records"])
@@ -574,7 +600,6 @@ class FailureBoundaryTests(PipelineTestCase):
         self.assertEqual(len(self.error_log.read()), 2 * len(first["issues"]))
 
 
-@NEEDS_MODELS
 class ObjectFailureTests(PipelineTestCase):
     """S07: a record the classes refuse is counted consistently everywhere."""
 
@@ -606,7 +631,7 @@ class ObjectFailureTests(PipelineTestCase):
         self.assertEqual(self.counts["objects_built"] + self.counts["objects_failed"],
                          self.counts["valid"])
         self.assertEqual(self.counts["returned"], 2)
-        self.assertEqual([t.transaction_id for t in self.result["transactions"]],
+        self.assertEqual([t.get_transaction_id() for t in self.result["transactions"]],
                          ["T0001", "T0003"])
 
     def test_the_failure_is_in_by_reason_the_issues_and_the_log(self):
@@ -622,19 +647,15 @@ class ObjectFailureTests(PipelineTestCase):
 
     def test_the_failed_object_is_in_neither_account(self):
         accounts = self.result["accounts"]
-        placed = accounts["cash"].transaction_count() + accounts["bank"].transaction_count()
-        self.assertEqual(placed + self.counts["no_account"], 2)
+        placed = sum(account.get_transaction_count() for account in accounts.values())
+        self.assertEqual(placed, 2)
 
 
-@NEEDS_MODELS
 class ClassUseTests(PipelineTestCase):
     """Every model class the pipeline uses, and how it uses it."""
 
     def setUp(self):
         super().setUp()
-        from budgetwise.models import (Account, BankAccount, CashAccount, Transaction)
-        self.Account, self.Transaction = Account, Transaction
-        self.CashAccount, self.BankAccount = CashAccount, BankAccount
         self.result = run(self.write_csv([
             "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch",
             "T0002,U002,2023-01-02,Income,Salary,500,UPI,Pune,Pay",
@@ -647,28 +668,32 @@ class ClassUseTests(PipelineTestCase):
         self.assertEqual(kinds, [ExpenseTransaction, IncomeTransaction,
                                  ExpenseTransaction, ExpenseTransaction])
         for transaction in self.result["transactions"]:
-            self.assertIsInstance(transaction, self.Transaction)      # inheritance
-            self.assertIsNot(type(transaction), self.Transaction)     # never the parent
+            self.assertIsInstance(transaction, Transaction)      # inheritance
+            self.assertIsNot(type(transaction), Transaction)     # never the parent
 
-    def test_accounts_are_the_two_child_classes_of_account(self):
+    def test_accounts_are_the_three_child_classes_of_account(self):
         accounts = self.result["accounts"]
-        self.assertIs(type(accounts["cash"]), self.CashAccount)
-        self.assertIs(type(accounts["bank"]), self.BankAccount)
+        self.assertIs(type(accounts["cash"]), CashAccount)
+        self.assertIs(type(accounts["bank"]), BankAccount)
+        self.assertIs(type(accounts["unknown"]), UnknownAccount)
         for account in accounts.values():
-            self.assertIsInstance(account, self.Account)
+            self.assertIsInstance(account, Account)
 
     def test_each_transaction_is_added_to_the_account_for_its_payment_mode(self):
         accounts = self.result["accounts"]
-        self.assertEqual([t.transaction_id for t in accounts["cash"].transactions()], ["T0001"])
-        self.assertEqual([t.transaction_id for t in accounts["bank"].transactions()],
+        self.assertEqual([t.get_transaction_id() for t in accounts["cash"].get_transactions()], ["T0001"])
+        self.assertEqual([t.get_transaction_id() for t in accounts["bank"].get_transactions()],
                          ["T0002", "T0003"])
-        self.assertEqual(self.result["counts"]["no_account"], 1)      # T0004, pending GAP-1
+        self.assertEqual([t.get_transaction_id() for t in accounts["unknown"].get_transactions()],
+                         ["T0004"])                                   # blank payment mode
 
     def test_account_totals_come_from_the_objects_it_holds(self):
         bank = self.result["accounts"]["bank"]
-        self.assertEqual(bank.transaction_count(), 2)
-        self.assertEqual(bank.total_spent(), 300.0)
-        self.assertEqual(bank.total_received(), 500.0)
+        self.assertEqual(bank.get_transaction_count(), 2)
+        self.assertEqual(bank.get_total_spent(), 300.0)
+        self.assertEqual(bank.get_total_received(), 500.0)
+        self.assertTrue(bank.is_reconcilable())
+        self.assertFalse(self.result["accounts"]["cash"].is_reconcilable())
 
 
 # ==========================================================================
@@ -694,8 +719,7 @@ class AmountBoundaryTests(PipelineTestCase):
         record = self.clean("-1000")["records"][0]
         self.assertEqual((record["amount"], record["transaction_type"]), (1000.0, "Expense"))
 
-    @unittest.skipUnless(_amount_syntax_is_validated(),
-                         "waiting for the amount parser fix (review S09, Patrick)")
+    @until_fixed(_amount_syntax_is_validated())      # review S09, Patrick
     def test_malformed_minus_signs_are_rejected_not_silently_changed(self):
         result = self.clean("1-2")              # must never become 12
         self.assertEqual(result["records"], [])
@@ -711,16 +735,14 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertEqual(len(result["records"]), 1)
         self.assertEqual(result["records"][0]["notes_quality"], "missing")
 
-    @unittest.skipUnless(_loader_keeps_row_structure(),
-                         "waiting for the loader fix (review S05, Patrick)")
+    @until_fixed(_loader_keeps_row_structure())      # review S05, Patrick
     def test_missing_final_field_is_malformed_not_a_blank_note(self):
         result = clean_file(self.write_csv(
             ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune"]), self.error_log)
         self.assertEqual(result["records"], [])
         self.assertIn("malformed_row", result["counts"]["by_reason"])
 
-    @unittest.skipUnless(_loader_keeps_row_structure(),
-                         "waiting for the loader fix (review S05, Patrick)")
+    @until_fixed(_loader_keeps_row_structure())      # review S05, Patrick
     def test_rows_differing_only_in_a_surplus_field_are_not_duplicates(self):
         result = clean_file(self.write_csv([
             "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,EXTRA-A",
@@ -729,8 +751,7 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertEqual(result["counts"]["duplicates"], 0)
         self.assertEqual(result["counts"]["skipped"], 2)       # both malformed
 
-    @unittest.skipUnless(_loader_rejects_duplicate_headers(),
-                         "waiting for the header check fix (review S05, Patrick)")
+    @until_fixed(_loader_rejects_duplicate_headers())  # review S05, Patrick
     def test_duplicate_header_name_gives_a_clear_file_error(self):
         result = clean_file(self.write_csv(
             ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,99"],

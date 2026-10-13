@@ -2,24 +2,28 @@
 
 Sarah (P2.10) · reviewer Patrick · model tests with Zeyad
 
-These are the tests `G2` is judged on. One file: `test_runner.py`, 86 tests.
+These are the tests `G2` is judged on. One file: `test_runner.py`, 90 tests.
 
 ## Run
 
 From the repository root:
 
 ```bash
-python -m unittest budgetwise.pipeline.testing.test_runner -v
+python3 -m unittest budgetwise.pipeline.testing.test_runner -v
 ```
 
 Or everything in the project:
 
 ```bash
-python -m unittest discover
+python3 -m unittest discover
 ```
 
-A run collecting 0 tests is not a pass. Read the skipped count too. A skipped
-test proves nothing about the code it would have checked.
+Use `python` instead of `python3` if that is what your computer calls it.
+
+A run collecting 0 tests is not a pass. Read the skipped and expected-failure
+counts too.
+
+Expected result today: `Ran 90 tests` and `OK (expected failures=4)`.
 
 ## Required cases
 
@@ -32,38 +36,46 @@ test proves nothing about the code it would have checked.
 - [x] A row with a `999999999` amount is excluded and logged
 - [x] Every skipped row has a matching `errors.log` entry
 - [x] Date-range and category filters return the expected subset
-      (needs the model classes)
+- [x] Objects are built with Zeyad's real classes and placed in the right
+      account
 
 ## What each group checks
 
 | Class | Tests | Checks | Needs |
 |---|---|---|---|
-| `CleaningTests` | 16 | counts, cleaned values, each section 4.5 rule, the log file | |
+| `CleaningTests` | 17 | counts, cleaned values, each section 4.5 rule, the log file | |
 | `OrderTests` | 2 | duplicates judged on raw rows; loading twice is safe | |
 | `BadInputTests` | 7 | missing file, wrong header, empty file, no valid rows | |
 | `RowValidationTests` | 5 | unusual ID kept and flagged; missing ID skipped with its field | |
 | `FlaggedCountTests` | 4 | repeated IDs counted as flagged; one row counted once | |
 | `FailureBoundaryTests` | 3 | a failure on one row never stops the later rows | |
-| `AmountBoundaryTests` | 4 | 99,999,999 accepted, 100,000,000 rejected, sign rule | 1 waits for the amount parser fix |
-| `LoaderStructureTests` | 4 | short rows, surplus fields, repeated header names | 3 wait for the loader fix |
-| `ObjectTests` | 7 | objects built with the right class and values | models |
-| `NoFactoryTests` | 3 | right subclass even without `create()` | models |
-| `ClassUseTests` | 4 | every object is a child class; accounts filled correctly | models |
-| `ObjectFailureTests` | 5 | a refused record is counted consistently everywhere | models |
-| `FilterTests` | 9 | date range, category, filters leave cleaning counts alone | models |
-| `AccountTests` | 5 | cash and bank hold the right objects | models, dataset |
+| `AmountBoundaryTests` | 4 | 99,999,999 accepted, 100,000,000 rejected, sign rule | 1 expected failure until the amount parser fix |
+| `LoaderStructureTests` | 4 | short rows, surplus fields, repeated header names | 3 expected failures until the loader fix |
+| `ObjectTests` | 7 | objects built with the right class, values read through getters | |
+| `NoFactoryTests` | 5 | `Transaction` has no `create()`; the right subclass is still built; a factory is used if one is added | |
+| `ClassUseTests` | 4 | every object is a child class; cash, bank and unknown accounts filled correctly | |
+| `ObjectFailureTests` | 5 | a refused record is counted consistently everywhere | |
+| `FilterTests` | 9 | date range, category, filters leave cleaning counts alone | |
+| `AccountTests` | 6 | each account holds only its own payment modes; every object is in exactly one | dataset |
 | `FullDatasetTests` | 8 | 15,900 = 14,651 + 349 + 900 and the other baselines | dataset |
 
-## Skipped tests
+## Expected failures and skipped tests
 
-| Condition | Tests skipped | Until |
-|---|---|---|
-| `budgetwise.models` has no classes | 33 | Zeyad's classes are merged |
-| Loader pads short rows or accepts a repeated header | 3 | Patrick's loader fix (review S05) |
-| `parse_amount` accepts `1-2` | 1 | Patrick's parser fix (review S09) |
-| Dataset not in `data/raw/` | 8, plus the 5 account tests | the CSV is present |
+The model classes are merged (#16), so the object, filter and account tests
+always run. If `budgetwise.models` cannot be imported, the whole file errors,
+which is deliberate: a missing model is a failure, not a reason to skip.
 
-Each skip turns itself off when its condition is met. Nothing needs editing.
+| Condition | Tests | Shown as | Until |
+|---|---|---|---|
+| Loader pads short rows or accepts a repeated header | 3 | expected failures | Patrick's loader fix (review S05) |
+| `parse_amount` accepts `1-2` | 1 | expected failure | Patrick's parser fix (review S09) |
+| Dataset not in `data/raw/` | 8, plus the 6 account tests | skipped | the CSV is present |
+
+An expected failure still runs. It is how the suite records a known defect in
+someone else's code without hiding it: the result line reports it, and once
+the fix is merged the test passes normally with nothing to edit. To make
+these four count as plain failures instead, remove the `@until_fixed(...)`
+line above each one.
 
 ## How the tests are built
 

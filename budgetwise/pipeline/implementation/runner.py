@@ -24,28 +24,34 @@ performed on the original raw rows before data normalization")
        normalize_location()      locations
        classify_note_quality()   notes
     6. find_repeated_ids()       rows        repeated IDs are flagged, rows KEPT
-    7. Transaction.create()      models      builds the Expense/Income object
+    7. ExpenseTransaction(...)   models      or IncomeTransaction(...), by type
     8. date-range and category filters from the menu
-    9. account.add()             models      cash or bank, by payment_mode
+    9. add_transaction()         models      cash, bank or unknown account
 
 HOW THE CLASSES ARE USED (budgetwise.models, Zeyad)
-  Transaction          the parent. Never built directly. Its create() factory
-                       returns one of the two children below.
+  Transaction          the parent. Never built directly: its
+                       get_transaction_type() and get_signed_amount() only
+                       work in a child. It has no create() factory, so the
+                       pipeline picks the child from transaction_type.
   ExpenseTransaction   one object per cleaned row whose type is Expense.
   IncomeTransaction    one object per cleaned row whose type is Income.
-  Account              the parent. Never built directly. Its add() method is
-                       what stores a transaction in an account.
+  Account              the parent. Never built directly. Its
+                       add_transaction() method is what stores a transaction
+                       in an account, and all three children inherit it.
   CashAccount          one per load. Holds the Cash transactions.
   BankAccount          one per load. Holds Card, UPI and Bank Transfer.
+  UnknownAccount       one per load. Holds rows whose payment mode is Unknown.
   Budget               NOT used here. It compares monthly totals to limits,
                        which is analysis (task P3.4), after the pipeline.
+  Every value on an object is private and read through a getter, for
+  example transaction.get_amount() or account.get_transaction_count().
 
 TWO SETS OF COUNTS, KEPT SEPARATE
   Cleaning counts   input, duplicates, skipped, valid, corrected, flagged...
                     These describe the cleaning only. They are the same
                     whatever filter the menu asks for, and
                     input = valid + skipped + duplicates always holds.
-  Object counts     objects_built, objects_failed, returned, no_account.
+  Object counts     objects_built, objects_failed, returned.
                     These describe steps 7 to 9 only.
   result["records"] is every cleaned row, UNFILTERED.
   result["transactions"] is the objects left after the menu's filters.
@@ -85,15 +91,15 @@ from budgetwise.loader import load_rows
 # and run() explains why it has no objects to return.
 try:
     from budgetwise.models import (BankAccount, CashAccount, ExpenseTransaction,
-                                   IncomeTransaction, Transaction)
+                                   IncomeTransaction, Transaction, UnknownAccount)
 except ImportError:
     Transaction = ExpenseTransaction = IncomeTransaction = None
-    CashAccount = BankAccount = None
+    CashAccount = BankAccount = UnknownAccount = None
 
 # Which account a payment mode belongs to (Zeyad's design: cash in hand
-# versus money held at a bank). Any other value, such as 'Unknown', goes to
-# NEITHER account until the team decides GAP-1. Those rows still appear in
-# result["transactions"], so they count in every total.
+# versus money held at a bank). Any other value, such as 'Unknown' for a
+# blank payment mode, goes to the UnknownAccount, which Zeyad's model
+# provides for exactly those rows.
 CASH_MODES = {"Cash"}
 BANK_MODES = {"Card", "UPI", "Bank Transfer"}
 
@@ -262,7 +268,9 @@ def _clean_one_row(line_number, raw, record_issue):
     if amount_reason:
         record_issue(line_number, "amount", amount_reason, raw_amount)
     else:
-        if symbol:
+        # Only a real label counts as stripped. If the parser ever reports
+        # "plain" for an amount with no label, nothing was stripped.
+        if symbol and symbol != NO_CURRENCY_LABEL:
             record_issue(line_number, "amount", CURRENCY_LABEL_STRIPPED, raw_amount)
         if "-" in raw_amount:
             record_issue(line_number, "amount", NEGATIVE_AMOUNT_MAGNITUDE, raw_amount)
@@ -342,8 +350,8 @@ def run(path, start=None, end=None, category=None, error_log=None):
     Returns everything clean_file() returns, plus:
         "transactions"  list of ExpenseTransaction / IncomeTransaction objects
                         that pass the filters
-        "accounts"      {"cash": CashAccount, "bank": BankAccount} holding
-                        those same objects
+        "accounts"      {"cash": CashAccount, "bank": BankAccount,
+                         "unknown": UnknownAccount} holding those same objects
     The cleaning counts and "records" are not changed by the filters.
     """
     owns_log = error_log is None
@@ -371,10 +379,10 @@ def _build_objects(result, error_log, start, end, category):
     counts = result["counts"]
     transactions = result["transactions"]
 
-    # One cash ledger and one bank ledger over whatever the menu loaded.
-    # CashAccount and BankAccount are the two children of Account.
-    cash, bank = CashAccount(), BankAccount()
-    result["accounts"] = {"cash": cash, "bank": bank}
+    # One ledger of each kind over whatever the menu loaded. All three are
+    # children of Account.
+    cash, bank, unknown = CashAccount(), BankAccount(), UnknownAccount()
+    result["accounts"] = {"cash": cash, "bank": bank, "unknown": unknown}
 
     for record in result["records"]:
         # STEP 7: build the object. The result is always a CHILD class:
@@ -393,14 +401,15 @@ def _build_objects(result, error_log, start, end, category):
             continue
         transactions.append(transaction)
 
-        # STEP 9: the same object also goes into its account. add() is
-        # defined once on the parent Account and inherited by both children.
+        # STEP 9: the same object also goes into its account.
+        # add_transaction() is defined once on the parent Account and
+        # inherited by all three children.
         if record["payment_mode"] in CASH_MODES:
-            cash.add(transaction)
+            cash.add_transaction(transaction)
         elif record["payment_mode"] in BANK_MODES:
-            bank.add(transaction)
+            bank.add_transaction(transaction)
         else:
-            counts["no_account"] += 1
+            unknown.add_transaction(transaction)
 
     counts["returned"] = len(transactions)
 
@@ -408,10 +417,9 @@ def _build_objects(result, error_log, start, end, category):
 def _build_transaction(record):
     """Turn one cleaned record into an ExpenseTransaction or IncomeTransaction.
 
-    Zeyad's architecture file gives Transaction a create() factory that picks
-    the subclass. His class diagram does not show it, so this works either
-    way: it uses create() when the class has one, and otherwise picks the
-    subclass here. Any type other than Expense or Income raises an error, so
+    Zeyad's merged Transaction class has no create() factory, so the
+    subclass is picked here. If a factory is added later, it is used
+    instead. Any type other than Expense or Income raises an error, so
     it is never silently treated as income.
     """
     values = (record["transaction_id"], record["user_id"], record["date"],
@@ -486,5 +494,4 @@ def _empty_counts():
         "objects_built": 0,          # cleaned records that became objects
         "objects_failed": 0,         # cleaned records the classes refused
         "returned": 0,               # objects left after the menu's filters
-        "no_account": 0,             # returned objects in neither account
     }
