@@ -1,13 +1,13 @@
 {
-  "_comment": "PLACEHOLDER LIMITS. §4.4 requires at least five categories with justified limits. Replace these with figures the team can defend, and record the reasoning in budgetwise/analysis/budgets/supplementary/budget_justification.md",
+  "_comment": "Generated from cleaned monthly expense history; each limit is the category median rounded up to 500 dataset units. See budgetwise/analysis/budgets/supplementary/budget_justification.md.",
   "_owner": "Patrick (P3.3), agreed at G1",
   "currency_note": "Amounts are in the dataset's single underlying unit. No currency conversion is performed (§4.5).",
   "limits": {
-    "Food": 8000,
-    "Rent": 12000,
-    "Travel": 5000,
-    "Utilities": 3000,
-    "Entertainment": 2500
+    "Entertainment": 136000,
+    "Food": 248500,
+    "Rent": 727000,
+    "Transportation": 196000,
+    "Utilities": 156500
   },
-  "unbudgeted_categories": "DECIDE at G1 - skip them, or report as unbudgeted?"
+  "unbudgeted_categories": "Report categories with spending and no configured limit as unbudgeted."
 }

@@ -8,7 +8,7 @@ Largest expenses, and how actual spending compares with the agreed limits.
 | **Domain reviewer** | Sarah (`P3.3`) |
 | **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
 | **Tasks** | `P3.3` |
-| **Status** | Not started |
+| **Status** | Implementation complete; generated limits need team review |
 
 ## 1. What this folder does
 
@@ -45,9 +45,13 @@ compare_to_budget(transactions, year="2023", month="07")
 
 | Category | Limit | Actual | Status | Difference |
 |---|---|---|---|---|
-| Food | 8,000.00 | 9,240.00 | **over** | +1,240.00 |
-| Rent | 12,000.00 | 11,800.00 | under | −200.00 |
-| Travel | 5,000.00 | 5,000.00 | exact | 0.00 |
+| Food | 248,500.00 | 250,000.00 | **over** | +1,500.00 |
+| Rent | 727,000.00 | 726,800.00 | under | -200.00 |
+| Transportation | 196,000.00 | 196,000.00 | exact | 0.00 |
+
+Categories with spending but no configured limit appear with status
+`unbudgeted`; configured categories with no spending in an otherwise active
+month appear with actual `0.0`. A month with no expenses returns an empty list.
 
 Sentinel rows at `999999999` are already gone — `cleaning/amounts` excludes them.
 If one appears at the top of `largest_expenses`, the sentinel rule is not
@@ -69,8 +73,8 @@ working, and this is where you would first notice.
 
 | Folder | Contents |
 |---|---|
-| `implementation/` | `comparison.py`, `limits.py` |
-| `testing/` | `test_comparison.py` |
+| `implementation/` | `comparison.py`, `limits.py`, `generate_budget_evidence.py` |
+| `testing/` | `test_comparison.py`, `test_budget_evidence.py` |
 | `supplementary/` | `budget_justification.md` |
 
 ## 6. Done when

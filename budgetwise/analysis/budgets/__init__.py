@@ -1,5 +1,9 @@
-"""Largest expenses and budget-versus-actual comparison."""
+"""Largest expenses and monthly budget-versus-actual comparisons."""
 
-# Contract — uncomment once implementation/comparison.py exists.
-# from .implementation.comparison import largest_expenses, compare_to_budget
-# from .implementation.limits import load_limits
+from .implementation.comparison import (
+	BudgetResult,
+	compare_to_budget,
+	largest_expenses,
+)
+
+__all__ = ["BudgetResult", "compare_to_budget", "largest_expenses"]

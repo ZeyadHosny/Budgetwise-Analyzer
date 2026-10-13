@@ -8,7 +8,7 @@ The object model — transaction classes and the budget class.
 | **Domain reviewer** | Patrick (`P2.5`) |
 | **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
 | **Tasks** | `P2.5` |
-| **Status** | Not started |
+| **Status** | Budget model implemented; design documentation remains |
 
 ## 1. What this folder does
 
