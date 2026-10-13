@@ -8,16 +8,14 @@ import os
 import unittest
 from collections import Counter
 
-from budgetwise.cleaning.notes import (
-    LOW_INFORMATION,
-    MEANINGFUL,
-    MISSING,
-    NOT_AVAILABLE,
-    NOTES_LOW_INFORMATION,
-    NOTES_MISSING,
-    PLACEHOLDER_NOTES,
-    classify_note_quality,
-)
+from budgetwise.cleaning.notes import classify_note_quality
+from budgetwise.errorlog import Reason
+
+LOW_INFORMATION = "low_information"
+MEANINGFUL = "meaningful"
+MISSING = "missing"
+NOT_AVAILABLE = "not_available"
+PLACEHOLDER_NOTES = ("...", "!!!", "xyz123", "test", "misc", "asdfgh")
 
 # ---- helper: load one column of the real dataset, if the file is here ----
 # The raw dataset lives in data/raw/ at the top of the repository.
@@ -53,22 +51,24 @@ class LowInformationNoteTests(unittest.TestCase):
     def test_blank_is_missing(self):
         for raw in ("", "   "):
             with self.subTest(raw=raw):
-                self.assertEqual(classify_note_quality(raw), (raw, MISSING, [NOTES_MISSING]))
+                self.assertEqual(classify_note_quality(raw), (raw, MISSING, [Reason.NOTES_MISSING]))
 
     def test_none_is_missing_and_gives_empty_text(self):
-        self.assertEqual(classify_note_quality(None), ("", MISSING, [NOTES_MISSING]))
+        self.assertEqual(classify_note_quality(None), ("", MISSING, [Reason.NOTES_MISSING]))
 
     def test_na_uses_the_missing_reason_with_its_own_quality_flag(self):
         for raw in ("N/A", "n/a", " N/A "):
             with self.subTest(raw=raw):
-                self.assertEqual(classify_note_quality(raw), (raw, NOT_AVAILABLE, [NOTES_MISSING]))
+                self.assertEqual(classify_note_quality(raw),
+                                 (raw, NOT_AVAILABLE, [Reason.NOTES_MISSING]))
 
     def test_each_known_placeholder_is_flagged_and_kept(self):
         self.assertEqual(set(PLACEHOLDER_NOTES), {"...", "!!!", "xyz123", "test", "misc", "asdfgh"})
         for raw in PLACEHOLDER_NOTES:
             with self.subTest(raw=raw):
                 self.assertEqual(
-                    classify_note_quality(raw), (raw, LOW_INFORMATION, [NOTES_LOW_INFORMATION])
+                    classify_note_quality(raw),
+                    (raw, LOW_INFORMATION, [Reason.NOTES_LOW_INFORMATION])
                 )
 
     def test_placeholder_match_ignores_capitals_and_outer_spaces(self):
@@ -98,8 +98,8 @@ class FullDatasetTests(unittest.TestCase):
 
     def test_reason_counts(self):
         reasons = Counter(reason for _, _, found in self.results for reason in found)
-        self.assertEqual(reasons[NOTES_MISSING], 2335 + 486)
-        self.assertEqual(reasons[NOTES_LOW_INFORMATION], 3007)
+        self.assertEqual(reasons[Reason.NOTES_MISSING], 2335 + 486)
+        self.assertEqual(reasons[Reason.NOTES_LOW_INFORMATION], 3007)
 
     def test_every_note_is_returned_unchanged(self):
         for raw, (text, _, _) in zip(self.raw_values, self.results):

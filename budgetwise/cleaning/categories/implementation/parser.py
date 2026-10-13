@@ -1,6 +1,8 @@
 import csv
 from pathlib import Path
 
+from budgetwise.errorlog import Reason
+
 
 def _load_mapping() -> dict[str, str]:
     """Load category mappings from config/category_mapping.csv."""
@@ -35,7 +37,7 @@ def normalize_category(raw: str | None) -> tuple[str, str | None]:
 
     # Missing category
     if raw is None or raw.strip() == "":
-        return "Uncategorized", "CATEGORY_UNCATEGORIZED"
+        return "Uncategorized", Reason.CATEGORY_UNCATEGORIZED
 
     # Remove surrounding spaces and ignore capitalization for lookup
     cleaned = raw.strip().lower()
@@ -46,9 +48,9 @@ def normalize_category(raw: str | None) -> tuple[str, str | None]:
 
         # Any difference from the canonical value counts as normalization.
         if raw != normalized:
-            return normalized, "CATEGORY_NORMALIZED"
+            return normalized, Reason.CATEGORY_NORMALIZED
 
         return normalized, None
 
     # Unknown nonblank category
-    return "Uncategorized", "UNKNOWN_CATEGORY"
+    return "Uncategorized", Reason.CATEGORY_UNKNOWN

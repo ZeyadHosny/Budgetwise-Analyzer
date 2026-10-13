@@ -57,7 +57,6 @@ Everything the folder exports:
 | `parse_date` | `(raw_date)` | `(date, reasons)`. `date` is `'YYYY-MM-DD'` text or `None`. `reasons` is a **list**, empty when there is nothing to report |
 | `find_date_format` | `(raw)` | the format name a raw date matches, or `None` |
 | `is_ambiguous_date` | `(raw)` | `True` if a real slash or hyphen date has day and month both from 1 to 12 |
-| `DATE_NORMALIZED`, `MISSING_DATE`, `INVALID_DATE` | | reason codes |
 
 `find_date_format` and `is_ambiguous_date` are only used to produce the
 report evidence. Parsing does not depend on them.
@@ -92,9 +91,10 @@ or less, so it could be read either way. The rules above settle every one.
 `is_ambiguous_date` counts them for the report. It only counts dates that
 `parse_date` accepts, so `00/05/2023` is not counted: it is not a date at all.
 
-**Reason codes, still to agree with Patrick.** This folder returns
-`DATE_NORMALIZED`, `MISSING_DATE` and `INVALID_DATE`. The pipeline writes them
-to the log in lowercase. Patrick's `errorlog` list has `missing_date`,
+**Reason codes, still to agree with Patrick.** The parser uses the centralized
+`Reason.DATE_NORMALIZED`, `Reason.DATE_MISSING` and `Reason.INVALID_DATE`
+codes. The pipeline writes them to the log in lowercase. Patrick's `errorlog`
+list has `missing_date`,
 `unrecognized_date_format` and `impossible_date`. Lowercasing makes
 `MISSING_DATE` match, but it cannot make the other names match:
 `date_normalized` has no entry in his list, and `invalid_date` covers what his

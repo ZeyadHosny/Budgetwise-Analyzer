@@ -1,3 +1,6 @@
+from budgetwise.errorlog import Reason
+
+
 def normalize_location(raw: str | None) -> tuple[str, str | None]:
     """
     Normalize a raw location value.
@@ -7,12 +10,12 @@ def normalize_location(raw: str | None) -> tuple[str, str | None]:
     """
 
     if raw is None or raw.strip() == "":
-        return "Unknown", "LOCATION_UNKNOWN"
+        return "Unknown", Reason.LOCATION_UNKNOWN
 
     cleaned = raw.strip().lower()
 
     if cleaned == "n/a":
-        return "Unknown", "LOCATION_UNKNOWN"
+        return "Unknown", Reason.LOCATION_UNKNOWN
 
     mapping = {
         "pune": "Pune",
@@ -52,8 +55,8 @@ def normalize_location(raw: str | None) -> tuple[str, str | None]:
         # Any difference from the canonical value counts as normalization.
         # This includes capitalization, abbreviations, and whitespace.
         if raw != normalized:
-            return normalized, "LOCATION_NORMALIZED"
+            return normalized, Reason.LOCATION_NORMALIZED
 
         return normalized, None
 
-    return "Unknown", "LOCATION_UNKNOWN"
+    return "Unknown", Reason.LOCATION_UNKNOWN

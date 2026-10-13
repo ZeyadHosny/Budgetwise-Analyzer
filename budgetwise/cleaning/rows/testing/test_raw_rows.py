@@ -10,6 +10,7 @@ import os
 import unittest
 from collections import Counter
 
+from budgetwise.errorlog import Reason
 from budgetwise.cleaning.rows import (
     EXPECTED_COLUMNS,
     find_repeated_ids,
@@ -23,7 +24,6 @@ from budgetwise.cleaning.rows import (
 # The three column checks are internal helpers of this feature, so its own
 # tests import them from the implementation file.
 from budgetwise.cleaning.rows.implementation.raw_rows import (
-    MALFORMED_ROW,
     check_transaction_id,
     check_transaction_type,
     check_user_id,
@@ -70,12 +70,12 @@ class TransactionIdTests(unittest.TestCase):
     def test_missing_id_makes_the_row_unusable(self):
         for raw in ("", "   ", None, 4999, ["T4999"]):
             with self.subTest(raw=raw):
-                self.assertEqual(check_transaction_id(raw), (None, [MALFORMED_ROW]))
+                self.assertEqual(check_transaction_id(raw), (None, [Reason.MALFORMED_ROW]))
 
     def test_unexpected_format_is_kept_but_reported(self):
         for raw in ("4999", "t4999", "T12", "T123456", "TX999", "U018"):
             with self.subTest(raw=raw):
-                self.assertEqual(check_transaction_id(raw), (raw, [MALFORMED_ROW]))
+                self.assertEqual(check_transaction_id(raw), (raw, [Reason.MALFORMED_ROW]))
 
 
 class UserIdTests(unittest.TestCase):
@@ -90,12 +90,12 @@ class UserIdTests(unittest.TestCase):
     def test_missing_id_makes_the_row_unusable(self):
         for raw in ("", "   ", None, 18, {}):
             with self.subTest(raw=raw):
-                self.assertEqual(check_user_id(raw), (None, [MALFORMED_ROW]))
+                self.assertEqual(check_user_id(raw), (None, [Reason.MALFORMED_ROW]))
 
     def test_unexpected_format_is_kept_but_reported(self):
         for raw in ("018", "u018", "U18", "U0180", "T4999"):
             with self.subTest(raw=raw):
-                self.assertEqual(check_user_id(raw), (raw, [MALFORMED_ROW]))
+                self.assertEqual(check_user_id(raw), (raw, [Reason.MALFORMED_ROW]))
 
 
 class TransactionTypeTests(unittest.TestCase):
@@ -112,13 +112,13 @@ class TransactionTypeTests(unittest.TestCase):
     def test_missing_type_makes_the_row_unusable(self):
         for raw in ("", "   ", None, 1, ["Expense"]):
             with self.subTest(raw=raw):
-                self.assertEqual(check_transaction_type(raw), (None, [MALFORMED_ROW]))
+                self.assertEqual(check_transaction_type(raw), (None, [Reason.MALFORMED_ROW]))
 
     def test_unrecognized_type_is_not_guessed(self):
         # "-500" checks that a sign is never read as a direction.
         for raw in ("Refund", "Expenses", "Inc", "Debit", "N/A", "-500"):
             with self.subTest(raw=raw):
-                self.assertEqual(check_transaction_type(raw), (None, [MALFORMED_ROW]))
+                self.assertEqual(check_transaction_type(raw), (None, [Reason.MALFORMED_ROW]))
 
 
 class DuplicateKeyTests(unittest.TestCase):

@@ -39,16 +39,12 @@ HOW IT WORKS
 import re
 from collections import Counter
 
+from budgetwise.errorlog import Reason
+
 EXPECTED_COLUMNS = (
     "transaction_id", "user_id", "date", "transaction_type", "category",
     "amount", "payment_mode", "location", "notes",
 )
-
-# Reason codes
-DUPLICATE_RAW_ROW = "DUPLICATE_RAW_ROW"                  # skipped
-REPEATED_TRANSACTION_ID = "REPEATED_TRANSACTION_ID"      # flagged, row KEPT
-MALFORMED_ROW = "MALFORMED_ROW"                          # skipped or flagged
-
 
 # --------------------------------------------------------------------------
 # CHECKS FOR THE THREE REQUIRED COLUMNS
@@ -67,12 +63,12 @@ def _check_identifier(raw, pattern):
     """Shared logic for the two ID columns. Valid IDs are kept as they are."""
     # No ID at all (blank, or not even text): the row cannot be traced.
     if not isinstance(raw, str) or raw.strip() == "":
-        return None, [MALFORMED_ROW]
+        return None, [Reason.MALFORMED_ROW]
     value = raw.strip()
     if pattern.fullmatch(value):
         return value, []
     # Unusual ID: we do not invent a new one. Keep it, but report it.
-    return value, [MALFORMED_ROW]
+    return value, [Reason.MALFORMED_ROW]
 
 
 def check_transaction_id(raw):
@@ -92,10 +88,10 @@ def check_transaction_type(raw):
     money, so a row without a valid type cannot be used.
     """
     if not isinstance(raw, str):
-        return None, [MALFORMED_ROW]
+        return None, [Reason.MALFORMED_ROW]
     value = VALID_TRANSACTION_TYPES.get(raw.strip().lower())
     if value is None:          # blank, or a word that is not Expense/Income
-        return None, [MALFORMED_ROW]
+        return None, [Reason.MALFORMED_ROW]
     return value, []
 
 

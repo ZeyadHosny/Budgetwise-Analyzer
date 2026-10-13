@@ -8,6 +8,7 @@
 import sys
 from datetime import datetime
 from pathlib import Path
+from budgetwise.pipeline import run
 
 # The heading printed above the options on every pass of the loop.
 BANNER = "=== BudgetWise Finance Analyzer ==="
@@ -39,7 +40,7 @@ CATEGORIES_PER_LINE = 4
 # Earliest transaction date in the dataset, measured over all 15,414 dated
 # rows. Shown as a hint so the user does not pick a range that matches
 # nothing. It is NOT a validation rule: a wider range is legitimate.
-DATASET_FIRST_DATE = "2021-01-01"
+DATASET_FIRST_DATE = "2019-01-01"
 # Latest transaction date in the dataset, measured the same way.
 DATASET_LAST_DATE = "2024-12-31"
 
@@ -246,7 +247,7 @@ def missing_pipeline(*args, **kwargs):
 
 
 # Function holding the while loop section 4.1 requires
-def run_menu(pipeline_run=None, dataset=DATASET):
+def run_menu(pipeline_run=run, dataset=DATASET):
     """
     Description:
     - Run the menu loop section 4.1 requires. Prints the options, reads a

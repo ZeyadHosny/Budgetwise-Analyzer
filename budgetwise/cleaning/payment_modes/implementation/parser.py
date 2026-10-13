@@ -1,3 +1,6 @@
+from budgetwise.errorlog import Reason
+
+
 def normalize_payment_mode(raw: str | None) -> tuple[str, str | None]:
     """
     Normalize a raw payment mode.
@@ -7,7 +10,7 @@ def normalize_payment_mode(raw: str | None) -> tuple[str, str | None]:
     """
 
     if raw is None or raw.strip() == "":
-        return "Unknown", "PAYMENT_MODE_UNKNOWN"
+        return "Unknown", Reason.PAYMENT_MODE_UNKNOWN
 
     cleaned = raw.strip().lower()
 
@@ -32,8 +35,8 @@ def normalize_payment_mode(raw: str | None) -> tuple[str, str | None]:
         # Any change from the canonical value counts as normalization.
         # This includes capitalization, misspellings, variants, and whitespace.
         if raw != normalized:
-            return normalized, "PAYMENT_MODE_NORMALIZED"
+            return normalized, Reason.PAYMENT_MODE_NORMALIZED
 
         return normalized, None
 
-    return "Unknown", "PAYMENT_MODE_UNKNOWN"
+    return "Unknown", Reason.PAYMENT_MODE_UNKNOWN

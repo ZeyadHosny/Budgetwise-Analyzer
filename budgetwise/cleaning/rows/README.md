@@ -39,6 +39,7 @@ row check here and is skipped later by the pipeline, using the amount cleaner.
 ## 2. How other modules use it
 
 ```python
+from budgetwise.errorlog import Reason
 from budgetwise.cleaning.rows import is_duplicate, validate_raw_row
 
 seen_keys = set()                    # create ONE set per load
@@ -62,7 +63,8 @@ Everything the folder exports:
 | `has_required_fields` | `(row)` | `True` or `False`. The yes/no form of `validate_raw_row` |
 | `find_repeated_ids` | `(numbered_rows)` | `{transaction_id: number of rows}` for IDs on two or more rows |
 | `EXPECTED_COLUMNS` | | the nine column names, in file order |
-| `DUPLICATE_RAW_ROW`, `REPEATED_TRANSACTION_ID`, `MALFORMED_ROW` | | reason codes |
+
+Reason codes come from `budgetwise.errorlog.Reason`.
 
 A row is a dictionary of column name to raw text. `numbered_rows` is a list of
 `(line_number, row)` pairs, as the loader produces.
