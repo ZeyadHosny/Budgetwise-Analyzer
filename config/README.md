@@ -61,5 +61,10 @@ them justified**. The justification goes in
 `budgetwise/analysis/budgets/supplementary/budget_justification.md` — it is a
 graded part of the report, not a note.
 
-The file ships with five placeholder limits. Replace them with figures the team
-can defend, and record the reasoning.
+The limits are generated from cleaned monthly expense history by
+`budgetwise.analysis.budgets.implementation.generate_budget_evidence`. The
+script uses each configured category's median monthly spend rounded up to the
+next 500 dataset units and writes the supporting table to
+`budgetwise/analysis/budgets/supplementary/budget_justification.md`. The team
+should review the categories, method, and resulting values before treating them
+as agreed limits.
