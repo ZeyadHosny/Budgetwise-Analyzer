@@ -47,8 +47,15 @@ The summary contains already-calculated figures; export does not recompute them.
 | `totals.income` | Income total for the selected transactions |
 | `totals.expenses` | Expense total for the selected transactions |
 | `totals.net` | Selected income minus selected expenses |
+| `account_breakdown` | Transaction count, total spent, and total received by payment account |
 | `top_categories` | Up to five `[category, total]` expense pairs from the selection, highest total first |
 | `budget_comparisons` | Monthly budget results for each selected month with dated expenses |
+
+`account_breakdown` has `cash`, `bank`, and `unknown` entries. The pipeline
+builds each entry from the account object's `get_transaction_count()`,
+`get_total_spent()`, and `get_total_received()` methods. The unknown account
+keeps transactions with an absent or unrecognized payment mode visible rather
+than dropping them from the report.
 
 Each `budget_comparisons` entry contains `month` (`YYYY-MM`), `period`, and
 `categories`. `period` records the selected `start`, `end`, and `full_month`
@@ -71,6 +78,11 @@ Example:
   "counts": {"input": 15900, "valid": 14651, "duplicates": 900},
   "timings": {"load": 0.04, "clean": 0.5},
   "totals": {"income": 14082330.0, "expenses": 79441210.0, "net": -65358880.0},
+  "account_breakdown": {
+    "cash": {"transaction_count": 3799, "total_spent": 20000000.0, "total_received": 1000000.0},
+    "bank": {"transaction_count": 11293, "total_spent": 55000000.0, "total_received": 13000000.0},
+    "unknown": {"transaction_count": 808, "total_spent": 5000000.0, "total_received": 500000.0}
+  },
   "top_categories": [["Food", 8210400.0], ["Rent", 7980120.0]],
   "budget_comparisons": [
     {

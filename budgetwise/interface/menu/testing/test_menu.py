@@ -309,6 +309,14 @@ class TestLoop(unittest.TestCase):
             "transactions": [record],
             "counts": {"input": 2, "valid": 2, "returned": 1},
             "timings": {"load": 0.1, "clean": 0.2},
+            "account_breakdown": {
+              "cash": {"transaction_count": 1, "total_spent": 50.0,
+                   "total_received": 0.0},
+              "bank": {"transaction_count": 1, "total_spent": 0.0,
+                   "total_received": 500.0},
+              "unknown": {"transaction_count": 0, "total_spent": 0.0,
+                    "total_received": 0.0},
+            },
             "error": None,
         }
         with patch("builtins.input", side_effect=["1", "5"]), \
@@ -329,6 +337,7 @@ class TestLoop(unittest.TestCase):
             "income": 0.0, "expenses": 50.0, "net": -50.0,
         })
         self.assertEqual(summary["top_categories"], [("Food", 50.0)])
+        self.assertEqual(summary["account_breakdown"], result["account_breakdown"])
 
     # Test that bad input does not end the program
     def test_invalid_then_exit(self):

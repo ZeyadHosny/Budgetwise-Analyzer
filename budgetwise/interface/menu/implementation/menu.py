@@ -6,12 +6,9 @@
 # Standard library only - Project-1.pdf section 2.
 
 import sys
-from calendar import monthrange
 from datetime import datetime
 from pathlib import Path
-from budgetwise.analysis.budgets import compare_to_budget
 from budgetwise.analysis.summaries import (
-    monthly_expenses,
     net_balance,
     top_categories,
     total_expenses,
@@ -266,57 +263,15 @@ def export_run(result, dataset, selection=None):
             "expenses": total_expenses(transactions),
             "net": net_balance(transactions),
         },
+        "account_breakdown": result.get("account_breakdown", {}),
         "top_categories": top_categories(transactions, n=5),
-        "budget_comparisons": _budget_comparisons(transactions, selection),
+        "budget_comparisons": result.get("budget_comparisons", []),
     }
     generated_at = datetime.now()
     cleaned_path = export_cleaned(transactions, dataset, when=generated_at)
     summary_path = export_summary(summary, dataset, when=generated_at)
     print(f"  Cleaned CSV: {cleaned_path}")
     print(f"  JSON summary: {summary_path}")
-
-
-def _budget_comparisons(transactions, selection):
-    comparisons_by_month = []
-    selected_category = (
-        selection.get("category")
-        if selection and selection.get("type") == "category"
-        else None
-    )
-    date_range = selection if selection and selection.get("type") == "date_range" else None
-
-    for (year, month) in monthly_expenses(transactions):
-        categories = compare_to_budget(transactions, year, month)
-        if selected_category:
-            categories = [
-                item for item in categories
-                if item.category.lower() == selected_category.lower()
-            ]
-
-        month_start = f"{year}-{month}-01"
-        month_end = f"{year}-{month}-{monthrange(int(year), int(month))[1]:02d}"
-        period_start = max(month_start, date_range["start"]) if date_range else month_start
-        period_end = min(month_end, date_range["end"]) if date_range else month_end
-
-        comparisons_by_month.append({
-            "month": f"{year}-{month}",
-            "period": {
-                "start": period_start,
-                "end": period_end,
-                "full_month": period_start == month_start and period_end == month_end,
-            },
-            "categories": [
-                {
-                    "category": item.category,
-                    "limit": item.limit,
-                    "actual": item.actual,
-                    "status": item.status,
-                    "difference": item.difference,
-                }
-                for item in categories
-            ],
-        })
-    return comparisons_by_month
 
 
 # Function to raise when the pipeline is not available

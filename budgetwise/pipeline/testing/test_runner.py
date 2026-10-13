@@ -421,6 +421,19 @@ class AccountTests(unittest.TestCase):
                      for account in self.result["accounts"].values())
         self.assertEqual(placed, len(self.result["transactions"]))
 
+    def test_account_breakdown_uses_each_accounts_getters(self):
+        self.assertEqual(
+            set(self.result["account_breakdown"]),
+            set(self.result["accounts"]),
+        )
+        for kind, account in self.result["accounts"].items():
+            with self.subTest(kind=kind):
+                self.assertEqual(self.result["account_breakdown"][kind], {
+                    "transaction_count": account.get_transaction_count(),
+                    "total_spent": account.get_total_spent(),
+                    "total_received": account.get_total_received(),
+                })
+
     def test_accounts_hold_the_same_objects_as_the_list(self):
         listed = {id(t) for t in self.result["transactions"]}
         for account in self.result["accounts"].values():
@@ -474,6 +487,48 @@ class FilterTests(PipelineTestCase):
         for name in ("input", "duplicates", "skipped", "valid", "corrected",
                      "flagged", "repeated_ids", "by_reason", "objects_built"):
             self.assertEqual(filtered["counts"][name], everything["counts"][name], name)
+
+    def test_budget_comparisons_are_built_from_account_transactions(self):
+        result = run(self.path, error_log=self.error_log)
+        comparisons = {
+            item["month"]: item["categories"]
+            for item in result["budget_comparisons"]
+        }
+
+        food_august = next(
+            item for item in comparisons["2022-08"]
+            if item["category"] == "Food"
+        )
+        self.assertEqual(food_august["actual"], 3888.0)
+        self.assertEqual(food_august["status"], "under")
+        self.assertIsNone(next(
+            item for item in comparisons["2023-02"]
+            if item["category"] == "Uncategorized"
+        )["limit"])
+
+    def test_partial_date_filter_is_recorded_in_budget_comparison(self):
+        result = run(
+            self.path,
+            start="2022-08-05",
+            end="2022-08-05",
+            error_log=self.error_log,
+        )
+        comparison = result["budget_comparisons"][0]
+        self.assertEqual(comparison["month"], "2022-08")
+        self.assertEqual(comparison["period"], {
+            "start": "2022-08-05",
+            "end": "2022-08-05",
+            "full_month": False,
+        })
+
+    def test_category_filter_limits_budget_results_to_selected_category(self):
+        result = run(self.path, category="Food", error_log=self.error_log)
+        self.assertTrue(result["budget_comparisons"])
+        self.assertTrue(all(
+            item["category"] == "Food"
+            for month in result["budget_comparisons"]
+            for item in month["categories"]
+        ))
 
 
 # ==========================================================================

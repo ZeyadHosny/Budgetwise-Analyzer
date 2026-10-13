@@ -35,11 +35,15 @@ export_cleaned(transactions, dataset="budgetwise_finance_dataset")
 export_summary(summary_dict, dataset="budgetwise_finance_dataset")
 ```
 
-Called from `menu/` after a load completes.
+Called from `menu/` after a load completes. The pipeline calculates budget
+comparisons after filling its accounts; the menu exports those results without
+recalculating them.
 For date-range and category queries, both files contain only the selected transactions; the JSON records the filter used. Cleaning counts still describe the complete source file.
 The JSON also includes per-month budget statuses from the configured limits.
 For partial date-range months, the period coverage is identified explicitly;
 the selected spend is compared against the full monthly limit.
+It also reports transaction count, expenses, and income separately for the
+cash, bank, and unknown-payment accounts.
 
 ## 3. What it produces
 

@@ -75,8 +75,11 @@ RULES THIS FILE FOLLOWS
 
 import math
 import time
+from calendar import monthrange
 from collections import Counter
 
+from budgetwise.analysis.budgets import compare_to_budget
+from budgetwise.analysis.summaries import monthly_expenses
 from budgetwise.cleaning.amounts import parse_amount
 from budgetwise.cleaning.categories import normalize_category
 from budgetwise.cleaning.dates import parse_date
@@ -343,6 +346,8 @@ def run(path, start=None, end=None, category=None, error_log=None):
                         that pass the filters
         "accounts"      {"cash": CashAccount, "bank": BankAccount,
                          "unknown": UnknownAccount} holding those same objects
+        "account_breakdown" transaction count, spending, and income per account
+        "budget_comparisons" monthly, category-level comparisons from account transactions
     The cleaning counts and "records" are not changed by the filters.
     """
     owns_log = error_log is None
@@ -352,12 +357,18 @@ def run(path, start=None, end=None, category=None, error_log=None):
         result = _clean_rows(path, error_log)
         result["transactions"] = []
         result["accounts"] = {}
+        result["account_breakdown"] = {}
+        result["budget_comparisons"] = []
         if result["error"]:
             pass
         elif Transaction is None:
             result["error"] = "rows were cleaned, but budgetwise.models has no Transaction class yet"
         else:
             _build_objects(result, error_log, start, end, category)
+            result["account_breakdown"] = _account_breakdown(result["accounts"])
+            result["budget_comparisons"] = _budget_comparisons(
+                result["accounts"], start, end, category
+            )
         _summarise(result)
         return result
     finally:
@@ -404,6 +415,58 @@ def _build_objects(result, error_log, start, end, category):
             unknown.add_transaction(transaction)
 
     counts["returned"] = len(transactions)
+
+
+def _account_breakdown(accounts):
+    """Summarize each account using the account model's public getters."""
+    return {
+        kind: {
+            "transaction_count": account.get_transaction_count(),
+            "total_spent": account.get_total_spent(),
+            "total_received": account.get_total_received(),
+        }
+        for kind, account in accounts.items()
+    }
+
+
+def _budget_comparisons(accounts, start=None, end=None, category=None):
+    """Compare selected account transactions with monthly category limits."""
+    account_transactions = []
+    for account in accounts.values():
+        account_transactions.extend(account.get_transactions())
+
+    comparisons_by_month = []
+    for year, month in monthly_expenses(account_transactions):
+        comparisons = compare_to_budget(account_transactions, year, month)
+        if category:
+            comparisons = [
+                item for item in comparisons
+                if item.category.lower() == category.strip().lower()
+            ]
+
+        month_start = f"{year}-{month}-01"
+        month_end = f"{year}-{month}-{monthrange(int(year), int(month))[1]:02d}"
+        period_start = max(month_start, start) if start else month_start
+        period_end = min(month_end, end) if end else month_end
+        comparisons_by_month.append({
+            "month": f"{year}-{month}",
+            "period": {
+                "start": period_start,
+                "end": period_end,
+                "full_month": period_start == month_start and period_end == month_end,
+            },
+            "categories": [
+                {
+                    "category": item.category,
+                    "limit": item.limit,
+                    "actual": item.actual,
+                    "status": item.status,
+                    "difference": item.difference,
+                }
+                for item in comparisons
+            ],
+        })
+    return comparisons_by_month
 
 
 def _build_transaction(record):
