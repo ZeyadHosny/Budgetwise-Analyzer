@@ -53,4 +53,4 @@ def normalize_category(raw: str | None) -> tuple[str, str | None]:
         return normalized, None
 
     # Unknown nonblank category
-    return "Uncategorized", Reason.CATEGORY_UNKNOWN
+    return "Uncategorized", Reason.UNKNOWN_CATEGORY

@@ -15,7 +15,7 @@ normalize_category(raw: str | None) -> tuple[str, str | None]
 | Already the approved name | `("Food", None)` |
 | Changed: case, spelling, abbreviation, or extra spaces | `("Food", "CATEGORY_NORMALIZED")` |
 | Missing: `None`, `""`, or whitespace only | `("Uncategorized", "CATEGORY_UNCATEGORIZED")` |
-| Unknown: not in the mapping | `("Uncategorized", "UNKNOWN_CATEGORY")` |
+| Unknown: not in the mapping | `("Uncategorized", "unknown_category")` |
 
 It always returns a usable name. It never returns `None` as the category and never drops a row.
 
@@ -44,7 +44,7 @@ Savings, Other, Freelance, Investment, Bonus, Salary, Uncategorized
 1. `None`, `""`, or whitespace only → `Uncategorized` + `CATEGORY_UNCATEGORIZED`.
 2. Strip spaces and lowercase the value, then look it up in the mapping.
 3. Found → return the approved name. If the raw value differs from the approved name in any way, including extra spaces, also return `CATEGORY_NORMALIZED`. If it is identical, the reason is `None`.
-4. Not found → `Uncategorized` + `UNKNOWN_CATEGORY`, so the log shows what was missed and the mapping can be extended.
+4. Not found → `Uncategorized` + `unknown_category`, so the log shows what was missed and the mapping can be extended.
 
 
 ## Connection to the pipeline

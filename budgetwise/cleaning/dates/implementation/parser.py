@@ -62,12 +62,12 @@ def parse_date(raw_date):
     # 1. Missing?
     raw = raw_date
     if raw is None:
-        return None, [Reason.DATE_MISSING]
+        return None, [Reason.MISSING_DATE]
     if not isinstance(raw, str):
         return None, [Reason.INVALID_DATE]
     text = raw.strip()
     if text.lower() in MISSING_VALUES:
-        return None, [Reason.DATE_MISSING]
+        return None, [Reason.MISSING_DATE]
 
     # 2. Find the format whose shape matches, then let Python read it.
     for name, shape, read_format in DATE_FORMATS:

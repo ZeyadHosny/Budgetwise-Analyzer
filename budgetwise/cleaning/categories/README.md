@@ -74,7 +74,7 @@ The function returns `(normalized_category, reason_code)`:
 | Value is already the approved name (`"Food"`) | `("Food", None)` |
 | Value was changed: case, spelling, abbreviation, or extra spaces | `("Food", "CATEGORY_NORMALIZED")` |
 | Value is `None`, `""`, or whitespace only | `("Uncategorized", "CATEGORY_UNCATEGORIZED")` |
-| Value is not in the mapping | `("Uncategorized", "UNKNOWN_CATEGORY")` |
+| Value is not in the mapping | `("Uncategorized", "unknown_category")` |
 
 The function always returns a usable category name and never causes a row to be dropped.
 
@@ -84,7 +84,7 @@ The function always returns a usable category name and never causes a row to be 
 |---|---|
 | `CATEGORY_NORMALIZED` | The category was corrected or standardized, including removing extra spaces |
 | `CATEGORY_UNCATEGORIZED` | The category was missing or blank |
-| `UNKNOWN_CATEGORY` | The value was not found in the approved mapping |
+| `unknown_category` | The value was not found in the approved mapping |
 
 The cleaning pipeline (`budgetwise/pipeline/implementation/runner.py`) writes these codes to `output/logs/errors.log` in lowercase (`category_normalized`, `category_uncategorized`, `unknown_category`).
 

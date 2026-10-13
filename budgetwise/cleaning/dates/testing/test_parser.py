@@ -17,7 +17,7 @@ from budgetwise.errorlog import Reason
 
 DATE_NORMALIZED = Reason.DATE_NORMALIZED
 INVALID_DATE = Reason.INVALID_DATE
-MISSING_DATE = Reason.DATE_MISSING
+MISSING_DATE = Reason.MISSING_DATE
 
 # ---- helper: load one column of the real dataset, if the file is here ----
 # The raw dataset lives in data/raw/ at the top of the repository.
