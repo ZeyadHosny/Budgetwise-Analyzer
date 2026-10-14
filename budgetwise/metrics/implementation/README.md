@@ -1,57 +1,46 @@
 # metrics/implementation
 
-Zeyad · `P3.5` · domain reviewer Patrick
+Henrietta · `P3.8` · domain reviewer Patrick
 
-## Write these
+## Files
+
+| File | Contents |
+|---|---|
+| `counters.py` | `RunMetrics`: the six counts and three timings §5 asks for |
+| `timers.py` | `timed(metrics, phase)`: a context manager that times one phase |
+
+## RunMetrics
 
 ```python
-class RunMetrics:
-    record_input()                  one raw row read
-    record_valid()                  one transaction built
-    record_corrected(field)         a cleaner changed a value
-    record_skipped(reason)          a row was dropped
-    record_duplicate()
-    record_category_normalized()
-    report() -> dict
-
-@contextmanager
-def timed(metrics, phase)           times a block, stores seconds
+metrics = RunMetrics()                       # or RunMetrics.from_pipeline(result)
+metrics.record_input(n=1)                    # also record_valid, record_corrected,
+                                             # record_skipped, record_duplicate,
+                                             # record_category_normalized
+metrics.add_time("load", seconds)            # phases: load, clean, analysis
+metrics.reconciles() -> bool                 # input == valid + skipped + duplicates
+metrics.report() -> dict                     # counts, timings_seconds (+ total), reconciles
+metrics.format_report() -> str               # aligned text; never prints
 ```
 
-## Count while you go
+Counts are private and only grow: negative or fractional counts raise `ValueError`.
 
-Counting during the single pass the pipeline already makes costs nothing. A
-second pass afterwards to work out what happened is slower and can disagree with
-what was actually done.
+## Counting once, not twice
 
-## Make the numbers reconcile
+The pipeline already counts every category of row during its single pass.
+`RunMetrics.from_pipeline(result)` copies those counts and the pipeline's
+`load` and `clean` timings rather than walking the records a second time, so
+the metrics can never disagree with what the pipeline actually did. Only the
+analysis phase is timed separately:
 
+```python
+metrics = RunMetrics.from_pipeline(result)
+with timed(metrics, "analysis"):
+    ...  # aggregation and summaries
 ```
-input = valid + skipped + duplicates
-```
 
-If that does not hold, some rows are being counted twice or not at all. Assert it
-at the end of a run — a report whose own totals do not add up invites exactly the
-question you do not want in Q&A.
+## Rules followed
 
-## Corrected versus skipped
-
-- **Corrected** — the row survived, but a value changed. `Foodd` → `Food`, a date
-  reformatted, a `₹` stripped.
-- **Skipped** — the row did not survive. No amount, unparseable beyond recovery,
-  or an exact duplicate.
-
-A row can be corrected more than once — different fields. Decide at `G1` whether
-that counts once or several times, and write it in `measured_results.md`. Both
-are defensible; only silence is not.
-
-## Timing
-
-`time.perf_counter()` from the standard library. Time the three phases §5 names
-separately — one total is not what the assignment asks for.
-
-## Do not
-
-- Estimate. §5 says measured values.
-- Print — `interface/` does that.
-- Import pandas or numpy — violates §2.
+- Timing uses `time.perf_counter()`, and each phase is timed separately (§5).
+- Measured, never estimated.
+- Returns values; the menu and report decide what to print.
+- Standard library only; no pandas or numpy (§2).
