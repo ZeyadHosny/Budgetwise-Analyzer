@@ -2,11 +2,7 @@
 
 | File | Task | Feeds |
 |---|---|---|
-| `chart_samples.md` | `P3.4` | report and presentation |
+| `chart_samples.md` | `P3.6` | report — results; slides — demo fallback |
 
-Paste real rendered charts from a real run — by category and by month. Two uses:
-the report needs a figure, and the slides need something an audience can read
-from the back of a room.
-
-Save them at `G4` when results are frozen, so the figures in the report match
-the numbers in the text.
+`chart_samples.md` holds a category chart and a monthly chart generated from the
+full dataset. They are provisional until regenerated from the `G4` frozen run.

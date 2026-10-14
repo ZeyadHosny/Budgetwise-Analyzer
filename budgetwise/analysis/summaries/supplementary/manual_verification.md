@@ -1,116 +1,129 @@
-# P3.3 — Manual verification
+## 6. October 13 — Real-model and account integration review
 
-**Responsible:** Bahareh  
-**Domain reviewer:** Henrieta  
-**Branch:** `feat/p3-3-summaries`
+This entry supplements the historical October 11 results above.
+The earlier model-integration pending statement is superseded by this
+preliminary review. Final validation after G2 remains pending.
 
-## 1. Sample and rules
+### Execution details
 
-Source: `../testing/fixture.py`
+- Review date: October 13, 2026.
+- Python: 3.12.14.
+- Source snapshot: `Budgetwise-Analyzer-feature-P3.7-exports.zip`.
+- Local review change: added `test_account_summaries.py`.
+- Exact commit SHA: not available from the supplied ZIP.
+- Summary calculation files were not changed.
 
-The sample contains ten cleaned dictionaries: seven expenses and three
-income records. One expense and one income record have no date.
-
-- Transaction direction comes from `transaction_type`, never the amount sign.
-- Undated transactions remain in overall totals and rankings.
-- Undated transactions are excluded from monthly expenses.
-- Category ties use category name in ascending order.
-- Individual expense ties preserve the supplied input order.
-
-## 2. Hand calculations and actual results
-
-Actual results were verified by the passing fixture tests.
-
-| Output | Hand-calculated expected | Actual | Result |
-|---|---|---|---|
-| Total income | 1000 + 500 + 100 = 1600 | 1600.0 | PASS |
-| Total expenses | 120 + 200 + 500 + 80 + 200 + 150 + 50 = 1300 | 1300.0 | PASS |
-| Net balance | 1600 − 1300 = 300 | 300.0 | PASS |
-| January expenses | 120 + 200 + 500 = 820 | 820.0 | PASS |
-| February expenses | 80 + 200 + 150 = 430 | 430.0 | PASS |
-| Undated expense difference | 1300 − (820 + 430) = 50 | 50.0 | PASS |
-
-### Top five spending categories
-
-| Rank | Category | Expected total | Actual total |
-|---|---|---|---|
-| 1 | Rent | 500.0 | 500.0 |
-| 2 | Food | 250.0 | 250.0 |
-| 3 | Other | 200.0 | 200.0 |
-| 4 | Transportation | 200.0 | 200.0 |
-| 5 | Utilities | 150.0 | 150.0 |
-
-Food includes the undated expense: 120 + 80 + 50 = 250.
-The undated income in Other is excluded from spending totals.
-
-### Top five individual expenses
-
-| Rank | Expected ID | Actual ID | Amount |
-|---|---|---|---|
-| 1 | E03 | E03 | 500.0 |
-| 2 | E02 | E02 | 200.0 |
-| 3 | E05 | E05 | 200.0 |
-| 4 | E06 | E06 | 150.0 |
-| 5 | E01 | E01 | 120.0 |
-
-E02 precedes E05 because it appears earlier in the input.
-
-## 3. Test execution
-
-Executed on the extracted contents of
-`Budgetwise-Analyzer-feat-p3-3-summaries.zip`.
-
-- Execution date: October 11, 2026 (America/New_York)
-- Python version: 3.12.14
-- Exact commit SHA: not recorded; the supplied ZIP was the tested snapshot.
-
-From the repository root:
+Command from the repository root:
 
 ```bash
-python -m unittest budgetwise.analysis.summaries.testing.test_totals budgetwise.analysis.summaries.testing.test_rankings -v
+python -m unittest budgetwise.analysis.summaries.testing.test_account_summaries budgetwise.analysis.summaries.testing.test_totals budgetwise.analysis.summaries.testing.test_rankings -v
 ```
 
-Observed result:
+Observed in the local review copy:
 
 ```text
-Ran 27 tests in 0.001s
+Ran 39 tests
 
 OK
 ```
 
-Coverage includes hand-calculated totals and rankings, undated records,
-empty input, income-only input, expense-only totals, ranking limits,
-tie rules, generators, repeated transaction IDs, and input preservation.
+The 27 existing dictionary tests and 12 new integration tests passed.
+The committed integration branch must be verified separately.
 
-## 4. Repository-wide check
+### Real-model fixture expectations
 
-Command:
+The integration sample uses actual ExpenseTransaction and IncomeTransaction
+objects stored in CashAccount, BankAccount and UnknownAccount.
 
-```bash
-python -m unittest discover
-```
+| Scope | Income | Expenses | Net | January expenses | February expenses | Undated expenses |
+|---|---:|---:|---:|---:|---:|---:|
+| Cash | 500 | 350 | 150 | 300 | 0 | 50 |
+| Bank | 1,000 | 380 | 620 | 300 | 80 | 0 |
+| Unknown | 60 | 330 | -270 | 100 | 200 | 30 |
+| Overall | 1,560 | 1,060 | 500 | 700 | 280 | 80 |
 
-Observed result:
+Overall expense categories:
 
-```text
-Ran 134 tests in 0.057s
+| Category | Expense total |
+|---|---:|
+| Rent | 600 |
+| Food | 350 |
+| Utilities | 80 |
+| Other | 30 |
 
-FAILED (failures=2)
-```
+Expected top expense IDs:
+`T0002`, `T0007`, `T0011`, `T0001`, `T0005`.
 
-Both failures were structural checks outside summaries:
+All six outputs are checked against hand-calculated expectations.
+Additional checks cover:
+- Dictionary/model equivalence.
+- Exactly-once fixture account membership using object identity.
+- Undated transactions.
+- Stable ranking ties and original-object identity.
+- Repeated IDs without additional deduplication.
+- Empty accounts.
+- Unchanged objects and account order.
+- Shared amount updates without stale cached totals.
 
-- Missing testing package files in cleaning/dates, cleaning/rows,
-  and interface/menu.
-- Missing required layout files in cleaning/dates, cleaning/notes,
-  cleaning/rows, and interface/menu.
+These tests verify summary integration. They do not independently prove
+that the pipeline routes every dataset record into the correct account.
 
-The 27 P3.3 tests passed in this run.
+## 7. Separate full-dataset review findings
 
-## 5. Remaining validation
+Separate October 13 review checks used the retained records from
+`data/raw/budgetwise_finance_dataset.csv`.
 
-The current tests verify cleaned dictionary inputs.
+These findings are distinct from the 39 fixture tests and are preliminary
+review evidence, not final validation on a G2-approved revision.
 
-Integration with the actual Transaction model classes and reconciliation
-on the full cleaned dataset remain pending. Final full-data validation
-depends on G2. No full-dataset summary results are claimed here.
+| Measure | Observed |
+|---|---:|
+| Retained records | 14,651 |
+| Model objects | 14,651 |
+| Total income | 144,624,974 |
+| Total expenses | 165,749,066 |
+| Net balance | -21,124,092 |
+| Sum of monthly expenses | 162,224,605 |
+| Undated expense difference | 3,524,461 |
+| Cash objects | 3,502 |
+| Bank objects | 10,425 |
+| Unknown objects | 724 |
+
+All six summaries matched independently calculated results for the
+complete selected model list and for each account list.
+
+The returned model objects appeared in exactly one payment-group account.
+
+### Full-dataset spending categories
+
+| Rank | Category | Expense total |
+|---|---|---:|
+| 1 | Rent | 48,822,528 |
+| 2 | Food | 38,410,740 |
+| 3 | Utilities | 18,244,248 |
+| 4 | Entertainment | 16,168,446 |
+| 5 | Transportation | 14,222,100 |
+
+The five largest individual expense amounts were each 999,999.
+Their order was checked against the retained input order.
+These amounts are below the exclusion threshold of 100,000,000.
+
+## 8. Caller responsibilities and final validation
+
+For overall reports, pass the ordered master transaction list.
+For an account report, pass that account's `get_transactions()` result.
+
+Accounts share the same objects as the master list.
+Do not add master totals to account totals.
+
+Menu account selection and export formatting belong to their respective
+features. Monthly tuple keys require a JSON-compatible representation;
+individual expense objects require explicit record serialization.
+
+Remaining final work:
+- Verify the committed integration branch.
+- Rerun after the cleaning baseline fixes.
+- Record the exact revision, dataset identity and execution commands.
+- Verify the final menu/report/export flow.
+
+No commit SHA or final gate approval is inferred from an uploaded ZIP.
