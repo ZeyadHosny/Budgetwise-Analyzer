@@ -32,21 +32,26 @@ class TestFilteredExports(unittest.TestCase):
             "transactions": [self.selected],
             "counts": {"input": 2, "valid": 2, "returned": 1},
             "timings": {},
-            "budget_comparisons": [{
-                "month": "2026-01",
-                "period": {
-                    "start": "2026-01-01",
-                    "end": "2026-01-31",
-                    "full_month": True,
+            "summary": {
+                "scope": "transactions selected by menu query",
+                "selection": {"type": "all"},
+                "selected_transactions": 1,
+                "counts": {"input": 2, "valid": 2},
+                "timings": {},
+                "total_breakdown": {
+                    "totals": {"income": 0.0, "expenses": 50.0, "net": -50.0},
+                    "top_categories": [("Food", 50.0)],
+                    "largest_expenses": [self.selected],
+                    "budget_by_category": [],
+                    "account_breakdown": {},
+                    "chart_data": [{"category": "Food", "expenses": 50.0}],
                 },
-                "categories": [{
-                    "category": "Food",
-                    "limit": 100.0,
-                    "actual": 50.0,
-                    "status": "under",
-                    "difference": -50.0,
-                }],
-            }],
+                "monthly_breakdown": {
+                    "months": [],
+                    "chart_data": [{"month": "2026-01", "expenses": 50.0}],
+                },
+                "category_breakdown": [],
+            },
             "error": None,
         }
         self.pipeline_filters = []
@@ -54,6 +59,14 @@ class TestFilteredExports(unittest.TestCase):
     def run_with_filters(self, inputs):
         def pipeline_run(dataset, **filters):
             self.pipeline_filters.append(filters)
+            if "category" in filters:
+                self.result["summary"]["selection"] = {
+                    "type": "category", "category": filters["category"],
+                }
+            elif "start" in filters or "end" in filters:
+                self.result["summary"]["selection"] = {
+                    "type": "date_range", **filters,
+                }
             return self.result
 
         with patch("builtins.input", side_effect=inputs), \
@@ -63,11 +76,6 @@ class TestFilteredExports(unittest.TestCase):
         return csv_export, json_export
 
     def test_date_range_exports_only_selected_transactions(self):
-        self.result["budget_comparisons"][0]["period"] = {
-            "start": "2026-01-05",
-            "end": "2026-01-20",
-            "full_month": False,
-        }
         csv_export, json_export = self.run_with_filters(
             ["2", "2026-01-05", "2026-01-20", "5"]
         )
@@ -79,12 +87,10 @@ class TestFilteredExports(unittest.TestCase):
         self.assertEqual(json_export.call_args.args[0]["selection"], {
             "type": "date_range", "start": "2026-01-05", "end": "2026-01-20",
         })
-        self.assertEqual(json_export.call_args.args[0]["totals"]["expenses"], 50.0)
-        comparison = json_export.call_args.args[0]["budget_comparisons"][0]
-        self.assertFalse(comparison["period"]["full_month"])
-        self.assertEqual(comparison["period"]["start"], "2026-01-05")
-        self.assertEqual(comparison["period"]["end"], "2026-01-20")
-        self.assertEqual(comparison["categories"][0]["status"], "under")
+        self.assertEqual(
+            json_export.call_args.args[0]["total_breakdown"]["totals"]["expenses"],
+            50.0,
+        )
 
     def test_category_exports_only_selected_transactions(self):
         csv_export, json_export = self.run_with_filters(
@@ -96,10 +102,10 @@ class TestFilteredExports(unittest.TestCase):
         self.assertEqual(json_export.call_args.args[0]["selection"], {
             "type": "category", "category": "Food",
         })
-        self.assertEqual(json_export.call_args.args[0]["totals"]["expenses"], 50.0)
-        budget_comparisons = json_export.call_args.args[0]["budget_comparisons"]
-        self.assertEqual(len(budget_comparisons[0]["categories"]), 1)
-        self.assertEqual(budget_comparisons[0]["categories"][0]["category"], "Food")
+        self.assertEqual(
+            json_export.call_args.args[0]["total_breakdown"]["totals"]["expenses"],
+            50.0,
+        )
 
 
 if __name__ == "__main__":

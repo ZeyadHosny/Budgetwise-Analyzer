@@ -52,6 +52,7 @@ result = run("data/raw/budgetwise_finance_dataset.csv")
 result["transactions"]     # list of ExpenseTransaction / IncomeTransaction
 result["accounts"]         # {"cash": CashAccount, "bank": BankAccount, "unknown": UnknownAccount}
 result["account_breakdown"] # counts and totals calculated through account getters
+result["summary"]           # total, monthly, and category analysis sections
 result["counts"]           # dict of the numbers the report needs
 result["timings"]          # seconds for load and clean
 result["budget_comparisons"] # monthly category status, based on returned accounts
@@ -77,6 +78,7 @@ Both return a **dictionary**. There is no `LoadResult` class, so write
 | `transactions` | list of 14,651 objects | all of `analysis/` |
 | `accounts` | one `CashAccount`, one `BankAccount`, one `UnknownAccount` | report: cash versus bank |
 | `account_breakdown` | transaction count, total spent, total received per account | summary JSON |
+| `summary` | total, monthly, and category breakdowns, including chart data | menu/export |
 | `records` | list of 14,651 dictionaries, unfiltered | export, metrics |
 | `counts["input"]` | 15,900 | report: number of input records |
 | `counts["valid"]` | 14,651 | report: number of valid records |

@@ -79,7 +79,7 @@ from calendar import monthrange
 from collections import Counter
 
 from budgetwise.analysis.budgets import compare_to_budget
-from budgetwise.analysis.summaries import monthly_expenses
+from budgetwise.analysis.summaries import build_summary, monthly_expenses
 from budgetwise.cleaning.amounts import parse_amount
 from budgetwise.cleaning.categories import normalize_category
 from budgetwise.cleaning.dates import parse_date
@@ -359,6 +359,7 @@ def run(path, start=None, end=None, category=None, error_log=None):
         result["accounts"] = {}
         result["account_breakdown"] = {}
         result["budget_comparisons"] = []
+        result["summary"] = {}
         if result["error"]:
             pass
         elif Transaction is None:
@@ -368,6 +369,13 @@ def run(path, start=None, end=None, category=None, error_log=None):
             result["account_breakdown"] = _account_breakdown(result["accounts"])
             result["budget_comparisons"] = _budget_comparisons(
                 result["accounts"], start, end, category
+            )
+            result["summary"] = build_summary(
+                result["accounts"],
+                result["counts"],
+                result["timings"],
+                result["budget_comparisons"],
+                _selection(start, end, category),
             )
         _summarise(result)
         return result
@@ -467,6 +475,19 @@ def _budget_comparisons(accounts, start=None, end=None, category=None):
             ],
         })
     return comparisons_by_month
+
+
+def _selection(start, end, category):
+    if category:
+        return {"type": "category", "category": category}
+    if start or end:
+        selection = {"type": "date_range"}
+        if start:
+            selection["start"] = start
+        if end:
+            selection["end"] = end
+        return selection
+    return {"type": "all"}
 
 
 def _build_transaction(record):

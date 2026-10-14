@@ -6,15 +6,10 @@
 # Standard library only - Project-1.pdf section 2.
 
 import sys
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from budgetwise.analysis.summaries import (
-    net_balance,
-    top_categories,
-    total_expenses,
-    total_income,
-)
-from budgetwise.interface.export import export_cleaned, export_summary
+from budgetwise.interface.export import export_cleaned, export_summary, export_charts
 from budgetwise.pipeline import run
 
 # The heading printed above the options on every pass of the loop.
@@ -30,7 +25,7 @@ OPTIONS = (
 # The choices prompt_choice will accept. Anything else reprompts.
 VALID_CHOICES = ("1", "2", "3", "4", "5")
 # The dataset path, relative to the repository root.
-DATASET = "data/raw/budgetwise_finance_dataset.csv"
+DATASET = "data/raw/budgetwise_synthetic_dirty.csv"
 # Where task P2.8 writes the error log that option 4 displays.
 ERROR_LOG = Path("output/logs/errors.log")
 # The date format section 4.5 standardizes every date to.
@@ -236,42 +231,27 @@ def format_summary(result):
     return "\n".join(lines)
 
 
-def export_run(result, dataset, selection=None):
-    """Export the transactions selected by this menu load."""
-    records = result.get("records")
-    if records is None or (result.get("error") and not records):
-        return
+def export_run(result, dataset):
+    """Render charts and export the summary already built by the pipeline."""
     transactions = result.get("transactions")
     if transactions is None or (result.get("error") and not transactions):
         return
+    summary = result.get("summary")
+    if not isinstance(summary, dict):
+        return
 
-    counts = result.get("counts", {})
-    cleaning_count_keys = (
-        "input", "valid", "duplicates", "skipped", "corrected", "flagged",
-        "categories_normalized", "repeated_ids", "by_reason",
-    )
-    summary = {
-        "scope": "transactions selected by menu query",
-        "selection": selection or {"type": "all"},
-        "selected_transactions": len(transactions),
-        "counts": {
-            key: counts[key] for key in cleaning_count_keys if key in counts
-        },
-        "timings": result.get("timings", {}),
-        "totals": {
-            "income": total_income(transactions),
-            "expenses": total_expenses(transactions),
-            "net": net_balance(transactions),
-        },
-        "account_breakdown": result.get("account_breakdown", {}),
-        "top_categories": top_categories(transactions, n=5),
-        "budget_comparisons": result.get("budget_comparisons", []),
-    }
     generated_at = datetime.now()
     cleaned_path = export_cleaned(transactions, dataset, when=generated_at)
     summary_path = export_summary(summary, dataset, when=generated_at)
+    chart_path = export_charts(
+        summary.get("total_breakdown", {}),
+        summary.get("monthly_breakdown", {}),
+        dataset,
+        when=generated_at,
+    )
     print(f"  Cleaned CSV: {cleaned_path}")
     print(f"  JSON summary: {summary_path}")
+    print(f"  Charts: {chart_path}")
 
 
 # Function to raise when the pipeline is not available
@@ -330,15 +310,13 @@ def run_menu(pipeline_run=run, dataset=DATASET):
             if choice == "1":
                 result = pipeline_run(dataset)
                 print(format_summary(result))
-                export_run(result, dataset, {"type": "all"})
+                export_run(result, dataset)
 
             elif choice == "2":
                 start, end = prompt_date_range()
                 result = pipeline_run(dataset, start=start, end=end)
                 print(format_summary(result))
-                export_run(result, dataset, {
-                    "type": "date_range", "start": start, "end": end,
-                })
+                export_run(result, dataset)
                 print(f"  Range {start} to {end}. Rows with no date are "
                       f"excluded from a date range - section 4.5.")
 
@@ -346,9 +324,7 @@ def run_menu(pipeline_run=run, dataset=DATASET):
                 category = prompt_category()
                 result = pipeline_run(dataset, category=category)
                 print(format_summary(result))
-                export_run(result, dataset, {
-                    "type": "category", "category": category,
-                })
+                export_run(result, dataset)
                 print(f"  Category {category}. The filter runs after "
                       f"normalization, so 'Fod' and 'Foodd' match too.")
 

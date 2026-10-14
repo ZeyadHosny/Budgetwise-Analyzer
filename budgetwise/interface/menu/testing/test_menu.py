@@ -309,13 +309,32 @@ class TestLoop(unittest.TestCase):
             "transactions": [record],
             "counts": {"input": 2, "valid": 2, "returned": 1},
             "timings": {"load": 0.1, "clean": 0.2},
-            "account_breakdown": {
-              "cash": {"transaction_count": 1, "total_spent": 50.0,
-                   "total_received": 0.0},
-              "bank": {"transaction_count": 1, "total_spent": 0.0,
-                   "total_received": 500.0},
-              "unknown": {"transaction_count": 0, "total_spent": 0.0,
-                    "total_received": 0.0},
+          "summary": {
+            "scope": "transactions selected by menu query",
+            "selection": {"type": "all"},
+            "selected_transactions": 1,
+            "counts": {"input": 2, "valid": 2},
+            "timings": {"load": 0.1, "clean": 0.2},
+            "total_breakdown": {
+              "totals": {"income": 0.0, "expenses": 50.0, "net": -50.0},
+              "account_breakdown": {
+                "cash": {"transaction_count": 1, "total_spent": 50.0,
+                     "total_received": 0.0},
+                "bank": {"transaction_count": 1, "total_spent": 0.0,
+                     "total_received": 500.0},
+                "unknown": {"transaction_count": 0, "total_spent": 0.0,
+                      "total_received": 0.0},
+              },
+              "top_categories": [("Food", 50.0)],
+              "largest_expenses": [record],
+              "budget_by_category": [],
+              "chart_data": [{"category": "Food", "expenses": 50.0}],
+            },
+            "monthly_breakdown": {
+              "months": [],
+              "chart_data": [{"month": "2026-01", "expenses": 50.0}],
+            },
+            "category_breakdown": [],
             },
             "error": None,
         }
@@ -330,14 +349,18 @@ class TestLoop(unittest.TestCase):
         self.assertIs(csv_export.call_args.kwargs["when"],
                       json_export.call_args.kwargs["when"])
         summary = json_export.call_args.args[0]
-        self.assertEqual(summary["counts"], {"input": 2, "valid": 2})
+        self.assertEqual(summary["counts"], result["summary"]["counts"])
         self.assertEqual(summary["selection"], {"type": "all"})
         self.assertEqual(summary["selected_transactions"], 1)
-        self.assertEqual(summary["totals"], {
+        self.assertEqual(summary["total_breakdown"]["totals"], {
             "income": 0.0, "expenses": 50.0, "net": -50.0,
         })
-        self.assertEqual(summary["top_categories"], [("Food", 50.0)])
-        self.assertEqual(summary["account_breakdown"], result["account_breakdown"])
+        self.assertEqual(
+            summary["total_breakdown"]["account_breakdown"],
+            result["summary"]["total_breakdown"]["account_breakdown"],
+        )
+        self.assertIn("bar_chart", summary["total_breakdown"])
+        self.assertIn("bar_chart", summary["monthly_breakdown"])
 
     # Test that bad input does not end the program
     def test_invalid_then_exit(self):

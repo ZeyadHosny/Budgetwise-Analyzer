@@ -434,6 +434,26 @@ class AccountTests(unittest.TestCase):
                     "total_received": account.get_total_received(),
                 })
 
+    def test_run_builds_three_section_summary_from_accounts(self):
+        result = self.result
+        summary = result["summary"]
+        self.assertEqual(
+            set(summary) - {"scope", "selection", "selected_transactions",
+                            "counts", "timings"},
+            {"total_breakdown", "monthly_breakdown", "category_breakdown"},
+        )
+        self.assertEqual(
+            summary["selected_transactions"],
+            sum(account.get_transaction_count()
+                for account in result["accounts"].values()),
+        )
+        self.assertEqual(
+            summary["total_breakdown"]["totals"]["expenses"],
+            sum(account.get_total_spent()
+                for account in result["accounts"].values()),
+        )
+        self.assertTrue(summary["monthly_breakdown"]["months"])
+
     def test_accounts_hold_the_same_objects_as_the_list(self):
         listed = {id(t) for t in self.result["transactions"]}
         for account in self.result["accounts"].values():

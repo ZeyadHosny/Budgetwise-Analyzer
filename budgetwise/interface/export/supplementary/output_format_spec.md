@@ -44,27 +44,24 @@ The summary contains already-calculated figures; export does not recompute them.
 | `counts.by_reason` | Reason code to number-of-events mapping |
 | `timings.load` | Dataset loading duration, in seconds |
 | `timings.clean` | Cleaning duration, in seconds |
-| `totals.income` | Income total for the selected transactions |
-| `totals.expenses` | Expense total for the selected transactions |
-| `totals.net` | Selected income minus selected expenses |
-| `account_breakdown` | Transaction count, total spent, and total received by payment account |
-| `top_categories` | Up to five `[category, total]` expense pairs from the selection, highest total first |
-| `budget_comparisons` | Monthly budget results for each selected month with dated expenses |
+| `total_breakdown.totals` | Overall income, expenses, and net |
+| `total_breakdown.top_categories` | Up to five expense `[category, total]` pairs, highest first |
+| `total_breakdown.largest_expenses` | Up to five largest expense transaction dictionaries |
+| `total_breakdown.budget_by_category` | Aggregate actual and allowed budget across the selected period |
+| `total_breakdown.account_breakdown` | Count, spent, and received per cash, bank, and unknown account |
+| `total_breakdown.chart_data` | Expense totals by category for rendering the chart |
+| `total_breakdown.bar_chart` | Rendered text chart of expenses by category |
+| `monthly_breakdown.months` | Per-month totals, top categories, largest expenses, and budget results |
+| `monthly_breakdown.chart_data` | Expense totals by month for rendering the chart |
+| `monthly_breakdown.bar_chart` | Rendered text chart of expenses by month |
+| `category_breakdown` | Per-category income, expenses, net, count, and monthly expenses |
 
-`account_breakdown` has `cash`, `bank`, and `unknown` entries. The pipeline
-builds each entry from the account object's `get_transaction_count()`,
-`get_total_spent()`, and `get_total_received()` methods. The unknown account
-keeps transactions with an absent or unrecognized payment mode visible rather
-than dropping them from the report.
-
-Each `budget_comparisons` entry contains `month` (`YYYY-MM`), `period`, and
-`categories`. `period` records the selected `start`, `end`, and `full_month`
-flag. Each category result contains `category`, `limit`, `actual`, `status`,
-and `difference`, as returned by the `Budget` model through
-`compare_to_budget`. Status is `over`, `under`, `exact`, or `unbudgeted`;
-unbudgeted categories have null `limit` and `difference`. When `full_month` is
-false, `actual` covers only the selected part of that month and is compared
-with the full monthly limit.
+The pipeline builds account totals through each account object's getters.
+Status is `over`, `under`, `exact`, or `unbudgeted`. Overall budget status
+compares cumulative spending with the sum of monthly limits over the selected
+period; partial months are prorated. Monthly comparisons use the existing
+`Budget` model. The pipeline returns chart data, and the menu renders it with
+`interface/charts` before exporting.
 
 Example:
 
@@ -77,22 +74,39 @@ Example:
   "selected_transactions": 14100,
   "counts": {"input": 15900, "valid": 14651, "duplicates": 900},
   "timings": {"load": 0.04, "clean": 0.5},
-  "totals": {"income": 14082330.0, "expenses": 79441210.0, "net": -65358880.0},
-  "account_breakdown": {
-    "cash": {"transaction_count": 3799, "total_spent": 20000000.0, "total_received": 1000000.0},
-    "bank": {"transaction_count": 11293, "total_spent": 55000000.0, "total_received": 13000000.0},
-    "unknown": {"transaction_count": 808, "total_spent": 5000000.0, "total_received": 500000.0}
+  "total_breakdown": {
+    "totals": {"income": 14082330.0, "expenses": 79441210.0, "net": -65358880.0},
+    "top_categories": [["Food", 8210400.0], ["Rent", 7980120.0]],
+    "largest_expenses": [{"transaction_id": "T4999", "amount": 9984.0}],
+    "budget_by_category": [
+      {"category": "Food", "limit": 11928000.0, "actual": 8210400.0,
+       "status": "under", "difference": -3717600.0}
+    ],
+    "account_breakdown": {
+      "cash": {"transaction_count": 3799, "total_spent": 20000000.0, "total_received": 1000000.0},
+      "bank": {"transaction_count": 11293, "total_spent": 55000000.0, "total_received": 13000000.0},
+      "unknown": {"transaction_count": 808, "total_spent": 5000000.0, "total_received": 500000.0}
+    },
+    "chart_data": [{"category": "Food", "expenses": 8210400.0}],
+    "bar_chart": "Expenses by category\\nFood  ********  8,214,000"
   },
-  "top_categories": [["Food", 8210400.0], ["Rent", 7980120.0]],
-  "budget_comparisons": [
-    {
+  "monthly_breakdown": {
+    "months": [{
       "month": "2023-07",
-      "period": {"start": "2023-07-01", "end": "2023-07-31", "full_month": true},
-      "categories": [
-        {"category": "Food", "limit": 248500.0, "actual": 250000.0,
-         "status": "over", "difference": 1500.0}
-      ]
-    }
-  ]
+      "totals": {"income": 30000.0, "expenses": 250000.0, "net": -220000.0},
+      "top_categories": [["Food", 250000.0]],
+      "largest_expenses": [{"transaction_id": "T4999", "amount": 9984.0}],
+      "budget_comparisons": [{"category": "Food", "limit": 248500.0,
+        "actual": 250000.0, "status": "over", "difference": 1500.0}]
+    }],
+    "chart_data": [{"month": "2023-07", "expenses": 250000.0}],
+    "bar_chart": "Expenses by month\\n2023-07  ********  250,000"
+  },
+  "category_breakdown": [{
+    "category": "Food",
+    "totals": {"income": 0.0, "expenses": 8210400.0, "net": -8210400.0},
+    "transaction_count": 3120,
+    "monthly_expenses": [{"month": "2023-07", "expenses": 250000.0}]
+  }]
 }
 ```

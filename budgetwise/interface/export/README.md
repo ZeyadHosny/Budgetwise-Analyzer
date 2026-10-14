@@ -43,7 +43,9 @@ The JSON also includes per-month budget statuses from the configured limits.
 For partial date-range months, the period coverage is identified explicitly;
 the selected spend is compared against the full monthly limit.
 It also reports transaction count, expenses, and income separately for the
-cash, bank, and unknown-payment accounts.
+cash, bank, and unknown-payment accounts. The pipeline builds total,
+month-by-month, and category sections; the menu only renders chart data and
+writes those sections to JSON.
 
 ## 3. What it produces
 

@@ -15,6 +15,7 @@ from .implementation.rankings import (
     top_categories,
     top_expenses,
 )
+from .implementation.report import build_summary
 
 __all__ = [
     "total_income",
@@ -23,4 +24,5 @@ __all__ = [
     "monthly_expenses",
     "top_categories",
     "top_expenses",
+    "build_summary",
 ]
