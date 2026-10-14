@@ -7,7 +7,7 @@ Entry point. Run with:
 This file stays small on purpose. It wires the program together and hands
 control to the menu; all the work happens in the budgetwise package.
 """
-from budgetwise.interface.menu.implementation.menu import run_menu
+from budgetwise.interface.menu import run_menu
 
 
 def main() -> None:
