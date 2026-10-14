@@ -73,11 +73,12 @@ def build_summary(accounts, counts, timings, budget_comparisons, selection,
     }
     expense_transactions = transactions
 
-    return {
+    result = {
         "scope": "transactions selected by menu query",
         "selection": selection or {"type": "all"},
         "selected_transactions": sum(
-            account.get_transaction_count() for account in accounts.values()
+            account.get_transaction_count()
+            for account in accounts.values()
         ),
         "counts": dict(counts),
         "timings": dict(timings),
@@ -107,6 +108,14 @@ def build_summary(accounts, counts, timings, budget_comparisons, selection,
             ],
         },
     }
+
+    # Extract chart data into its own object
+    chart_data = {
+        "total_breakdown": result["total_breakdown"].pop("chart_data"),
+        "monthly_breakdown": result["monthly_breakdown"].pop("chart_data"),
+    }
+
+    return result, chart_data
 
 
 def iter_transactions(accounts):

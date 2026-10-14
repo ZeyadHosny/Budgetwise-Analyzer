@@ -27,7 +27,7 @@ def export_charts(
         bar_chart(
             {
                 item["category"]: item["expenses"]
-                for item in total_breakdown["chart_data"]
+                for item in total_breakdown
             },
             title="Expenses by Category",
             sort_by_value=True,
@@ -37,7 +37,7 @@ def export_charts(
             {
                 (item["month"][:4], item["month"][5:]):
                     item["expenses"]
-                for item in monthly_breakdown["chart_data"]
+                for item in monthly_breakdown
             },
             title="Expenses by Month",
         ),

@@ -76,6 +76,7 @@ RULES THIS FILE FOLLOWS
 import math
 import time
 from calendar import monthrange
+from datetime import datetime
 from collections import Counter
 
 from budgetwise.analysis.budgets import compare_to_budget
@@ -89,6 +90,7 @@ from budgetwise.cleaning.payment_modes import normalize_payment_mode
 from budgetwise.cleaning.rows import find_repeated_ids, is_duplicate, validate_raw_row
 from budgetwise.errorlog import ErrorLog, Reason
 from budgetwise.loader import load_rows
+from budgetwise.interface.export import export_cleaned, export_summary, export_charts
 
 # The classes are Zeyad's task. Until they are merged, cleaning still works
 # and run() explains why it has no objects to return.
@@ -366,11 +368,10 @@ def run(path, start=None, end=None, category=None, error_log=None):
             result["error"] = "rows were cleaned, but budgetwise.models has no Transaction class yet"
         else:
             _build_objects(result, error_log, start, end, category)
-            result["account_breakdown"] = _account_breakdown(result["accounts"])
             result["budget_comparisons"] = _budget_comparisons(
                 result["accounts"], start, end, category
             )
-            result["summary"] = build_summary(
+            result["summary"], chart_data = build_summary(
                 result["accounts"],
                 result["counts"],
                 result["timings"],
@@ -378,10 +379,33 @@ def run(path, start=None, end=None, category=None, error_log=None):
                 _selection(start, end, category),
             )
         _summarise(result)
+        export_run(result, chart_data, path)
         return result
     finally:
         if owns_log:
             error_log.close()
+
+def export_run(result, charts, dataset):
+    """Render charts and export the summary already built by the pipeline."""
+    transactions = result.get("transactions")
+    if transactions is None or (result.get("error") and not transactions):
+        return
+    summary = result.get("summary")
+    if not isinstance(summary, dict):
+        return
+
+    generated_at = datetime.now()
+    cleaned_path = export_cleaned(transactions, dataset, when=generated_at)
+    summary_path = export_summary(summary, dataset, when=generated_at)
+    chart_path = export_charts(
+        charts.get("total_breakdown", {}),
+        charts.get("monthly_breakdown", {}),
+        dataset,
+        when=generated_at,
+    )
+    print(f"  Cleaned CSV: {cleaned_path}")
+    print(f"  JSON summary: {summary_path}")
+    print(f"  Charts: {chart_path}")
 
 
 def _build_objects(result, error_log, start, end, category):
@@ -425,19 +449,8 @@ def _build_objects(result, error_log, start, end, category):
     counts["returned"] = len(transactions)
 
 
-def _account_breakdown(accounts):
-    """Summarize each account using the account model's public getters."""
-    return {
-        kind: {
-            "transaction_count": account.get_transaction_count(),
-            "total_spent": account.get_total_spent(),
-            "total_received": account.get_total_received(),
-        }
-        for kind, account in accounts.items()
-    }
-
-
 def _budget_comparisons(accounts, start=None, end=None, category=None):
+    print("BUDGET COMPARISONS")
     """Compare selected account transactions with monthly category limits."""
     account_transactions = []
     for account in accounts.values():
