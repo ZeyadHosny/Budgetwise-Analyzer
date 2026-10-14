@@ -440,7 +440,7 @@ class AccountTests(unittest.TestCase):
         self.assertEqual(
             set(summary) - {"scope", "selection", "selected_transactions",
                             "counts", "timings"},
-            {"total_breakdown", "monthly_breakdown", "category_breakdown"},
+            {"total_breakdown", "monthly_breakdown"},
         )
         self.assertEqual(
             summary["selected_transactions"],

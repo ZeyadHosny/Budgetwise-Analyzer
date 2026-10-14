@@ -362,6 +362,10 @@ def run(path, start=None, end=None, category=None, error_log=None):
         result["account_breakdown"] = {}
         result["budget_comparisons"] = []
         result["summary"] = {}
+        chart_data = {
+            "total_breakdown": [],
+            "monthly_breakdown": [],
+        }
         if result["error"]:
             pass
         elif Transaction is None:
@@ -378,6 +382,9 @@ def run(path, start=None, end=None, category=None, error_log=None):
                 result["budget_comparisons"],
                 _selection(start, end, category),
             )
+            result["account_breakdown"] = result["summary"].get(
+                "total_breakdown", {}
+            ).get("account_breakdown", {})
         _summarise(result)
         export_run(result, chart_data, path)
         return result
@@ -450,7 +457,6 @@ def _build_objects(result, error_log, start, end, category):
 
 
 def _budget_comparisons(accounts, start=None, end=None, category=None):
-    print("BUDGET COMPARISONS")
     """Compare selected account transactions with monthly category limits."""
     account_transactions = []
     for account in accounts.values():
