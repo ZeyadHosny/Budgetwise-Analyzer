@@ -1,46 +1,33 @@
-# metrics/implementation
-
-Henrietta · `P3.8` · domain reviewer Patrick
-
-## Files
+# Implementation
 
 | File | Contents |
 |---|---|
-| `counters.py` | `RunMetrics`: the six counts and three timings §5 asks for |
-| `timers.py` | `timed(metrics, phase)`: a context manager that times one phase |
+| `counters.py` | `RunMetrics`, which stores the counts and timings |
+| `timers.py` | `timed()`, which measures how long a block of code takes |
 
 ## RunMetrics
 
 ```python
-metrics = RunMetrics()                       # or RunMetrics.from_pipeline(result)
-metrics.record_input(n=1)                    # also record_valid, record_corrected,
-                                             # record_skipped, record_duplicate,
-                                             # record_category_normalized
-metrics.add_time("load", seconds)            # phases: load, clean, analysis
-metrics.reconciles() -> bool                 # input == valid + skipped + duplicates
-metrics.report() -> dict                     # counts, timings_seconds (+ total), reconciles
-metrics.format_report() -> str               # aligned text; never prints
+metrics = RunMetrics()                    # empty
+metrics = RunMetrics.from_pipeline(result)  # filled from the cleaning pipeline
+
+metrics.record_input(n)                   # also record_valid, record_corrected,
+                                          # record_skipped, record_duplicate,
+                                          # record_category_normalized
+metrics.add_time("load", seconds)         # phases: load, clean, analysis
+
+metrics.reconciles()                      # True if input = valid + skipped + duplicates
+metrics.report()                          # all values as a dictionary
+metrics.format_report()                   # all values as aligned text
 ```
 
-Counts are private and only grow: negative or fractional counts raise `ValueError`.
+Counts can only increase. Negative or non-whole counts raise `ValueError`.
 
-## Counting once, not twice
-
-The pipeline already counts every category of row during its single pass.
-`RunMetrics.from_pipeline(result)` copies those counts and the pipeline's
-`load` and `clean` timings rather than walking the records a second time, so
-the metrics can never disagree with what the pipeline actually did. Only the
-analysis phase is timed separately:
+## timed
 
 ```python
-metrics = RunMetrics.from_pipeline(result)
 with timed(metrics, "analysis"):
-    ...  # aggregation and summaries
+    ...
 ```
 
-## Rules followed
-
-- Timing uses `time.perf_counter()`, and each phase is timed separately (§5).
-- Measured, never estimated.
-- Returns values; the menu and report decide what to print.
-- Standard library only; no pandas or numpy (§2).
+Records the elapsed time even if the block raises an error.
