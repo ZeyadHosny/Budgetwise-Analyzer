@@ -1,25 +1,27 @@
 # interface/charts/testing
 
-Sarah · domain reviewer Bahareh
+Henrietta · domain reviewer Sarah
 
-## Required cases
+## Cases covered
 
-- [ ] The largest value gets exactly `width` stars
-- [ ] A half-size value gets about half the stars
-- [ ] A tiny non-zero value still gets at least one star
-- [ ] A zero value gets no stars but still shows its label
-- [ ] An empty dict returns an empty string, not an error
-- [ ] All values equal produces equal bars, no division error
-- [ ] Tuple month keys render as `2023-07`
-- [ ] Every line is the same length — alignment holds
-
-Assert on the returned string. That is the advantage of returning rather than
-printing.
+- [x] The largest value gets exactly `width` stars
+- [x] A half-size value gets half the stars
+- [x] A tiny non-zero value still gets one star
+- [x] A zero value gets no stars but keeps its label
+- [x] An empty dict returns an empty string
+- [x] Equal values give equal bars; all-zero values cause no division error
+- [x] Tuple month keys render as `2023-07`
+- [x] Every line is the same length, numbers right-aligned with commas
+- [x] Dictionary order kept by default; `sort_by_value` puts the largest first
+- [x] Title line, long-label shortening, and `width < 1` rejected
+- [x] Returns a string
 
 ## Run
 
+From the project root:
+
 ```bash
-python -m unittest discover
+python -m unittest budgetwise.interface.charts.testing.test_bar_chart -v
 ```
 
-Check how many tests ran, not just that it said `OK`.
+Expected result: `Ran 16 tests ... OK`.

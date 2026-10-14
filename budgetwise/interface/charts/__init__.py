@@ -1,4 +1,4 @@
 """Text bar chart rendering. Returns strings, never prints."""
 
-# Contract — uncomment once implementation/bar_chart.py exists.
-# from .implementation.bar_chart import bar_chart
+# Contract. What the menu and export may use.
+from .implementation.bar_chart import bar_chart
