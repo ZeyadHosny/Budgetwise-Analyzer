@@ -1,57 +1,33 @@
-# metrics/implementation
+# Implementation
 
-Zeyad · `P3.5` · domain reviewer Patrick
+| File | Contents |
+|---|---|
+| `counters.py` | `RunMetrics`, which stores the counts and timings |
+| `timers.py` | `timed()`, which measures how long a block of code takes |
 
-## Write these
+## RunMetrics
 
 ```python
-class RunMetrics:
-    record_input()                  one raw row read
-    record_valid()                  one transaction built
-    record_corrected(field)         a cleaner changed a value
-    record_skipped(reason)          a row was dropped
-    record_duplicate()
-    record_category_normalized()
-    report() -> dict
+metrics = RunMetrics()                    # empty
+metrics = RunMetrics.from_pipeline(result)  # filled from the cleaning pipeline
 
-@contextmanager
-def timed(metrics, phase)           times a block, stores seconds
+metrics.record_input(n)                   # also record_valid, record_corrected,
+                                          # record_skipped, record_duplicate,
+                                          # record_category_normalized
+metrics.add_time("load", seconds)         # phases: load, clean, analysis
+
+metrics.reconciles()                      # True if input = valid + skipped + duplicates
+metrics.report()                          # all values as a dictionary
+metrics.format_report()                   # all values as aligned text
 ```
 
-## Count while you go
+Counts can only increase. Negative or non-whole counts raise `ValueError`.
 
-Counting during the single pass the pipeline already makes costs nothing. A
-second pass afterwards to work out what happened is slower and can disagree with
-what was actually done.
+## timed
 
-## Make the numbers reconcile
-
-```
-input = valid + skipped + duplicates
+```python
+with timed(metrics, "analysis"):
+    ...
 ```
 
-If that does not hold, some rows are being counted twice or not at all. Assert it
-at the end of a run — a report whose own totals do not add up invites exactly the
-question you do not want in Q&A.
-
-## Corrected versus skipped
-
-- **Corrected** — the row survived, but a value changed. `Foodd` → `Food`, a date
-  reformatted, a `₹` stripped.
-- **Skipped** — the row did not survive. No amount, unparseable beyond recovery,
-  or an exact duplicate.
-
-A row can be corrected more than once — different fields. Decide at `G1` whether
-that counts once or several times, and write it in `measured_results.md`. Both
-are defensible; only silence is not.
-
-## Timing
-
-`time.perf_counter()` from the standard library. Time the three phases §5 names
-separately — one total is not what the assignment asks for.
-
-## Do not
-
-- Estimate. §5 says measured values.
-- Print — `interface/` does that.
-- Import pandas or numpy — violates §2.
+Records the elapsed time even if the block raises an error.

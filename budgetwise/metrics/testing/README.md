@@ -1,22 +1,20 @@
-# metrics/testing
+# Tests
 
-Zeyad · domain reviewer Patrick
+`test_counters.py` checks that:
 
-## Required cases
-
-- [ ] Each counter increments independently
-- [ ] `report()` returns all seven measurements
-- [ ] `input = valid + skipped + duplicates` holds on a fixture
-- [ ] The `timed` context manager records a positive duration
-- [ ] Timing survives an exception raised inside the block
-- [ ] Nested phases do not double-count
-- [ ] A run with zero rows reports zeros, not a division error
-- [ ] Corrections to two fields on one row follow the agreed rule
+- new metrics start at zero
+- each `record_*` method updates the right count
+- invalid counts are rejected
+- `reconciles()` is true only when every row is accounted for
+- `timed()` records time, including when the block raises an error
+- load, clean and analysis times are kept separate
+- `from_pipeline()` copies all counts and timings
+- `report()` and `format_report()` include all seven measurements
 
 ## Run
 
 ```bash
-python -m unittest discover
+python -m unittest budgetwise.metrics.testing.test_counters -v
 ```
 
-Check how many tests ran, not just that it said `OK`.
+Expected: 17 tests, all passing.

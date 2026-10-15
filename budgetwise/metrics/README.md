@@ -1,93 +1,87 @@
-# metrics
+# Metrics
 
-Times the run and counts what happened, for the report.
+Counts and times each run of the program for the report.
 
 | | |
 |---|---|
-| **Responsible** | Zeyad |
-| **Domain reviewer** | Patrick (`P3.5`) |
-| **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
-| **Tasks** | `P3.5` |
-| **Status** | Not started |
+| **Responsible** | Henrietta |
+| **Reviewer** | Patrick |
+| **PR approval** | Zeyad or Patrick (see `CONTRIBUTING.md`) |
+| **Task** | `P3.8` |
+| **Status** | Implemented, under review |
 
-## 1. What this folder does
+## What it measures
 
-§5 names seven measurements the report must contain, and requires they be
-**measured, not estimated**. This module produces all seven.
+Section 5 requires seven measured values:
 
-| Measurement | Where it comes from |
+| Measurement | Source |
 |---|---|
-| Number of input records | rows the loader yielded |
-| Number of valid records | transactions built |
-| Number of corrected records | rows where a cleaner changed a value |
-| Number of invalid / skipped records | rows dropped |
-| Number of duplicates detected | `cleaning/rows` |
-| Number of categories normalized | `cleaning/categories` |
-| Execution time for loading, cleaning, analysis | timers here |
+| Input records | Rows read from the CSV |
+| Valid records | Rows kept after cleaning |
+| Corrected records | Kept rows with at least one value standardized |
+| Skipped records | Rows that could not be cleaned |
+| Duplicates detected | Exact copies removed before cleaning |
+| Categories normalized | Rows whose category was changed |
+| Execution time | Loading, cleaning and analysis, timed separately |
 
-"Corrected" and "skipped" are different, and the report asks for both. A row
-whose category was fixed from `Foodd` to `Food` is corrected. A row dropped for
-having no amount is skipped. Agree the boundary at `G1` and record it, or the
-two numbers will not be comparable between runs.
+The counts must satisfy: input = valid + skipped + duplicates.
 
-## 2. How other modules use it
+## Usage
 
 ```python
 from budgetwise.metrics import RunMetrics, timed
 
-metrics = RunMetrics()
-with timed(metrics, "load"):
-    rows = list(load_rows(path))
-metrics.record_corrected("category")
-metrics.report()
+result = clean_file(path)
+metrics = RunMetrics.from_pipeline(result)
+
+with timed(metrics, "analysis"):
+    ...  # aggregation and summaries
+
+print(metrics.format_report())
 ```
 
-`pipeline/` drives this. `interface/` displays it.
+`from_pipeline` takes the counts and the load and clean times from the cleaning
+pipeline. `timed` adds the analysis time.
 
-## 3. What it produces
+## Example output
+
+Provisional run on the full dataset, 2026-10-13:
 
 ```
-Input records            15,900
-Valid records            14,100
-Corrected records         4,802
-Invalid / skipped records   900
-Duplicates detected         900
-Categories normalized    12,300
+Input records                  15,900
+Valid records                  14,651
+Corrected records              14,587
+Invalid / skipped records         349
+Duplicates detected               900
+Categories normalized          10,955
 
-Loading    0.41 s
-Cleaning   1.93 s
-Analysis   0.28 s
-Total      2.62 s
+Loading                      0.0429 s
+Cleaning                     0.6500 s
+Analysis                     0.0595 s
+Total                        0.7524 s
 ```
 
-Figures show the shape, not real results. Real ones come from a run and go
-straight into the report.
+Final figures will come from the G4 frozen run. See
+`supplementary/measured_results.md`.
 
-## 4. Requirements and tasks covered
-
-| Requirement | Source | Task |
-|---|---|---|
-| Number of input records | §5 | `P3.5` |
-| Number of valid records | §5 | `P3.5` |
-| Number of corrected records | §5 | `P3.5` |
-| Number of invalid / skipped records | §5 | `P3.5` |
-| Number of duplicates detected | §5 | `P3.5` |
-| Number of categories normalized | §5 | `P3.5` |
-| Execution time for loading, cleaning, and analysis | §5 | `P3.5` |
-| Results measured, not estimated | §5 | `P4.2` |
-
-## 5. Folders
+## Files
 
 | Folder | Contents |
 |---|---|
-| `implementation/` | `timers.py`, `counters.py` |
+| `implementation/` | `counters.py`, `timers.py` |
 | `testing/` | `test_counters.py` |
 | `supplementary/` | `measured_results.md` |
 
-## 6. Done when
+## Tests
 
-- [ ] All seven measurements produced
-- [ ] The corrected-versus-skipped boundary agreed at `G1` and written down
-- [ ] Timings cover load, clean, and analysis separately
-- [ ] Counts reconcile: input = valid + skipped + duplicates
-- [ ] `measured_results.md` holds a real frozen run from `G4`
+```bash
+python -m unittest budgetwise.metrics.testing.test_counters -v
+```
+
+## Status
+
+- [x] All seven measurements produced
+- [x] Loading, cleaning and analysis timed separately
+- [x] Counts reconcile
+- [ ] Corrected and skipped definitions agreed by the team (`D08`)
+- [ ] Final results recorded from the G4 run
