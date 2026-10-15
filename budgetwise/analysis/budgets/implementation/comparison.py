@@ -5,7 +5,6 @@ from typing import NamedTuple
 from budgetwise.analysis.aggregation import totals_by_month_and_category
 from budgetwise.analysis.summaries import top_expenses
 from budgetwise.models import Budget
-from budgetwise.models.implementation.account import Account
 
 from .limits import load_limits
 
@@ -23,7 +22,7 @@ def largest_expenses(transactions, n=5):
     return top_expenses(transactions, n=n)
 
 
-def compare_to_budget(accounts: list[Account], year, month):
+def compare_to_budget(transactions, year, month):
     """Compare a month's category expenses against configured limits.
 
     Configured categories with no spend are returned with actual 0.0 when
@@ -32,8 +31,7 @@ def compare_to_budget(accounts: list[Account], year, month):
     """
     month_key = _month_key(year, month)
     monthly_totals = totals_by_month_and_category(
-        accounts,
-        kind="expense"
+        transactions, kind="expense"
     ).get(month_key, {})
     if not monthly_totals:
         return []

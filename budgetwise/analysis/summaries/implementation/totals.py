@@ -4,32 +4,31 @@ from budgetwise.analysis.aggregation import (
     totals_by_category,
     totals_by_month,
 )
-from budgetwise.models import Account
 
 
-def total_income(accounts: list[Account]):
+def total_income(transactions):
     """Return total income, including transactions without a date."""
-    category_totals = totals_by_category(accounts, kind="income")
+    category_totals = totals_by_category(transactions, kind="income")
     return sum(category_totals.values(), 0.0)
 
 
-def total_expenses(accounts: list[Account]):
+def total_expenses(transactions):
     """Return total expenses, including transactions without a date."""
-    category_totals = totals_by_category(accounts, kind="expense")
+    category_totals = totals_by_category(transactions, kind="expense")
     return sum(category_totals.values(), 0.0)
 
 
-def net_balance(accounts: list[Account]):
+def net_balance(transactions):
     """Return total income minus total expenses."""
     # Materialize once so both calculations receive the same records,
     # even when the input is a generator.
-    records = list(accounts)
+    records = list(transactions)
     return total_income(records) - total_expenses(records)
 
 
-def monthly_expenses(accounts: list[Account]):
+def monthly_expenses(transactions):
     """Return expense totals by month, excluding undated transactions.
 
     Month keys follow the aggregation contract: ("YYYY", "MM").
     """
-    return totals_by_month(accounts, kind="expense")
+    return totals_by_month(transactions, kind="expense")

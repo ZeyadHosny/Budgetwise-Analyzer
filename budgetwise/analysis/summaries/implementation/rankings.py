@@ -7,7 +7,6 @@ Undated transactions remain included in both rankings.
 """
 
 from budgetwise.analysis.aggregation import totals_by_category
-from budgetwise.models.implementation.account import Account
 
 
 def _check_n(n):
@@ -66,7 +65,7 @@ def _is_expense(transaction):
     return (kind or "").strip().lower() == "expense"
 
 
-def top_categories(accounts: list[Account], n=5):
+def top_categories(transactions, n=5):
     """
     Description:
     - Rank categories by total expense spending.
@@ -93,7 +92,7 @@ def top_categories(accounts: list[Account], n=5):
         return []
 
     category_totals = totals_by_category(
-        accounts, kind="expense"
+        transactions, kind="expense"
     )
     ranked = sorted(
         category_totals.items(),
