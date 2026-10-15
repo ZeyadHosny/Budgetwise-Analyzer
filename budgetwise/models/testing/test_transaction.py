@@ -236,11 +236,11 @@ class TestSetAmount(unittest.TestCase):
 
         Expectation:
         - set_amount(-1000) raises ValueError saying the amount must be
-          unsigned.
+          nonnegative.
         """
         with self.assertRaises(ValueError) as caught:
             self.row.set_amount(-1000)
-        self.assertIn("unsigned", str(caught.exception))
+        self.assertIn("nonnegative", str(caught.exception))
 
     # Test that a refused value leaves the old one intact
     def test_a_refused_value_does_not_change_the_amount(self):

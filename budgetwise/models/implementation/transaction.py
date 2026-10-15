@@ -217,9 +217,10 @@ class Transaction:
         except (TypeError, ValueError):
             raise ValueError(
                 f"amount must be numeric, got {value!r}") from None
-        if value < MINIMUM_AMOUNT:
+        if not (MINIMUM_AMOUNT <= value < float("inf")):
             raise ValueError(
-                f"amount must be an unsigned magnitude, got {value!r}")
+                f"amount must be finite and nonnegative, got {value!r}"
+    )
         self.__amount = value
 
     # Method saying whether this row can take part in date analysis
