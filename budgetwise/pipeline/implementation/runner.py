@@ -181,10 +181,15 @@ def _clean_rows(path, error_log):
     started = time.perf_counter()
     try:
         numbered_rows = list(load_rows(path))
-    except Exception as error:       # missing file, bad header, bad encoding
-        result["error"] = f"could not load {path}: {error}"
+    except ValueError as error:       # missing file, bad header, bad encoding
+        result["error"] = ValueError("CSV is empty")
         record_issue(0, "file", Reason.FILE_NOT_LOADED, str(error))
         return result
+    except FileNotFoundError as error:
+        result["error"] = FileNotFoundError("CSV is missing")
+        record_issue(0, "file", Reason.FILE_NOT_LOADED, str(error))
+        return result
+    
     loaded = time.perf_counter()
     result["timings"]["load"] = round(loaded - started, 4)
     counts["input"] = len(numbered_rows)

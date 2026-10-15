@@ -284,11 +284,15 @@ def run_menu(pipeline_run=run, dataset=DATASET):
         try:
             if choice == "1":
                 result = pipeline_run(dataset)
+                if result["error"]:
+                    raise result["error"]
                 print(format_summary(result))
 
             elif choice == "2":
                 start, end = prompt_date_range()
                 result = pipeline_run(dataset, start=start, end=end)
+                if result["error"]:
+                    raise result["error"]
                 print(format_summary(result))
                 print(f"  Range {start} to {end}. Rows with no date are "
                       f"excluded from a date range - section 4.5.")
@@ -296,6 +300,8 @@ def run_menu(pipeline_run=run, dataset=DATASET):
             elif choice == "3":
                 category = prompt_category()
                 result = pipeline_run(dataset, category=category)
+                if result["error"]:
+                    raise result["error"]
                 print(format_summary(result))
                 print(f"  Category {category}. The filter runs after "
                       f"normalization, so 'Fod' and 'Foodd' match too.")
@@ -311,7 +317,7 @@ def run_menu(pipeline_run=run, dataset=DATASET):
         except (EOFError, KeyboardInterrupt):
             print("\n  Exiting.")
             return
-        except FileNotFoundError as exc:
+        except (FileNotFoundError, ValueError) as exc:
             print(f"  Could not open the dataset: {exc}")
         except NotImplementedError as exc:
             print(f"  Not available yet: {exc}")

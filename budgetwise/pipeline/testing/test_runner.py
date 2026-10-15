@@ -258,20 +258,20 @@ class OrderTests(PipelineTestCase):
 
 
 class BadInputTests(PipelineTestCase):
-    def test_missing_file_gives_an_error_message_not_a_crash(self):
+    def test_missing_file_raises_file_not_found(self):
         result = clean_file(os.path.join(self.folder, "no_such_file.csv"), self.error_log)
-        self.assertIn("could not load", result["error"])
+        self.assertEqual(type(result["error"]), FileNotFoundError)
         self.assertEqual(result["records"], [])
         self.assertEqual(result["counts"]["input"], 0)
 
-    def test_wrong_header_does_not_crash(self):
+    def test_wrong_header_raises_value_error(self):
         result = clean_file(self.write_csv(["1,2"], header="first,second"), self.error_log)
-        self.assertIn("could not load", result["error"])
+        self.assertEqual(type(result["error"]), ValueError)
 
-    def test_empty_file_does_not_crash(self):
+    def test_empty_file_raises_value_error(self):
         path = os.path.join(self.folder, "empty.csv")
         open(path, "w", encoding="utf-8").close()
-        self.assertIn("could not load", clean_file(path, self.error_log)["error"])
+        self.assertEqual(type(clean_file(path, self.error_log)["error"]), ValueError)
 
     def test_header_only_file(self):
         result = clean_file(self.write_csv([]), self.error_log)
@@ -439,7 +439,7 @@ class AccountTests(unittest.TestCase):
         summary = result["summary"]
         self.assertEqual(
             set(summary) - {"scope", "selection", "selected_transactions",
-                            "counts", "timings"},
+                            "metrics"},
             {"total_breakdown", "monthly_breakdown"},
         )
         self.assertEqual(

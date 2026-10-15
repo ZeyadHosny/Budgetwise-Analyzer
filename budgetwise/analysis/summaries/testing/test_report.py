@@ -90,152 +90,157 @@ class TestBuildSummary(unittest.TestCase):
             },
         ]
 
-    def test_builds_total_monthly_and_chart_sections(self):
-        result, chart_data = build_summary(
-            self.accounts,
-            {"input": 4, "valid": 4},
-            {"load": 0.1, "clean": 0.2},
-            self.budget_comparisons,
-            {"type": "all"},
-            n=2,
-        )
+def test_builds_total_monthly_and_chart_sections(self):
+    pipeline_result = {
+        "accounts": self.accounts,
+        "budget_comparisons": self.budget_comparisons,
+        "counts": {"input": 4, "valid": 4},
+        "timings": {"load": 0.1, "clean": 0.2},
+    }
 
-        # Verify the top-level summary format.
-        self.assertEqual(
-            set(result),
-            {
-                "scope",
-                "selection",
-                "selected_transactions",
-                "counts",
-                "timings",
-                "total_breakdown",
-                "monthly_breakdown",
-            },
-        )
+    result, chart_data = build_summary(
+        pipeline_result,
+        {"type": "all"},
+        n=2,
+    )
 
-        self.assertEqual(
-            result["scope"],
-            "transactions selected by menu query",
-        )
-        self.assertEqual(result["selection"], {"type": "all"})
-        self.assertEqual(result["selected_transactions"], 5)
-        self.assertEqual(result["counts"], {"input": 4, "valid": 4})
-        self.assertEqual(
-            result["timings"],
-            {"load": 0.1, "clean": 0.2},
-        )
+    # Verify the top-level summary format.
+    self.assertEqual(
+        set(result),
+        {
+            "scope",
+            "selection",
+            "selected_transactions",
+            "metrics",
+            "total_breakdown",
+            "monthly_breakdown",
+        },
+    )
 
-        # Verify the total breakdown.
-        total = result["total_breakdown"]
+    self.assertEqual(
+        result["scope"],
+        "transactions selected by menu query",
+    )
+    self.assertEqual(result["selection"], {"type": "all"})
+    self.assertEqual(result["selected_transactions"], 5)
 
-        self.assertEqual(
-            total["totals"],
-            {
-                "income": 300.0,
-                "expenses": 410.0,
-                "net": -110.0,
-            },
-        )
+    # Verify the total breakdown.
+    total = result["total_breakdown"]
 
-        self.assertEqual(
-            total["top_categories"],
-            [("Food", 210.0), ("Rent", 200.0)],
-        )
+    self.assertEqual(
+        total["totals"],
+        {
+            "income": 300.0,
+            "expenses": 410.0,
+            "net": -110.0,
+        },
+    )
 
-        self.assertEqual(
-            [item["transaction_id"] for item in total["largest_expenses"]],
-            ["E3", "E1"],
-        )
+    self.assertEqual(
+        total["top_categories"],
+        [("Food", 210.0), ("Rent", 200.0)],
+    )
 
-        food_budget = next(
-            item
-            for item in total["budget_by_category"]
-            if item["category"] == "Food"
-        )
+    self.assertEqual(
+        [item["transaction_id"] for item in total["largest_expenses"]],
+        ["E3", "E1"],
+    )
 
-        self.assertEqual(
-            (
-                food_budget["limit"],
-                food_budget["actual"],
-                food_budget["status"],
-                food_budget["difference"],
-            ),
-            (400.0, 210.0, "under", -190.0),
-        )
+    food_budget = next(
+        item
+        for item in total["budget_by_category"]
+        if item["category"] == "Food"
+    )
 
-        # Verify account breakdown using each account's getters.
-        self.assertEqual(
-            set(total["account_breakdown"]),
-            set(result["total_breakdown"]["account_breakdown"]),
-        )
+    self.assertEqual(
+        (
+            food_budget["limit"],
+            food_budget["actual"],
+            food_budget["status"],
+            food_budget["difference"],
+        ),
+        (400.0, 210.0, "under", -190.0),
+    )
 
-        expected_account_counts = {
-            "cash": 3,
-            "bank": 1,
-            "unknown": 1,
-        }
+    # Verify account breakdown.
+    self.assertEqual(
+        set(total["account_breakdown"]),
+        set(self.accounts),
+    )
 
-        for kind, account in self.accounts.items():
-            with self.subTest(account=kind):
-                breakdown = total["account_breakdown"][kind]
+    expected_account_counts = {
+        "cash": 3,
+        "bank": 1,
+        "unknown": 1,
+    }
 
-                self.assertEqual(
-                    breakdown["transaction_count"],
-                    account.get_transaction_count(),
-                )
-                self.assertEqual(
-                    breakdown["total_spent"],
-                    account.get_total_spent(),
-                )
-                self.assertEqual(
-                    breakdown["transaction_count"],
-                    expected_account_counts[kind],
-                )
+    for kind, account in self.accounts.items():
+        with self.subTest(account=kind):
+            breakdown = total["account_breakdown"][kind]
 
-        # Verify the monthly breakdown.
-        monthly = result["monthly_breakdown"]
+            self.assertEqual(
+                breakdown["transaction_count"],
+                account.get_transaction_count(),
+            )
+            self.assertEqual(
+                breakdown["total_spent"],
+                account.get_total_spent(),
+            )
+            self.assertEqual(
+                breakdown["total_received"],
+                account.get_total_received(),
+            )
+            self.assertEqual(
+                breakdown["transaction_count"],
+                expected_account_counts[kind],
+            )
 
-        self.assertEqual(
-            [item["month"] for item in monthly["months"]],
-            ["2024-01", "2024-02"],
-        )
+    # Verify the monthly breakdown.
+    monthly = result["monthly_breakdown"]
 
-        self.assertEqual(
-            monthly["months"][0]["totals"],
-            {
-                "income": 300.0,
-                "expenses": 150.0,
-                "net": 150.0,
-            },
-        )
+    self.assertEqual(
+        [item["month"] for item in monthly["months"]],
+        ["2024-01", "2024-02"],
+    )
 
-        # Chart data is now stored separately.
-        self.assertEqual(
-            chart_data["monthly_breakdown"],
-            [
-                {"month": "2024-01", "expenses": 150.0},
-                {"month": "2024-02", "expenses": 260.0},
-            ],
-        )
+    self.assertEqual(
+        monthly["months"][0]["totals"],
+        {
+            "income": 300.0,
+            "expenses": 150.0,
+            "net": 150.0,
+        },
+    )
 
-        # Verify total chart data.
-        self.assertEqual(
-            chart_data["total_breakdown"],
-            [
-                {"category": "Food", "expenses": 210.0},
-                {"category": "Rent", "expenses": 200.0},
-            ],
-        )
+    self.assertEqual(
+        monthly["months"][1]["totals"],
+        {
+            "income": 0.0,
+            "expenses": 260.0,
+            "net": -260.0,
+        },
+    )
 
-        # Ensure chart data was removed from the summary sections.
-        self.assertNotIn("chart_data", total)
-        self.assertNotIn("chart_data", monthly)
+    # Chart data is stored separately from the summary.
+    self.assertEqual(
+        chart_data["monthly_breakdown"],
+        [
+            {"month": "2024-01", "expenses": 150.0},
+            {"month": "2024-02", "expenses": 260.0},
+        ],
+    )
 
-        # The old category_breakdown section is no longer part
-        # of the summary structure.
-        self.assertNotIn("category_breakdown", result)
+    self.assertEqual(
+        chart_data["total_breakdown"],
+        [
+            {"category": "Food", "expenses": 210.0},
+            {"category": "Rent", "expenses": 200.0},
+        ],
+    )
 
+    self.assertNotIn("chart_data", total)
+    self.assertNotIn("chart_data", monthly)
+    self.assertNotIn("category_breakdown", result)
 
 if __name__ == "__main__":
     unittest.main()
