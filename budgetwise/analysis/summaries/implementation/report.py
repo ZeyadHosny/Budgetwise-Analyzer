@@ -13,11 +13,14 @@ from budgetwise.analysis.summaries.implementation.rankings import (
     top_expenses,
 )
 from budgetwise.models import Budget
+from budgetwise.metrics.implementation.counters import RunMetrics
 
 
-def build_summary(accounts, counts, timings, budget_comparisons, selection,
-                  n=5):
+def build_summary(result, selection, n=5):
     """Build total, monthly, and category sections from account mappings."""
+    accounts = result["accounts"]
+    budget_comparisons = result["budget_comparisons"]
+
     transactions = list(iter_transactions(accounts))
     expense_totals = totals_by_category(transactions, kind="expense")
     income_totals = totals_by_category(transactions, kind="income")
@@ -72,6 +75,7 @@ def build_summary(accounts, counts, timings, budget_comparisons, selection,
         for kind, account in accounts.items()
     }
     expense_transactions = transactions
+    metrics = RunMetrics.from_pipeline(result)
 
     result = {
         "scope": "transactions selected by menu query",
@@ -80,8 +84,7 @@ def build_summary(accounts, counts, timings, budget_comparisons, selection,
             account.get_transaction_count()
             for account in accounts.values()
         ),
-        "counts": dict(counts),
-        "timings": dict(timings),
+        "metrics": metrics.report(),
         "total_breakdown": {
             "totals": {
                 "income": total_income,

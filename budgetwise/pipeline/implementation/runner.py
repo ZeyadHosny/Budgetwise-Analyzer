@@ -376,10 +376,7 @@ def run(path, start=None, end=None, category=None, error_log=None):
                 result["accounts"], start, end, category
             )
             result["summary"], chart_data = build_summary(
-                result["accounts"],
-                result["counts"],
-                result["timings"],
-                result["budget_comparisons"],
+                result,
                 _selection(start, end, category),
             )
             result["account_breakdown"] = result["summary"].get(
