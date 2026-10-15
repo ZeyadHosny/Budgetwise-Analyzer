@@ -95,7 +95,7 @@ from budgetwise.interface.export import export_cleaned, export_summary, export_c
 # The classes are Zeyad's task. Until they are merged, cleaning still works
 # and run() explains why it has no objects to return.
 try:
-    from budgetwise.models import (BankAccount, CashAccount, ExpenseTransaction,
+    from budgetwise.models import (Account, BankAccount, CashAccount, ExpenseTransaction,
                                    IncomeTransaction, Transaction, UnknownAccount)
 except ImportError:
     Transaction = ExpenseTransaction = IncomeTransaction = None
@@ -453,15 +453,15 @@ def _build_objects(result, error_log, start, end, category):
     counts["returned"] = len(transactions)
 
 
-def _budget_comparisons(accounts, start=None, end=None, category=None):
+def _budget_comparisons(accounts: dict[str, Account], start=None, end=None, category=None):
     """Compare selected account transactions with monthly category limits."""
     account_transactions = []
     for account in accounts.values():
         account_transactions.extend(account.get_transactions())
 
     comparisons_by_month = []
-    for year, month in monthly_expenses(account_transactions):
-        comparisons = compare_to_budget(account_transactions, year, month)
+    for year, month in monthly_expenses(accounts.values()):
+        comparisons = compare_to_budget(accounts.values(), year, month)
         if category:
             comparisons = [
                 item for item in comparisons

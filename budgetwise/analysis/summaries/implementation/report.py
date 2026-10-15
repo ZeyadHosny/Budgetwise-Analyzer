@@ -20,14 +20,14 @@ def build_summary(result, selection, n=5):
     """Build total, monthly, and category sections from account mappings."""
     accounts = result["accounts"]
     budget_comparisons = result["budget_comparisons"]
-
     transactions = list(iter_transactions(accounts))
-    expense_totals = totals_by_category(transactions, kind="expense")
-    income_totals = totals_by_category(transactions, kind="income")
-    expense_months = totals_by_month(transactions, kind="expense")
-    income_months = totals_by_month(transactions, kind="income")
+
+    expense_totals = totals_by_category(accounts.values(), kind="expense")
+    income_totals = totals_by_category(accounts.values(), kind="income")
+    expense_months = totals_by_month(accounts.values(), kind="expense")
+    income_months = totals_by_month(accounts.values(), kind="income")
     expense_by_month_and_category = totals_by_month_and_category(
-        transactions, kind="expense"
+        accounts.values(), kind="expense"
     )
     months = sorted(set(expense_months) | set(income_months))
 
@@ -91,7 +91,7 @@ def build_summary(result, selection, n=5):
                 "expenses": total_expenses,
                 "net": total_income - total_expenses,
             },
-            "top_categories": top_categories(transactions, n=n),
+            "top_categories": top_categories(accounts.values(), n=n),
             "largest_expenses": [
                 _transaction_dict(transaction)
                 for transaction in top_expenses(expense_transactions, n=n)
