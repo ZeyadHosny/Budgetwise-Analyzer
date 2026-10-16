@@ -817,7 +817,6 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertEqual(result["records"], [])
         self.assertIn("malformed_row", result["counts"]["by_reason"])
 
-    @until_fixed(_loader_keeps_row_structure())      # review S05, Patrick
     def test_rows_differing_only_in_a_surplus_field_are_not_duplicates(self):
         result = clean_file(self.write_csv([
             "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,EXTRA-A",

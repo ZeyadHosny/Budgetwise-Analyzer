@@ -388,7 +388,10 @@ def run(path, start=None, end=None, category=None, error_log=None):
                 "total_breakdown", {}
             ).get("account_breakdown", {})
         _summarise(result)
-        export_run(result, chart_data, path)
+        try:
+            export_run(result, chart_data, path)
+        except OSError as exc:
+            print(f"  Export failed: {exc}")
         return result
     finally:
         if owns_log:

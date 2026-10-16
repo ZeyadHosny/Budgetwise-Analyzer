@@ -112,10 +112,9 @@ def prompt_date_range():
     Return:
         tuple: (start, end) as 'YYYY-MM-DD', with end on or after start.
     """
-    print(f"  Transactions run from {DATASET_FIRST_DATE} to "
-          f"{DATASET_LAST_DATE}.")
-    print("  Rows with no date are excluded from a date range "
-          "- section 4.5.")
+    print(f"  Reference dataset date range: {DATASET_FIRST_DATE} to "
+      f"{DATASET_LAST_DATE}.")
+    print("  Rows with no date are excluded from a date range. ")
     while True:
         start = read_date("Start date")
         end = read_date("End date  ")
@@ -125,8 +124,9 @@ def prompt_date_range():
             continue
         if end < DATASET_FIRST_DATE or start > DATASET_LAST_DATE:
             print(f"  Note: {start} to {end} falls outside "
-                  f"{DATASET_FIRST_DATE}-{DATASET_LAST_DATE}, "
-                  f"so this will match no transactions.")
+                  f"the reference dataset range "
+                  f"{DATASET_FIRST_DATE} to {DATASET_LAST_DATE}. "
+                  f"\n  Results depend on the selected dataset.")
         return start, end
 
 
@@ -216,16 +216,26 @@ def format_summary(result):
         str: The formatted block, ready to print.
     """
     counts = result.get("counts", {})
+    matching = len(result.get("transactions", []))
+
     lines = [
         "",
-        f"  Loaded {len(result.get('transactions', [])):,} transactions",
-        f"    input      {counts.get('input', 0):>8,}",
-        f"    valid      {counts.get('valid', 0):>8,}",
-        f"    duplicates {counts.get('duplicates', 0):>8,}",
-        f"    skipped    {counts.get('skipped', 0):>8,}",
+        "  Dataset cleaning:",
+        f"    Rows read:            {counts.get('input', 0):>8,}",
+        f"    Valid rows:           {counts.get('valid', 0):>8,}",
+        f"    Duplicates removed:   {counts.get('duplicates', 0):>8,}",
+        f"    Invalid rows skipped: {counts.get('skipped', 0):>8,}",
     ]
+
     if counts.get("skipped") or counts.get("duplicates"):
-        lines.append(f"    see {ERROR_LOG} for the reasons")
+        lines.append(f"    See {ERROR_LOG} for cleaning reasons.")
+
+    lines.extend([
+        "",
+        "  Selected results:",
+        f"    Matching transactions: {matching:,}",
+    ])
+
     return "\n".join(lines)
 
 
@@ -295,7 +305,7 @@ def run_menu(pipeline_run=run, dataset=DATASET):
                     raise result["error"]
                 print(format_summary(result))
                 print(f"  Range {start} to {end}. Rows with no date are "
-                      f"excluded from a date range - section 4.5.")
+                      f"excluded from a date range")
 
             elif choice == "3":
                 category = prompt_category()

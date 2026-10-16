@@ -25,6 +25,10 @@ def load_rows(filename):
                     else:
                         row[column] = ""
 
+                # Preserve surplus values for validation and raw duplicate detection.
+                if len(values) > len(header):
+                    row[None] = values[len(header):]
+
                 yield line_no, row
     except FileNotFoundError:
         raise FileNotFoundError(f"File not found: {filename}")
