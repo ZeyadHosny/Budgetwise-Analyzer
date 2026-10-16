@@ -1,190 +1,148 @@
 # pipeline
 
-Runs raw rows through every cleaner and builds the cleaned dataset.
+Runs every cleaner in the required order, builds the transaction objects and
+accounts, and returns the counts the report needs. It cleans nothing itself.
 
 | | |
 |---|---|
-| **Responsible** | Sarah. Model integration with Zeyad |
-| **Domain reviewer** | Patrick (`P2.10`). All team at `G2` |
-| **PR approval** | Zeyad or Patrick. See `CONTRIBUTING.md` |
-| **Tasks** | `P2.10` implementation · `G2` integration |
-| **Status** | Merged (#10). Integrated with Zeyad's model classes (#16) in the follow-up pull request |
+| **Responsible** | Sarah |
+| **Domain reviewer** | Patrick. Model integration with Zeyad |
+| **Task** | `P2.10` |
 
-## 1. What this folder does
+## Folder contents
 
-The orchestration layer. It cleans nothing itself. It takes raw rows from
-`loader/`, puts them through every cleaning feature in the correct order,
-builds the transaction objects, places them in their accounts, and returns
-them along with the counts and timings the report needs.
+| Folder | File | Holds |
+|---|---|---|
+| `implementation/` | `runner.py` | `clean_file()` and `run()` |
+| `testing/` | `test_runner.py` | 90 tests |
+| `supplementary/` | `pipeline_evidence.md` | full-dataset counts, log samples and run details for the report |
 
-**Order matters and is mandatory.** Duplicate detection runs on raw rows
-*before* any normalization (section 4.5). Normalizing first would collapse
-`FOOD` and `Food` into one value and make rows look identical that were not.
+## Rules
 
-```
-raw row
-  1. duplicate check        cleaning/rows    on the raw row, before anything else
-  2. row validation         cleaning/rows    skip unusable rows, flag odd ones
-  3. amount parse           cleaning/amounts no usable amount: skip the row
-  4. date parse             cleaning/dates   no date: row is KEPT
-  5. category normalize     cleaning/categories
-  6. payment mode normalize cleaning/payment_modes
-  7. location normalize     cleaning/locations
-  8. note quality           cleaning/notes
-all cleaned rows
-  9. repeated IDs flagged   cleaning/rows    rows are KEPT
- 10. transaction object     models           Expense or Income
- 11. menu filters           date range, category
- 12. account                models           cash, bank or unknown
-```
+- Duplicates are found on the raw rows, before any cleaning (section 4.5).
+- Only two things remove a row: it cannot be used (duplicate, or a missing
+  ID, user ID or type), or it has no usable amount. Everything else is
+  cleaned or flagged and the row is kept.
+- A row with no date is kept, left out of date filters, and still counted by
+  category (section 4.5).
+- Direction comes from `transaction_type`, never from the amount's sign.
+- One bad row is logged and skipped. It never stops the run (section 4.1).
 
-Only two things remove a row: it cannot be used at all (duplicate, or a
-missing ID, user ID or type), or it has no usable amount. Everything else is
-cleaned or flagged and the row is kept.
-
-## 2. How other modules use it
+## Implementation
 
 ```python
 from budgetwise.pipeline import clean_file, run
 
 result = run("data/raw/budgetwise_finance_dataset.csv")
-result["transactions"]     # list of ExpenseTransaction / IncomeTransaction
-result["accounts"]         # {"cash": CashAccount, "bank": BankAccount, "unknown": UnknownAccount}
-result["counts"]           # dict of the numbers the report needs
-result["timings"]          # seconds for load and clean
-result["error"]            # None, or a message if the file could not be read
-
-run(path, start="2023-01-01", end="2023-12-31")    # menu option 2
-run(path, category="Food")                         # menu option 3
+run(path, start="2023-01-01", end="2023-12-31")    # date range, inclusive
+run(path, category="Food")                         # one category
 ```
 
-`main.py` and `interface/menu/` call `run`. Nothing else does.
-
-`clean_file(path)` does the cleaning only and returns the cleaned records as
-plain dictionaries. It needs no model classes, so it is what the tests and the
-metrics use when objects are not required.
-
-Both return a **dictionary**. There is no `LoadResult` class, so write
-`result["counts"]`, not `result.counts`.
-
-## 3. What it produces
-
-| Key | Example on the full dataset | Feeds |
+| Function | Does | Used by |
 |---|---|---|
-| `transactions` | list of 14,651 objects | all of `analysis/` |
-| `accounts` | one `CashAccount`, one `BankAccount`, one `UnknownAccount` | report: cash versus bank |
-| `records` | list of 14,651 dictionaries, unfiltered | export, metrics |
-| `counts["input"]` | 15,900 | report: number of input records |
-| `counts["valid"]` | 14,651 | report: number of valid records |
-| `counts["corrected"]` | 14,587 | report: number of corrected records |
-| `counts["skipped"]` | 349 | report: invalid/skipped records |
-| `counts["duplicates"]` | 900 | report: duplicates detected |
-| `counts["categories_normalized"]` | 10,955 | report: categories normalized |
-| `timings` | `{"load": 0.04, "clean": 0.5}` | report: execution time |
-| `issues` | list of `(line, field, reason, raw)` | view error log |
-| `error` | `None` | menu message |
+| `run(path, start, end, category, error_log)` | cleans, then builds objects, applies filters, fills accounts | the menu |
+| `clean_file(path, error_log)` | cleaning only; needs no model classes | tests, metrics |
 
-Those seven figures are named individually in section 5 as required results.
-They are produced here because this is the only place that sees every row.
+Both return a dictionary (`result["counts"]`, not `result.counts`):
 
-`input = valid + skipped + duplicates` always holds: 15,900 = 14,651 + 349 + 900.
-
-Further counts (`flagged`, `repeated_ids`, `by_reason`, and the object counts)
-are described in `implementation/README.md`.
-
-## 4. How the model classes are used
-
-Section 4.3 asks for object-oriented design with inheritance and
-encapsulation. The pipeline is where the classes first meet the data.
-
-| Class | Kind | What the pipeline does with it |
-|---|---|---|
-| `Transaction` | parent | Never built directly. It has no factory, so the pipeline builds the child that matches `transaction_type` |
-| `ExpenseTransaction` | child of `Transaction` | One object for every cleaned Expense row |
-| `IncomeTransaction` | child of `Transaction` | One object for every cleaned Income row |
-| `Account` | parent | Never built directly. It supplies `add_transaction()`, which all three children inherit |
-| `CashAccount` | child of `Account` | One per load. Holds the Cash transactions |
-| `BankAccount` | child of `Account` | One per load. Holds Card, UPI and Bank Transfer |
-| `UnknownAccount` | child of `Account` | One per load. Holds rows whose payment mode is blank, shown as `Unknown` |
-| `Budget` | stands alone | Not used here. It compares monthly totals with limits, which is the budget analysis (`P3.4`) |
-
-How they work together for one row:
-
-```
-cleaned values
-   -> ExpenseTransaction(...) or IncomeTransaction(...)   chosen by transaction_type
-   -> appended to result["transactions"]      the list of objects (section 4.2)
-   -> cash, bank or unknown .add_transaction(txn)   the SAME object, not a copy
-```
-
-- **Inheritance.** Every object in the list is a child class, and also a
-  `Transaction`. Code that only needs an amount or a date can treat them all
-  alike. Code that needs the direction calls `get_signed_amount()`, which each
-  child answers differently.
-- **Encapsulation.** Every attribute on the model classes is private. The
-  pipeline passes cleaned values to the constructor and to
-  `add_transaction()`, and reads values back only through getters such as
-  `get_amount()`. The classes check what they are given. An amount is cleaned to an unsigned number first, so the
-  class always receives a value it accepts.
-- **Two containers, one set of objects.** The list answers "what was spent on
-  Food". The accounts answer "how much went through cash and how much through
-  the bank, and how much has no recorded payment method".
-- **Efficiency.** Each cleaned row is visited once to build its object, apply
-  the filters and place it in an account.
-
-A payment mode that is neither cash nor a bank channel, in practice a blank
-one shown as `Unknown`, goes in the `UnknownAccount`. Zeyad's model provides
-that account for exactly these rows. All objects are also in the list, so they
-count in every total.
-
-If the classes refuse a row, it is logged as `transaction_not_built` and
-counted in `counts["objects_failed"]`. The cleaning counts do not change.
-
-## 5. Requirements and tasks covered
-
-| Requirement | Source | Task |
-|---|---|---|
-| Duplicate detection performed on raw rows before normalization | section 4.5 | `P2.4` `P2.10` `G2` |
-| Store transactions as a list of objects | section 4.2 | `P2.10` |
-| Use sets to detect duplicate transactions | section 4.2 | `P2.4` `P2.10` |
-| Load the dataset, or a subset by date range or category | section 4.1 | `P2.10` `P3.5` |
-| Log skipped, corrected and flagged records with a reason | section 4.1 | `P2.8` `P2.10` |
-| Program must not crash on bad input | section 4.1 | `P2.10` `P4.1` |
-| Object-oriented design with inheritance and encapsulation | section 4.3 | `P3.1`, used here |
-| Number of input / valid / corrected / skipped records | section 5 | `P3.8` |
-| Number of duplicates detected, categories normalized | section 5 | `P3.8` |
-| Execution time for loading and cleaning | section 5 | `P3.8` |
-
-## 6. Folders
-
-| Folder | Contents |
+| Key | Holds |
 |---|---|
-| `implementation/` | `runner.py` |
-| `testing/` | `test_runner.py`, 90 tests |
-| `supplementary/` | `pipeline_evidence.md` |
+| `records` | one dictionary per valid row, unfiltered |
+| `counts` | the figures below |
+| `timings` | `{"load": seconds, "clean": seconds}` |
+| `issues` | `(line_number, field, reason, raw_value)` for every logged issue |
+| `error` | `None`, or a message if the file could not be read |
+| `transactions` | `run` only: objects that pass the filters |
+| `accounts` | `run` only: `{"cash", "bank", "unknown"}` holding the same objects |
 
-Run the tests from the repository root:
+If no `error_log` is given, one is opened on `output/logs/errors.log` and
+closed at the end.
+
+**Steps**
+
+| Step | Function | From | Result |
+|---|---|---|---|
+| 1 | `load_rows()` | loader | numbered raw rows |
+| 2 | `is_duplicate()` | rows | exact duplicate: removed |
+| 3 | `validate_raw_row()` | rows | unusable: skipped; unusual ID: flagged |
+| 4 | `parse_amount()` | amounts | no usable amount (blank, unreadable, 100,000,000 or more): skipped |
+| 5 | `parse_date()`, `normalize_category()`, `normalize_payment_mode()`, `normalize_location()`, `classify_note_quality()` | dates, categories, payment modes, locations, notes | cleaned or flagged; row kept |
+| 6 | `find_repeated_ids()` | rows | repeated IDs flagged; rows kept |
+| 7 | `ExpenseTransaction` / `IncomeTransaction` | models | one object per row, chosen by type |
+| 8 | date and category filters | | from the menu |
+| 9 | `add_transaction()` | models | Cash to `CashAccount`; Card, UPI, Bank Transfer to `BankAccount`; Unknown to `UnknownAccount` |
+
+**Model classes.** `Transaction` and `Account` are parents and never built
+directly. Each row becomes an `ExpenseTransaction` or `IncomeTransaction`, and
+the same object goes into the list and into one account through
+`add_transaction()`, which all three accounts inherit. All attributes are
+private and read through getters such as `get_amount()`. `Budget` is not used
+here; it belongs to the budget analysis.
+
+**Counts**
+
+| Count | Meaning | Full dataset |
+|---|---|---|
+| `input` | rows read | 15,900 |
+| `duplicates` | exact duplicates removed | 900 |
+| `skipped` | rows that could not be cleaned | 349 |
+| `valid` | rows cleaned | 14,651 |
+| `corrected` | valid rows with a value standardised | 14,587 |
+| `flagged` | valid rows kept with a concern | 6,768 |
+| `categories_normalized` | valid rows whose category changed | 10,955 |
+| `repeated_ids` | distinct IDs on two or more valid rows | 888 |
+| `objects_built` / `objects_failed` | records turned into objects / refused | 14,651 / 0 |
+| `returned` | objects left after filters | 14,651 with no filter |
+
+`input = valid + skipped + duplicates` always holds. A row counts at most once
+as corrected and once as flagged, and can be both. Filters change only
+`returned`, `transactions` and `accounts`.
+
+**Faulty input**
+
+| Problem | Handling |
+|---|---|
+| File cannot be loaded | `try/except`: `error` set, `file_not_loaded` logged, no crash |
+| Any error on one row | `try/except` per row: logged as `malformed_row`, row skipped, run continues |
+| A class refuses a value | `try/except`: logged as `transaction_not_built`, counted in `objects_failed` |
+| Model classes missing | `try/except ImportError`: cleaning still works, `error` explains |
+| Log left open | `finally` closes any log the pipeline opened |
+
+Reason codes come from `budgetwise.errorlog.Reason`.
+
+## Testing
+
+| Group | Checks |
+|---|---|
+| `CleaningTests`, `OrderTests` | counts, cleaned values, section 4.5 rules, duplicates judged on raw rows |
+| `BadInputTests`, `FailureBoundaryTests` | missing files, bad values and unexpected errors never stop the run |
+| `ObjectTests`, `NoFactoryTests`, `ClassUseTests`, `AccountTests` | the right subclass is built and placed in the right account |
+| `FilterTests` | date range and category filters; cleaning counts unchanged |
+| `RowValidationTests`, `FlaggedCountTests`, `ObjectFailureTests` | review items S04, S06, S07 |
+| `AmountBoundaryTests`, `LoaderStructureTests` | teammates' open defects (S05, S09) |
+| `FullDatasetTests` | the counts above on all 15,900 rows |
 
 ```bash
 python3 -m unittest budgetwise.pipeline.testing.test_runner -v
 ```
 
-Each subfolder has its own README with the detail.
+Run from the repository root. Expected: `Ran 90 tests`, `OK (expected failures=4)`.
+The 4 expected failures check Patrick's loader and amount parser (S05, S09);
+they pass once those fixes are merged. The full-dataset tests are skipped if
+`data/raw/budgetwise_finance_dataset.csv` is missing.
 
-## 7. Done when
+## Supplementary
 
-- [x] Full 15,900-row dataset runs start to finish without raising
-- [x] All seven counts produced and cross-checked by hand on a small file
-- [x] Duplicate detection demonstrably runs before normalization
-- [x] Every skipped, corrected or flagged row appears in `errors.log`
-- [x] `counts["input"]` equals the file's row count exactly
-- [x] Object, filter and account tests run against the real classes in
-      `budgetwise/models` (merged in #16)
+`pipeline_evidence.md` holds the run details, cleaning and object counts,
+repeated-ID counts at each stage, payment-mode figures, every reason logged on
+the full dataset with its count, and sample lines from `errors.log`.
 
-## 8. Open points
+Totals on the full dataset: income 144,624,974, expenses 165,749,066,
+net -21,124,092. Accounts: cash 3,502, bank 10,425, unknown 724.
+
+## Open points
 
 | Point | Owner |
 |---|---|
-| Loader pads short rows and drops surplus fields | Patrick |
-| `parse_amount` removes every minus sign, so `1-2` becomes 12 | Patrick |
-| Reason-code names and casing not yet approved | Sarah and Patrick |
+| Loader pads short rows and drops surplus fields (S05) | Patrick |
+| `parse_amount` removes every minus sign, so `1-2` becomes 12 (S09) | Patrick |
