@@ -1,7 +1,7 @@
-"""
-Tests for note_quality.py   (column: notes, task P2.7)
+"""Tests for notes quality (P2.7).
+
 Run from the repository root:
-    python -m unittest budgetwise.cleaning.notes.testing.test_note_quality -v
+    python3 -m unittest budgetwise.cleaning.notes.testing.test_note_quality -v
 """
 import csv
 import os
@@ -17,8 +17,7 @@ MISSING = "missing"
 NOT_AVAILABLE = "not_available"
 PLACEHOLDER_NOTES = ("...", "!!!", "xyz123", "test", "misc", "asdfgh")
 
-# ---- helper: load one column of the real dataset, if the file is here ----
-# The raw dataset lives in data/raw/ at the top of the repository.
+# The raw dataset, if present, is in data/raw/ at the repository root.
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
 DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
 if not os.path.exists(DATASET_PATH):

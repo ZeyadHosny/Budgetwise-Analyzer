@@ -6,7 +6,7 @@
 Command, from the repository root:
 
 ```bash
-python -m unittest budgetwise.cleaning.notes.testing.test_note_quality -v
+python3 -m unittest budgetwise.cleaning.notes.testing.test_note_quality -v
 ```
 
 ## Run details

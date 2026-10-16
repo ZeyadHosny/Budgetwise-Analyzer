@@ -1,1 +1,1 @@
-"""Tests for notes quality flagging."""
+"""Tests for notes quality."""
