@@ -6,7 +6,7 @@ read with `csv.DictReader`, using the functions in `raw_rows.py`.
 Command, from the repository root:
 
 ```bash
-python -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
+python3 -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
 ```
 
 ## Run details

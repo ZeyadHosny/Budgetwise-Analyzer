@@ -1,8 +1,8 @@
-"""
-Tests for raw_rows.py   (task P2.4: required-column checks, duplicates,
-malformed rows, repeated IDs)
+"""Tests for row checks (P2.4): required columns, duplicates, malformed rows
+and repeated IDs.
+
 Run from the repository root:
-    python -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
+    python3 -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
 """
 import csv
 import io
@@ -21,15 +21,14 @@ from budgetwise.cleaning.rows import (
     validate_raw_row,
 )
 
-# The three column checks are internal helpers of this feature, so its own
-# tests import them from the implementation file.
+# Internal helpers, imported directly for testing.
 from budgetwise.cleaning.rows.implementation.raw_rows import (
     check_transaction_id,
     check_transaction_type,
     check_user_id,
 )
 
-# The raw dataset lives in data/raw/ at the top of the repository.
+# The raw dataset, if present, is in data/raw/ at the repository root.
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
 DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
 if not os.path.exists(DATASET_PATH):
@@ -115,7 +114,7 @@ class TransactionTypeTests(unittest.TestCase):
                 self.assertEqual(check_transaction_type(raw), (None, [Reason.MALFORMED_ROW]))
 
     def test_unrecognized_type_is_not_guessed(self):
-        # "-500" checks that a sign is never read as a direction.
+        # "-500": a sign is never read as a direction.
         for raw in ("Refund", "Expenses", "Inc", "Debit", "N/A", "-500"):
             with self.subTest(raw=raw):
                 self.assertEqual(check_transaction_type(raw), (None, [Reason.MALFORMED_ROW]))
@@ -175,7 +174,7 @@ class ExactDuplicateTests(unittest.TestCase):
         self.assertEqual([number for number, _ in duplicates], [3, 4])
 
     def test_same_id_but_one_different_field_is_not_a_duplicate(self):
-        # Tried for every other column in turn.
+        # Change each other column in turn.
         for column in EXPECTED_COLUMNS[1:]:
             with self.subTest(column=column):
                 rows = numbered(make_row(), make_row(**{column: "different"}))
@@ -183,7 +182,7 @@ class ExactDuplicateTests(unittest.TestCase):
                 self.assertEqual((len(unique), duplicates), (2, []))
 
     def test_comparison_uses_raw_text_before_any_cleaning(self):
-        # All four clean to the same values, but the RAW rows differ.
+        # All four clean to the same values, but the raw rows differ.
         rows = numbered(
             make_row(category="Food"),
             make_row(category="food"),
@@ -212,7 +211,7 @@ class ValidateRawRowTests(unittest.TestCase):
         self.assertEqual(validate_raw_row(make_row()), (True, []))
 
     def test_blank_optional_fields_are_allowed(self):
-        # date, category, amount, payment_mode, location and notes all blank
+        # All six optional columns blank.
         row = read_csv_text("T0001,U001,,Income,,,,,")[0]
         self.assertEqual(validate_raw_row(row), (True, []))
 
@@ -262,7 +261,7 @@ class RepeatedIdTests(unittest.TestCase):
         self.assertEqual(find_repeated_ids(rows), {"T4999": 3})
 
     def test_rows_without_an_id_are_never_repeated_ids(self):
-        # Several rows with NO id do not "share" an id.
+        # Rows with no ID never share an ID.
         rows = numbered(
             make_row(transaction_id=""), make_row(transaction_id="", amount="1"),
             make_row(transaction_id="   "), make_row(transaction_id="   ", amount="2"),
@@ -310,7 +309,7 @@ class FullDatasetTests(unittest.TestCase):
 
     def test_repeated_ids_that_remain_after_duplicates_are_removed(self):
         # 754 of the 1,680 repeat only because of exact duplicates.
-        # The other 926 sit on rows that differ, and those rows are all kept.
+        # The other 926 are on rows that differ, and all are kept.
         self.assertEqual(len(find_repeated_ids(self.unique)), 926)
         self.assertEqual(len({row["transaction_id"] for _, row in self.unique}), 14000)
 
