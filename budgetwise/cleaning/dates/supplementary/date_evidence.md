@@ -6,7 +6,7 @@
 Command, from the repository root:
 
 ```bash
-python -m unittest budgetwise.cleaning.dates.testing.test_parser -v
+python3 -m unittest budgetwise.cleaning.dates.testing.test_parser -v
 ```
 
 ## Run details

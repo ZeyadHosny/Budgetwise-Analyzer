@@ -1,7 +1,7 @@
-"""
-Tests for parser.py   (column: date, task P2.1)
+"""Tests for date cleaning (P2.1).
+
 Run from the repository root:
-    python -m unittest budgetwise.cleaning.dates.testing.test_parser -v
+    python3 -m unittest budgetwise.cleaning.dates.testing.test_parser -v
 """
 import csv
 import os
@@ -19,8 +19,7 @@ DATE_NORMALIZED = Reason.DATE_NORMALIZED
 INVALID_DATE = Reason.INVALID_DATE
 MISSING_DATE = Reason.MISSING_DATE
 
-# ---- helper: load one column of the real dataset, if the file is here ----
-# The raw dataset lives in data/raw/ at the top of the repository.
+# The raw dataset, if present, is in data/raw/ at the repository root.
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
 DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
 if not os.path.exists(DATASET_PATH):
@@ -88,8 +87,7 @@ class AmbiguousDateTests(unittest.TestCase):
                 self.assertFalse(is_ambiguous_date(raw))
 
     def test_invalid_dates_are_never_counted_as_ambiguous(self):
-        # Right shape, both numbers 12 or less, but not real dates.
-        # parse_date() rejects them, so they must not be counted either.
+        # Right shape but not real dates, so never counted as ambiguous.
         for raw in ("00/05/2023", "05/00/2023", "00-05-23", "01-01-0000", "00-00-2023"):
             with self.subTest(raw=raw):
                 self.assertIsNone(parse_date(raw)[0])
@@ -116,7 +114,7 @@ class InvalidDateTests(unittest.TestCase):
                 self.assertEqual(parse_date(raw), (None, [INVALID_DATE]))
 
     def test_slash_date_written_day_first_is_not_silently_swapped(self):
-        # 25/12/2023 is not a valid MM/DD/YYYY date. It must NOT become 25 December.
+        # Slash dates are month first, so 25/12/2023 is invalid, not 25 December.
         self.assertEqual(parse_date("25/12/2023"), (None, [INVALID_DATE]))
 
     def test_hyphen_date_written_month_first_is_not_silently_swapped(self):
@@ -161,7 +159,7 @@ class FullDatasetTests(unittest.TestCase):
         ambiguous = Counter(
             find_date_format(raw) for raw in self.raw_values if is_ambiguous_date(raw)
         )
-        self.assertEqual(ambiguous["MM/DD/YYYY"], 1865)   # the Phase 1 figure
+        self.assertEqual(ambiguous["MM/DD/YYYY"], 1865)   # Phase 1 figure
         self.assertEqual(ambiguous["DD-MM-YY"], 1198)
         self.assertEqual(ambiguous["DD-MM-YYYY"], 650)
 

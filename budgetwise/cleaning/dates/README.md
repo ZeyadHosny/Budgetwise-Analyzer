@@ -1,145 +1,96 @@
 # cleaning/dates
 
-Parses every date in the raw data into a single standard format.
+Converts every raw date to `YYYY-MM-DD`, or returns `None` with a reason code.
 
 | | |
 |---|---|
 | **Responsible** | Sarah |
-| **Domain reviewer** | Henrieta (`P2.1`) |
-| **PR approval** | Zeyad or Patrick. See `CONTRIBUTING.md` |
-| **Tasks** | `P2.1` implementation. Profiling is Bahareh's Phase 1 report (`P1.1`) |
-| **Status** | First version merged from `feat/p2-1-cleaning-dates`. Review correction S02 and this README merged in #12 |
+| **Domain reviewer** | Henrietta |
+| **Task** | `P2.1`. Profiling from Bahareh's Phase 1 report (`P1.1`) |
 
-## 1. What this folder does
+## Folder contents
 
-Converts a raw date string into `YYYY-MM-DD`, or reports why it could not.
-It never raises and never guesses. A date that cannot be read returns `None`
-with a reason code.
+| Folder | File | Holds |
+|---|---|---|
+| `implementation/` | `parser.py` | the date rules and functions |
+| `testing/` | `test_parser.py` | 24 tests |
+| `supplementary/` | `date_evidence.md` | counts and evidence for the report |
 
-The main dataset contains four date formats, plus blanks:
+## Rules
 
-| Format | Count | Example | Read as |
+The separator and the length of the year decide how a date is read, never
+the numbers in it:
+
+| Format | Count | Read as | Source |
 |---|---|---|---|
-| `YYYY-MM-DD` | 6,091 | `2023-07-14` | already standard |
-| `MM/DD/YYYY` | 4,676 | `07/14/2023` | month first |
-| `DD-MM-YY` | 3,044 | `03-04-22` | day first |
-| `DD-MM-YYYY` | 1,603 | `14-07-2023` | day first |
-| blank | 486 | | missing |
+| `YYYY-MM-DD` | 6,091 | already standard | |
+| `MM/DD/YYYY` | 4,676 | month first | section 4.5 |
+| `DD-MM-YY` | 3,044 | day first | section 4.5 |
+| `DD-MM-YYYY` | 1,603 | day first | team decision D10 |
+| blank | 486 | missing | |
 
-The separator decides how a date is read, never the numbers in it:
+A missing or invalid date never removes a row. The pipeline keeps the row,
+leaves it out of date-based analysis and still counts it by category.
 
-- A **slash** date is always month first (required by section 4.5).
-- A **hyphen** date with a two-digit year is always day first (required by
-  section 4.5).
-- A **hyphen** date with a four-digit year is day first. This is the team's
-  convention. The data supports it: the first number is above 12 in 953 of
-  these rows and the second number never is.
-
-The formats are strict about digit counts. `8/5/2022` and `2022/08/05` match
-no format and are reported, not guessed.
-
-## 2. How other modules use it
+## Implementation
 
 ```python
 from budgetwise.cleaning.dates import parse_date
 
-parsed, reasons = parse_date("03-04-22")     # ("2022-04-03", ["DATE_NORMALIZED"])
-for reason in reasons:
-    log.record(line, "date", reason, "03-04-22")
+date, reasons = parse_date("03-04-22")    # ("2022-04-03", ["DATE_NORMALIZED"])
 ```
 
-Only `pipeline/` calls this.
-
-Everything the folder exports:
-
-| Name | Signature | Returns |
-|---|---|---|
-| `parse_date` | `(raw_date)` | `(date, reasons)`. `date` is `'YYYY-MM-DD'` text or `None`. `reasons` is a **list**, empty when there is nothing to report |
-| `find_date_format` | `(raw)` | the format name a raw date matches, or `None` |
-| `is_ambiguous_date` | `(raw)` | `True` if a real slash or hyphen date has day and month both from 1 to 12 |
-
-`find_date_format` and `is_ambiguous_date` are only used to produce the
-report evidence. Parsing does not depend on them.
-
-## 3. What it produces
-
-| Input | Date returned | Reasons |
-|---|---|---|
-| `2023-07-14` | `"2023-07-14"` | none |
-| `07/14/2023` | `"2023-07-14"` | `DATE_NORMALIZED` |
-| `07/08/2023` | `"2023-07-08"` | `DATE_NORMALIZED`. Slash, so month first |
-| `03-04-22` | `"2022-04-03"` | `DATE_NORMALIZED`. Hyphen, so day first |
-| `14-07-2023` | `"2023-07-14"` | `DATE_NORMALIZED` |
-| `" 2023-07-14 "` (outer spaces) | `"2023-07-14"` | `DATE_NORMALIZED`. Spaces removed |
-| `""`, spaces, `N/A`, `None` | `None` | `missing_date` |
-| `14th July`, `8/5/2022` | `None` | `INVALID_DATE`. No format matches |
-| `31-02-23`, `31/02/2023` | `None` | `INVALID_DATE`. Right shape, not a real date |
-| a number or other non-text value | `None` | `INVALID_DATE` |
-
-Only a date that is **exactly** `YYYY-MM-DD`, with nothing around it, returns
-no reason, because nothing was changed. The same date with spaces at either
-end, such as `" 2023-07-14 "`, returns `"2023-07-14"` with `DATE_NORMALIZED`,
-because the spaces were removed.
-
-An invalid or missing date never removes a row. `parse_date` only returns
-`None`; the pipeline keeps the row, leaves it out of date-based analysis such
-as monthly totals and date-range loading, and still counts it toward category
-totals (section 4.5).
-
-**Ambiguous dates.** A date is ambiguous when its day and month are both 12
-or less, so it could be read either way. The rules above settle every one.
-`is_ambiguous_date` counts them for the report. It only counts dates that
-`parse_date` accepts, so `00/05/2023` is not counted: it is not a date at all.
-
-**Reason codes, still to agree with Patrick.** The parser uses the centralized
-`Reason.DATE_NORMALIZED`, `Reason.MISSING_DATE` and `Reason.INVALID_DATE`
-codes. The pipeline writes them to the log in lowercase. Patrick's `errorlog`
-list has `missing_date`,
-`unrecognized_date_format` and `impossible_date`. Lowercasing makes
-`missing_date` match, but it cannot make the other names match:
-`date_normalized` has no entry in his list, and `invalid_date` covers what his
-list splits into two codes. One vocabulary has to be agreed and recorded
-(review S08, `docs/decisions.md` D11). Until then these codes are unchanged.
-
-Expected on the main dataset: 15,414 dates parsed, 486 missing, 0 invalid.
-
-## 4. Requirements and tasks covered
-
-| Requirement | Source | Task |
-|---|---|---|
-| Parse and standardize multiple date formats | section 4.1 | `P2.1` |
-| Convert all valid dates to `YYYY-MM-DD` | section 4.5 | `P2.1` |
-| Slash and ambiguous: read as `MM/DD/YYYY` | section 4.5 | `P2.1` |
-| Hyphen and two-digit year: read as `DD-MM-YY` | section 4.5 | `P2.1` |
-| Unparseable dates logged and excluded from date-based analysis | section 4.5 | `P2.1` |
-| Missing dates logged and excluded, may still count in category totals | section 4.5 | `P2.1` |
-| Unrecognized formats logged and skipped, never crash | section 4.5 | `P2.1` |
-| Document the date convention in the report | section 4.5 | `P4.4` |
-
-Baselines come from Bahareh's Phase 1 profiling report.
-
-## 5. Folders
-
-| Folder | Contents |
+| Function | Returns |
 |---|---|
-| `implementation/` | `parser.py` |
-| `testing/` | `test_parser.py`, 24 tests |
-| `supplementary/` | `date_evidence.md` |
+| `parse_date(raw_date)` | `(date, reasons)`. `date` is `'YYYY-MM-DD'` or `None`; `reasons` is a list, empty if nothing changed |
+| `find_date_format(raw)` | the format name a date matches, or `None` |
+| `is_ambiguous_date(raw)` | `True` if a valid slash or hyphen date has day and month both 1 to 12. Report counts only |
 
-Run the tests from the repository root:
+How `parse_date` works:
+
+1. Blank, `N/A` or `None` returns `missing_date`.
+2. The text is matched against four strict patterns, one per format.
+3. The match is read with `datetime.strptime`, which rejects impossible dates.
+4. A date already exactly `YYYY-MM-DD` returns no reason. Anything converted
+   returns `DATE_NORMALIZED`.
+
+| Input | Date | Reason |
+|---|---|---|
+| `2023-07-14` | `2023-07-14` | none |
+| `07/08/2023` | `2023-07-08` | `DATE_NORMALIZED` (slash: month first) |
+| `03-04-22` | `2022-04-03` | `DATE_NORMALIZED` (hyphen: day first) |
+| `""`, `N/A`, `None` | `None` | `missing_date` |
+| `31-02-23` | `None` | `INVALID_DATE` (not a real date) |
+| `8/5/2022`, `14th July` | `None` | `INVALID_DATE` (no format matches) |
+
+**Faulty input.** `try/except ValueError` around `strptime` catches impossible
+dates. Non-text input returns `INVALID_DATE`. Unrecognised formats are
+reported, never guessed. The function never raises.
+
+Only `pipeline/` calls this. Reason codes come from `budgetwise.errorlog.Reason`.
+
+## Testing
+
+| Group | Checks |
+|---|---|
+| `ValidFormatTests` | each of the four formats converts correctly |
+| `AmbiguousDateTests` | slash dates month first, hyphen dates day first; invalid dates never counted as ambiguous |
+| `MissingDateTests` | blank, spaces, `N/A` and `None` return `missing_date` |
+| `InvalidDateTests` | impossible dates, unknown formats and non-text input return `INVALID_DATE` |
+| `FullDatasetTests` | counts on all 15,900 rows match Phase 1 |
 
 ```bash
-python -m unittest budgetwise.cleaning.dates.testing.test_parser -v
+python3 -m unittest budgetwise.cleaning.dates.testing.test_parser -v
 ```
 
-Four of the 24 tests use the full dataset and are skipped if the CSV is not
-in `data/raw/`.
+Run from the repository root. The 4 full-dataset tests are skipped if
+`data/raw/budgetwise_finance_dataset.csv` is missing.
 
-## 6. Done when
+## Supplementary
 
-- [x] All four formats and blanks are handled correctly
-- [x] Both required ambiguity rules, and the team's third, covered by tests
-- [x] Blank and junk input return `None` with the right reason code
-- [x] Never raises, for any input
-- [x] Invalid dates are never counted as ambiguous
-- [x] `date_evidence.md` written. It is report material
+`date_evidence.md` holds the run details, format counts, ambiguous-date
+counts and missing dates at each stage, for the report (section 4.5).
+
+Key figures: 9,323 dates converted, 6,091 already standard, 486 missing,
+0 invalid. In `DD-MM-YYYY` dates the first number is above 12 in 953 rows and
+the second never is, which supports reading them day first.
