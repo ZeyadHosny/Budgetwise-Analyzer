@@ -1,13 +1,20 @@
-"""Time the pipeline on the primary dataset for the report's execution time table.
+"""Time the pipeline for the report's execution time table.
 
-Runs the pipeline seven times, each in a new Python process, and prints
-each run's stage times and the median and min-max per stage.
+Runs the pipeline several times (seven by default), each in a new Python
+process, and prints each run's stage times and the median and min-max per
+stage. Imports and process startup are not timed.
 
 Run from the repository root:
 
     python budgetwise/metrics/supplementary/run_timings.py
+    python budgetwise/metrics/supplementary/run_timings.py --dataset data/raw/budgetwise_finance_dataset.csv
+
+The pipeline total is run() from start to finish, including opening and
+closing a fresh error log and the export of the cleaned CSV, JSON summary and
+charts to output/. Financial analysis is timed separately, after run().
 """
 
+import argparse
 import json
 import os
 import platform
@@ -18,21 +25,24 @@ import tempfile
 import time
 from pathlib import Path
 
-RUNS = 7
 REPO = Path(__file__).resolve().parents[3]
-DATASET = "data/raw/budgetwise_finance_dataset.csv"
+DATASET = "data/raw/budgetwise_synthetic_dirty.csv"
+DEFAULT_RUNS = 7
 
 COLUMNS = [
     ("loading", "Loading"),
     ("cleaning", "Cleaning and issue logging"),
     ("objects", "Object building and selection"),
-    ("summary", "Cleaning count summary"),
+    ("budgets", "Budget comparisons"),
+    ("summary", "Summary building"),
+    ("statistics", "Preparing cleaning statistics"),
+    ("export", "Export of cleaned CSV, summary and charts"),
     ("total", "Pipeline total"),
-    ("analysis", "Financial analysis"),
+    ("analysis", "Financial analysis (separate)"),
 ]
 
 
-def one_run():
+def one_run(dataset):
     """Time one run. Imports happen before any timer starts."""
     sys.path.insert(0, str(REPO))
     os.chdir(REPO)
@@ -56,13 +66,19 @@ def one_run():
     runner.load_rows = timed("loading", lambda path: list(load_rows(path)))
     runner._clean_rows = timed("clean_rows", runner._clean_rows)
     runner._build_objects = timed("objects", runner._build_objects)
-    runner._summarise = timed("summary", runner._summarise)
+    runner._summarise = timed("statistics", runner._summarise)
+    # Steps added to run() after the first version of this script.
+    for attribute, name in (("_budget_comparisons", "budgets"),
+                            ("build_summary", "summary"),
+                            ("export_run", "export")):
+        if hasattr(runner, attribute):
+            setattr(runner, attribute, timed(name, getattr(runner, attribute)))
 
     # A fresh log file for every run, outside the repository.
     log_path = os.path.join(tempfile.mkdtemp(), "errors.log")
     start = time.perf_counter()
     log = ErrorLog(log_path)
-    result = runner.run(DATASET, error_log=log)
+    result = runner.run(dataset, error_log=log)
     log.close()
     times["total"] = time.perf_counter() - start
 
@@ -79,35 +95,45 @@ def one_run():
     times["cleaning"] = times.pop("clean_rows") - times["loading"]
 
     counts = result["counts"]
-    output = {name: round(seconds * 1000, 1)
-              for name, seconds in times.items()}
+    output = {name: round(seconds * 1000, 1) for name, seconds in times.items()}
     output.update(input=counts["input"], valid=counts["valid"],
                   built=counts.get("objects_built"))
     print(json.dumps(output))
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Time the BudgetWise pipeline.")
+    parser.add_argument("--dataset", default=DATASET,
+                        help="CSV to run on, relative to the repository root")
+    parser.add_argument("--runs", type=int, default=DEFAULT_RUNS)
+    args = parser.parse_args()
+
     runs = []
-    for _ in range(RUNS):
-        process = subprocess.run([sys.executable, __file__, "--one"],
-                                 capture_output=True, text=True)
+    for _ in range(args.runs):
+        # stdout of run() also carries the export messages; the timings are
+        # the last line.
+        process = subprocess.run(
+            [sys.executable, __file__, "--one", args.dataset],
+            capture_output=True, text=True)
         if process.returncode:
             print(process.stderr)
             return
         runs.append(json.loads(process.stdout.strip().splitlines()[-1]))
 
+    columns = [(key, label) for key, label in COLUMNS if key in runs[0]]
+    print("Dataset:", args.dataset)
     print("Python", platform.python_version(), "|", platform.platform(),
           "|", platform.processor())
     print("Records:", runs[0]["input"], "input,", runs[0]["valid"], "valid,",
           runs[0]["built"], "objects")
+    print("Runs:", len(runs))
 
-    print("\nRun | " + " | ".join(label for _, label in COLUMNS))
+    print("\nRun | " + " | ".join(label for _, label in columns))
     for number, run in enumerate(runs, 1):
-        print(number, "|", " | ".join(
-            f"{run[key]:,.1f}" for key, _ in COLUMNS))
+        print(number, "|", " | ".join(f"{run[key]:,.1f}" for key, _ in columns))
 
     print("\nWorkload | Median ms | Min-max ms")
-    for key, label in COLUMNS:
+    for key, label in columns:
         values = [run[key] for run in runs]
         print(f"{label} | {statistics.median(values):,.1f} | "
               f"{min(values):,.1f}-{max(values):,.1f}")
@@ -115,6 +141,6 @@ def main():
 
 if __name__ == "__main__":
     if "--one" in sys.argv:
-        one_run()
+        one_run(sys.argv[sys.argv.index("--one") + 1])
     else:
         main()

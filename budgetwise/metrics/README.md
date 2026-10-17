@@ -47,13 +47,20 @@ from the pipeline result. `timed` measures any further phase, such as analysis.
 
 ## Execution time for the report
 
-`supplementary/run_timings.py` runs the pipeline on the primary dataset seven
-times, each in a new Python process, and prints each run's stage times with the
-median and range per stage. Run it from the repository root:
+`supplementary/run_timings.py` runs the pipeline seven times, each in a new
+Python process, and prints each run's stage times with the median and range per
+stage. It times loading, cleaning, object building, budget comparisons, summary
+building, cleaning statistics and export separately, plus the pipeline total and
+a separate financial-analysis step. Run it from the repository root:
 
 ```bash
 python budgetwise/metrics/supplementary/run_timings.py
+python budgetwise/metrics/supplementary/run_timings.py --dataset data/raw/budgetwise_finance_dataset.csv
 ```
+
+`--dataset` chooses the CSV (the synthetic dirty dataset by default) and `--runs` the
+number of runs (seven by default). Each run exports its cleaned CSV, summary and
+charts to `output/`, as the program does.
 
 ## Example output
 
