@@ -19,9 +19,14 @@ WHAT THE PHASE 2 SPEC SAYS (sections 2, 4, 5 and 6)
   * Reason codes: DUPLICATE_RAW_ROW (skipped), REPEATED_TRANSACTION_ID
     (flagged), MALFORMED_ROW (skipped or flagged).
 
-WHAT PHASE 1 FOUND (15,900 rows)
+WHAT PHASE 1 FOUND (budgetwise_finance_dataset.csv, 15,900 rows)
   * 900 exact duplicate rows, leaving 15,000 unique rows
   * 1,680 transaction IDs appear more than once
+
+WHAT THE D01 DATASET HOLDS (budgetwise_synthetic_dirty.csv, 15,836 rows)
+  * 804 exact duplicate rows, leaving 15,032 unique rows
+  * 959 transaction IDs appear more than once, 172 of them on rows that
+    genuinely differ and are all kept
 
 WHAT IS IN THIS FILE
   1. Checks for the three required columns (transaction_id, user_id,

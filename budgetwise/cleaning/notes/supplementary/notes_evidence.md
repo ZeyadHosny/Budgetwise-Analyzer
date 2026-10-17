@@ -1,7 +1,12 @@
 # Notes quality evidence
 
-`classify_note_quality()` run on the `notes` column of all 15,900 raw rows of
-`data/raw/budgetwise_finance_dataset.csv`, before duplicates are removed.
+`classify_note_quality()` run on the `notes` column of all 15,836 raw rows of
+`data/raw/budgetwise_synthetic_dirty.csv`, the D01 dataset, before duplicates
+are removed.
+
+**Re-measured 2026-10-17 for decision `D01`.** The earlier
+`budgetwise_finance_dataset.csv` figures are kept in a `finance` column,
+because what this dataset does *not* contain is the important part.
 
 Command, from the repository root:
 
@@ -23,27 +28,39 @@ python -m unittest budgetwise.cleaning.notes.testing.test_note_quality -v
 
 ## Quality counts on the raw file
 
-| Quality flag | Reason code | Result | Phase 1 |
-|---|---|---|---|
-| meaningful | none | 10,072 | 10,072 |
-| low_information | NOTES_LOW_INFORMATION | 3,007 | 3,007 |
-| missing (blank) | NOTES_MISSING | 2,335 | 2,335 |
-| not_available (N/A) | NOTES_MISSING | 486 | 486 |
-| Total | | 15,900 | 15,900 |
+| Quality flag | Reason code | D01 dataset | finance (old) |
+|---|---|---:|---:|
+| meaningful | none | 14,302 | 10,072 |
+| low_information | NOTES_LOW_INFORMATION | **0** | 3,007 |
+| missing (blank) | NOTES_MISSING | 1,534 | 2,335 |
+| not_available (N/A) | NOTES_MISSING | **0** | 486 |
+| Total | | 15,836 | 15,900 |
 
-Every one of the 15,900 notes is returned unchanged.
+Every one of the 15,836 notes is returned unchanged.
 
-## The six placeholders
+## The six placeholders do not occur in this dataset
 
-| Placeholder | Rows |
-|---|---|
-| `!!!` | 533 |
-| `xyz123` | 511 |
-| `...` | 510 |
-| `test` | 508 |
-| `misc` | 474 |
-| `asdfgh` | 471 |
-| Total | 3,007 |
+| Placeholder | D01 dataset | finance (old) |
+|---|---:|---:|
+| `!!!` | 0 | 533 |
+| `xyz123` | 0 | 511 |
+| `...` | 0 | 510 |
+| `test` | 0 | 508 |
+| `misc` | 0 | 474 |
+| `asdfgh` | 0 | 471 |
+| Total | **0** | 3,007 |
+
+There are also no `N/A` values. So `classify_note_quality()` only ever returns
+`meaningful` or `missing` on this dataset: the `low_information` and
+`not_available` branches are never reached.
+
+**This is a loss of test coverage, not a simplification.** The rule is still
+required — §4.5 asks that placeholder notes not be treated as meaningful text —
+and the branches still work. But the only thing exercising them now is the
+hand-written `PlaceholderTests` in
+`budgetwise/cleaning/notes/testing/test_note_quality.py`, where the six
+placeholders are supplied directly. The dataset no longer corroborates them,
+and the class docstring there carries the same warning.
 
 ## Counts at each stage
 
@@ -54,23 +71,24 @@ its figures are lower. Both are correct for their own population. The
 pipeline figures are recorded in
 `budgetwise/pipeline/supplementary/pipeline_evidence.md`.
 
-| Quality | Raw file (15,900 rows) | Final cleaned records (14,651 rows) |
-|---|---|---|
-| meaningful | 10,072 | 9,296 |
-| low_information | 3,007 | 2,765 |
-| missing | 2,335 | 2,147 |
-| not_available | 486 | 443 |
+| Quality | Raw file (15,836 rows) | Final cleaned records (14,862 rows) |
+|---|---:|---:|
+| meaningful | 14,302 | 13,427 |
+| low_information | 0 | 0 |
+| missing | 1,534 | 1,435 |
+| not_available | 0 | 0 |
 
-In the pipeline's log this gives 2,765 `notes_low_information` events and
-2,590 `notes_missing` events (2,147 blank plus 443 N/A).
+In the pipeline's log this gives 0 `notes_low_information` events and 1,435
+`notes_missing` events, all of them blank.
 
 ## Text, quality and log, end to end
 
-**Source of these examples:** a run of the pipeline on the full dataset in a
-test copy of the repository, not the run above. They are real output of that
-run, lines 3 and 6 of the CSV, but they have not yet been captured from the
-real branch's `output/logs/errors.log`. Replace them with lines from that file
-after the next full run.
+**These two examples came from `budgetwise_finance_dataset.csv` and cannot be
+reproduced on the D01 dataset**, which contains no placeholder notes and no
+`N/A` values. They are kept because they document the intended behaviour of
+the `low_information` and `not_available` paths, which is still what the code
+does. They are no longer a record of output from the dataset being reported
+on, and must not be cited in the report as if they were.
 
 For one row, the pipeline keeps the text, stores the quality and writes the
 reason to the log:

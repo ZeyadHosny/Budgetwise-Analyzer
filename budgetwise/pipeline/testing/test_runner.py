@@ -17,7 +17,7 @@ HOW THESE TESTS WORK
   * Tests that check Patrick's loader and amount parser are marked as
     expected failures while those defects exist, so they run and show up in
     the result instead of being skipped. Once a fix is merged they pass.
-  * FullDatasetTests check the counts on all 15,900 rows. They are skipped
+  * FullDatasetTests check the counts on all 15,836 rows. They are skipped
     if the dataset is not in data/raw/.
 """
 
@@ -88,7 +88,7 @@ def _loader_rejects_duplicate_headers():
         folder.cleanup()
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 3))
-DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
+DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirty.csv")
 
 HEADER = "transaction_id,user_id,date,transaction_type,category,amount,payment_mode,location,notes"
 
@@ -838,7 +838,7 @@ class LoaderStructureTests(PipelineTestCase):
 # ==========================================================================
 @unittest.skipUnless(os.path.exists(DATASET_PATH), "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """The G2 reconciliation on all 15,900 rows."""
+    """The G2 reconciliation on all 15,836 rows of the D01 dataset."""
 
     @classmethod
     def setUpClass(cls):
@@ -854,20 +854,27 @@ class FullDatasetTests(unittest.TestCase):
         cls.folder.cleanup()
 
     def test_input_equals_valid_plus_skipped_plus_duplicates(self):
-        self.assertEqual(self.counts["input"], 15900)
-        self.assertEqual(self.counts["duplicates"], 900)
-        self.assertEqual(self.counts["skipped"], 349)
-        self.assertEqual(self.counts["valid"], 14651)
-        self.assertEqual(15900, 14651 + 349 + 900)
+        self.assertEqual(self.counts["input"], 15836)
+        self.assertEqual(self.counts["duplicates"], 804)
+        self.assertEqual(self.counts["skipped"], 170)
+        self.assertEqual(self.counts["valid"], 14862)
+        self.assertEqual(15836, 14862 + 170 + 804)
 
     def test_skipped_rows_are_blank_amounts_and_sentinels(self):
-        self.assertEqual(self.reasons["missing_amount"], 271)
-        self.assertEqual(self.reasons["sentinel_amount"], 78)
+        self.assertEqual(self.reasons["missing_amount"], 170)
+        # This dataset carries no 999999999 sentinels; the §4.5 rule still
+        # runs, it simply never fires here. See D01.
+        self.assertEqual(self.reasons.get("sentinel_amount", 0), 0)
 
     def test_rows_with_no_date_are_kept(self):
         undated = sum(1 for record in self.result["records"] if record["date"] is None)
-        self.assertEqual(undated, 454)
-        self.assertEqual(self.reasons["missing_date"], 454)
+        # 322 rows arrive blank; a further 2,259 hold a shape parse_date
+        # cannot read, so 17% of valid rows end up with no date. Every
+        # monthly figure excludes them - see D01.
+        self.assertEqual(undated, 2581)
+        self.assertEqual(self.reasons["missing_date"], 322)
+        self.assertEqual(self.reasons["invalid_date"], 2259)
+        self.assertEqual(322 + 2259, 2581)
 
     def test_no_sentinel_or_negative_amount_survives(self):
         for record in self.result["records"]:
@@ -881,8 +888,8 @@ class FullDatasetTests(unittest.TestCase):
     def test_flagged_and_corrected_counts_cover_every_reason(self):
         # S06 on the real data: every repeated-ID row is a flagged row, and
         # no count can exceed the number of valid rows.
-        self.assertEqual(self.reasons["repeated_transaction_id"], 1846)
-        self.assertGreaterEqual(self.counts["flagged"], 1846)
+        self.assertEqual(self.reasons["repeated_transaction_id"], 328)
+        self.assertGreaterEqual(self.counts["flagged"], 328)
         self.assertLessEqual(self.counts["flagged"], self.counts["valid"])
         self.assertLessEqual(self.counts["corrected"], self.counts["valid"])
         self.assertEqual(sum(self.reasons.values()), len(self.result["issues"]))
@@ -891,11 +898,11 @@ class FullDatasetTests(unittest.TestCase):
         totals = {"Income": 0.0, "Expense": 0.0}
         for record in self.result["records"]:
             totals[record["transaction_type"]] += record["amount"]
-        self.assertEqual(totals, {"Income": 144_624_974.0, "Expense": 165_749_066.0})
+        self.assertEqual(totals, {"Income": 134_553_045.0, "Expense": 53_348_034.0})
 
     def test_repeated_ids_are_all_kept(self):
-        self.assertEqual(self.counts["repeated_ids"], 888)
-        self.assertEqual(self.reasons["repeated_transaction_id"], 1846)
+        self.assertEqual(self.counts["repeated_ids"], 163)
+        self.assertEqual(self.reasons["repeated_transaction_id"], 328)
 
 
 if __name__ == "__main__":

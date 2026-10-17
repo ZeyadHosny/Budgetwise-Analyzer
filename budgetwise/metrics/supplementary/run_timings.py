@@ -9,6 +9,9 @@ Run from the repository root:
     python budgetwise/metrics/supplementary/run_timings.py
     python budgetwise/metrics/supplementary/run_timings.py --dataset data/raw/budgetwise_finance_dataset.csv
 
+The default is the D01 dataset, budgetwise_synthetic_dirty.csv; the
+--dataset form above is how to time the other file for comparison.
+
 The pipeline total is run() from start to finish, including opening and
 closing a fresh error log and the export of the cleaned CSV, JSON summary and
 charts to output/. Financial analysis is timed separately, after run().

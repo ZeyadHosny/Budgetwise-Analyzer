@@ -8,8 +8,14 @@ WHAT THE PHASE 2 SPEC SAYS (sections 2, 4 and 5)
   * Known placeholders: ...  !!!  xyz123  test  misc  asdfgh
   * notes is free text, NOT a closed category, so nothing is mapped.
 
-WHAT PHASE 1 FOUND (15,900 rows)
+WHAT PHASE 1 FOUND (budgetwise_finance_dataset.csv, 15,900 rows)
   * 10,072 meaningful, 2,335 blank, 486 "N/A", 3,007 placeholders
+
+WHAT THE D01 DATASET HOLDS (budgetwise_synthetic_dirty.csv, 15,836 rows)
+  * 14,302 meaningful, 1,534 blank, 0 "N/A", 0 placeholders
+  * The placeholder and N/A branches below are therefore never reached by
+    that dataset. They stay because the rule is still required, and the
+    hand-written tests still cover them.
 
 REASON CODES AND FUNCTION NAME
   NOTES_MISSING          flagged: note is blank or N/A

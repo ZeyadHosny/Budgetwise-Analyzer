@@ -1,13 +1,13 @@
 {
   "_comment": "Generated from cleaned monthly expense history; each limit is the category median rounded up to 500 dataset units. See budgetwise/analysis/budgets/supplementary/budget_justification.md.",
-  "_owner": "Patrick (P3.3), agreed at G1",
+  "_owner": "Patrick (P3.3). Limits regenerated from budgetwise_synthetic_dirty.csv on 2026-10-17 following decision D01; supersedes the limits agreed at G1. Team to confirm before submission.",
   "currency_note": "Amounts are in the dataset's single underlying unit. No currency conversion is performed (§4.5).",
   "limits": {
-    "Entertainment": 136000,
-    "Food": 248500,
-    "Rent": 727000,
-    "Transportation": 196000,
-    "Utilities": 156500
+    "Entertainment": 13500,
+    "Food": 52500,
+    "Rent": 42500,
+    "Transportation": 21000,
+    "Utilities": 17500
   },
   "unbudgeted_categories": "Report categories with spending and no configured limit as unbudgeted."
 }

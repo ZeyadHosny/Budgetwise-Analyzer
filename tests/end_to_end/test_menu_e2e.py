@@ -16,10 +16,16 @@ if str(ROOT) not in sys.path:
 from budgetwise.interface.menu.implementation import menu
 from budgetwise.pipeline import run
 # Import the shared harness from the other test file (no support files needed).
+# The relative form is what unittest discovery uses; the flat form is the
+# fallback for running this file directly from an IDE, which gives it no
+# parent package.
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
-from budget_wise_analyzer_e2e_tests import WorkflowCase, row
+try:
+    from .test_budget_wise_analyzer_e2e import WorkflowCase, row
+except ImportError:
+    from test_budget_wise_analyzer_e2e import WorkflowCase, row
 
 CATEGORIES = ('Bonus', 'Education', 'Entertainment', 'Food', 'Freelance',
               'Healthcare', 'Investment', 'Other', 'Rent', 'Salary', 'Savings',
@@ -145,17 +151,21 @@ def range_check(start, end, outside):
     return check
 
 
+# Anchored to the D01 dataset's span, 2019-01-01 to 2022-12-31, which
+# menu.DATASET_FIRST_DATE and DATASET_LAST_DATE report as the hint range.
+# Move these whenever that span moves, or the boundary cases stop testing
+# the boundary.
 for name, start, end, outside in [
-    ('same_day', '2024-02-29', '2024-02-29', False),
+    ('same_day', '2020-02-29', '2020-02-29', False),
     ('first_day', '2019-01-01', '2019-01-01', False),
-    ('last_day', '2024-12-31', '2024-12-31', False),
-    ('cross_year', '2023-12-31', '2024-01-01', False),
-    ('full_span', '2019-01-01', '2024-12-31', False),
+    ('last_day', '2022-12-31', '2022-12-31', False),
+    ('cross_year', '2021-12-31', '2022-01-01', False),
+    ('full_span', '2019-01-01', '2022-12-31', False),
     ('overlap_left', '2018-12-01', '2019-01-01', False),
-    ('overlap_right', '2024-12-31', '2025-01-31', False),
-    ('enclosing', '2018-01-01', '2025-01-01', False),
+    ('overlap_right', '2022-12-31', '2023-01-31', False),
+    ('enclosing', '2018-01-01', '2023-01-01', False),
     ('before', '2018-01-01', '2018-12-31', True),
-    ('after', '2025-01-01', '2025-12-31', True),
+    ('after', '2023-01-01', '2023-12-31', True),
 ]:
     setattr(DateRangeTests, f'test_range_{name}', range_check(start, end, outside))
 

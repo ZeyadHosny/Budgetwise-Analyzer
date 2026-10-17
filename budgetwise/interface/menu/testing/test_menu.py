@@ -285,82 +285,17 @@ class TestLoop(unittest.TestCase):
         with patch("builtins.input", side_effect=["1", "5"]):
             menu.run_menu(pipeline_run=menu.demo_run)
 
-    def test_successful_load_exports_cleaned_records_and_summary(self):
-        record = {
-            "transaction_id": "E1",
-            "user_id": "U1",
-            "date": "2026-01-05",
-            "transaction_type": "Expense",
-            "category": "Food",
-            "amount": 50.0,
-            "original_currency": "plain",
-        }
-        unselected_record = {
-            "transaction_id": "I1",
-            "user_id": "U1",
-            "date": "2026-01-06",
-            "transaction_type": "Income",
-            "category": "Salary",
-            "amount": 500.0,
-            "original_currency": "plain",
-        }
-        result = {
-            "records": [record, unselected_record],
-            "transactions": [record],
-            "counts": {"input": 2, "valid": 2, "returned": 1},
-            "timings": {"load": 0.1, "clean": 0.2},
-          "summary": {
-            "scope": "transactions selected by menu query",
-            "selection": {"type": "all"},
-            "selected_transactions": 1,
-            "counts": {"input": 2, "valid": 2},
-            "timings": {"load": 0.1, "clean": 0.2},
-            "total_breakdown": {
-              "totals": {"income": 0.0, "expenses": 50.0, "net": -50.0},
-              "account_breakdown": {
-                "cash": {"transaction_count": 1, "total_spent": 50.0,
-                     "total_received": 0.0},
-                "bank": {"transaction_count": 1, "total_spent": 0.0,
-                     "total_received": 500.0},
-                "unknown": {"transaction_count": 0, "total_spent": 0.0,
-                      "total_received": 0.0},
-              },
-              "top_categories": [("Food", 50.0)],
-              "largest_expenses": [record],
-              "budget_by_category": [],
-              "chart_data": [{"category": "Food", "expenses": 50.0}],
-            },
-            "monthly_breakdown": {
-              "months": [],
-              "chart_data": [{"month": "2026-01", "expenses": 50.0}],
-            },
-            "category_breakdown": [],
-            },
-            "error": None,
-        }
-        with patch("builtins.input", side_effect=["1", "5"]), \
-             patch.object(menu, "export_cleaned", return_value=Path("clean.csv")) as csv_export, \
-             patch.object(menu, "export_summary", return_value=Path("summary.json")) as json_export:
-            menu.run_menu(pipeline_run=lambda dataset: result, dataset="sample.csv")
-
-        csv_export.assert_called_once()
-        self.assertEqual(csv_export.call_args.args, ([record], "sample.csv"))
-        self.assertEqual(json_export.call_args.args[1], "sample.csv")
-        self.assertIs(csv_export.call_args.kwargs["when"],
-                      json_export.call_args.kwargs["when"])
-        summary = json_export.call_args.args[0]
-        self.assertEqual(summary["counts"], result["summary"]["counts"])
-        self.assertEqual(summary["selection"], {"type": "all"})
-        self.assertEqual(summary["selected_transactions"], 1)
-        self.assertEqual(summary["total_breakdown"]["totals"], {
-            "income": 0.0, "expenses": 50.0, "net": -50.0,
-        })
-        self.assertEqual(
-            summary["total_breakdown"]["account_breakdown"],
-            result["summary"]["total_breakdown"]["account_breakdown"],
-        )
-        self.assertIn("bar_chart", summary["total_breakdown"])
-        self.assertIn("bar_chart", summary["monthly_breakdown"])
+    # test_successful_load_exports_cleaned_records_and_summary was removed
+    # here. It patched menu.export_cleaned and menu.export_summary, which
+    # stopped existing when commit a2c40f4 moved exporting into the
+    # pipeline (pipeline/implementation/runner.py, export_run). It also
+    # expected a 'bar_chart' key inside the summary, which no longer
+    # exists either - charts are written to their own .txt file by
+    # interface/export/chart_export.py.
+    #
+    # The behaviour it checked is covered end to end, against the real
+    # exporters rather than mocks, by TC-052, TC-053 and TC-054 in
+    # tests/end_to_end/test_budget_wise_analyzer_e2e.py.
 
     # Test that bad input does not end the program
     def test_invalid_then_exit(self):

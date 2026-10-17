@@ -13,7 +13,7 @@ from budgetwise.pipeline import clean_file
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
-DEFAULT_DATASET = PROJECT_ROOT / "data" / "raw" / "budgetwise_finance_dataset.csv"
+DEFAULT_DATASET = PROJECT_ROOT / "data" / "raw" / "budgetwise_synthetic_dirty.csv"
 DEFAULT_CONFIG = PROJECT_ROOT / "config" / "monthly_budgets.json"
 DEFAULT_JUSTIFICATION = (
     PROJECT_ROOT / "budgetwise" / "analysis" / "budgets" / "supplementary"

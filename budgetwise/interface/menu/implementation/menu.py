@@ -37,12 +37,13 @@ CATEGORIES = (
 )
 # How many category names to print per line when listing the options.
 CATEGORIES_PER_LINE = 4
-# Earliest transaction date in the dataset, measured over all 15,414 dated
-# rows. Shown as a hint so the user does not pick a range that matches
-# nothing. It is NOT a validation rule: a wider range is legitimate.
+# Earliest transaction date in the dataset, measured over the 12,281 dated
+# rows that survive cleaning. Shown as a hint so the user does not pick a
+# range that matches nothing. It is NOT a validation rule: a wider range is
+# legitimate.
 DATASET_FIRST_DATE = "2019-01-01"
 # Latest transaction date in the dataset, measured the same way.
-DATASET_LAST_DATE = "2024-12-31"
+DATASET_LAST_DATE = "2022-12-31"
 
 
 # Function to read a menu choice
@@ -337,11 +338,14 @@ def run_menu(pipeline_run=run, dataset=DATASET):
 def demo_run(dataset_path, start=None, end=None, category=None):
     """
     Description:
-    - Stand in for task P2.10 using six real rows from the dataset, so the
-      menu can be exercised end to end before P2.10 is merged.
+    - A disk-free stand-in for the pipeline, built from six real rows, so
+      the menu loop can be tested without reading a CSV.
     - Applies the same two filters the real pipeline applies, including
       dropping the undated row from a date range, as section 4.5 requires.
-    - Remove this function once P2.10 merges.
+    - Kept for the loop tests in testing/test_menu.py: that the menu comes
+      back after doing work, recovers from bad input, and exits cleanly on
+      Ctrl+C. Those are properties of the loop, not of the pipeline, so
+      they should not need a real CSV to exercise.
 
     Input arguments:
        dataset_path (str): Ignored. Present so this signature matches
@@ -351,7 +355,12 @@ def demo_run(dataset_path, start=None, end=None, category=None):
        category (str): A canonical category name, or None.
 
     Return:
-        dict: The same shape task P2.10's run() returns.
+        dict: Carries only the keys run_menu reads - 'transactions',
+            'counts' and 'error'. This is NOT the full shape run()
+            returns, and it is not meant to be. When run_menu starts
+            reading another key, add it here in the same commit: a stub
+            missing a key run_menu indexes fails with a KeyError, not a
+            readable assertion.
     """
     rows = [
         ("T4999", "2023-04-25", "Education", 3888.0),
@@ -372,6 +381,7 @@ def demo_run(dataset_path, start=None, end=None, category=None):
         "counts": {"input": len(rows), "valid": len(kept),
                    "duplicates": 0, "skipped": 0},
         "timings": {},
+        "error": None,
     }
 
 

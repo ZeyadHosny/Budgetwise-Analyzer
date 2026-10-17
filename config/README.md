@@ -15,8 +15,16 @@ Every raw category string found in the data, mapped to a normalized name. The
 mapping must be **closed** — §4.5 requires that every raw value has an entry, so
 nothing falls through silently.
 
-Pre-filled from the real data: all **47** distinct raw category strings found in
+Pre-filled from all **47** distinct raw category strings found in
 `budgetwise_finance_dataset.csv`, with their row counts.
+
+**The mapping is not closed against the D01 dataset.**
+`budgetwise_synthetic_dirty.csv` holds 212 distinct nonblank variants; this
+file has entries for 20 of them, leaving **192 variants over 1,634 rows**
+reported as `unknown_category` and routed to `Uncategorized`. Two approved
+categories, `Freelance` and `Investment`, match no rows there at all. See
+`budgetwise/cleaning/categories/supplementary/README.md` for the breakdown and
+what `D04` has to settle.
 
 | Column | Meaning |
 |---|---|
