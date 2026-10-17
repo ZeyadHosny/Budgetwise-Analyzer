@@ -70,43 +70,69 @@ that the pipeline routes every dataset record into the correct account.
 
 ## 7. Separate full-dataset review findings
 
-Separate October 13 review checks used the retained records from
-`data/raw/budgetwise_finance_dataset.csv`.
+Re-measured 2026-10-17 on the retained records from
+`data/raw/budgetwise_synthetic_dirty.csv`, the D01 dataset. The earlier
+October 13 figures, taken on `budgetwise_finance_dataset.csv`, are kept in the
+second column.
 
 These findings are distinct from the 39 fixture tests and are preliminary
 review evidence, not final validation on a G2-approved revision.
 
-| Measure | Observed |
-|---|---:|
-| Retained records | 14,651 |
-| Model objects | 14,651 |
-| Total income | 144,624,974 |
-| Total expenses | 165,749,066 |
-| Net balance | -21,124,092 |
-| Sum of monthly expenses | 162,224,605 |
-| Undated expense difference | 3,524,461 |
-| Cash objects | 3,502 |
-| Bank objects | 10,425 |
-| Unknown objects | 724 |
+| Measure | Observed (D01) | finance (old) |
+|---|---:|---:|
+| Retained records | 14,862 | 14,651 |
+| Model objects | 14,862 | 14,651 |
+| Total income | 134,553,045 | 144,624,974 |
+| Total expenses | 53,348,034 | 165,749,066 |
+| Net balance | **+81,205,011** | -21,124,092 |
+| Sum of monthly expenses | 44,579,968 | 162,224,605 |
+| Undated expense difference | **8,768,066** | 3,524,461 |
+| Cash objects | 3,563 | 3,502 |
+| Bank objects | 10,591 | 10,425 |
+| Unknown objects | 708 | 724 |
 
 All six summaries matched independently calculated results for the
 complete selected model list and for each account list.
 
 The returned model objects appeared in exactly one payment-group account.
 
+Two differences change how the results read, and both belong in the report
+rather than in this file alone.
+
+**The net balance flips sign.** It is +81,205,011 here against -21,124,092 on
+the earlier dataset. Any narrative written around "expenses exceed income" no
+longer holds.
+
+**The undated expense difference is 8,768,066, or 16.4% of total expenses**,
+against 3,524,461 and 2.1% before. That is the gap between total expenses and
+the sum of the monthly figures, and it exists because 2,259 date values match
+no parsing rule. `total_expenses()` includes undated rows while
+`monthly_expenses()` excludes them, so the two will not reconcile unless the
+split is reported. Nothing stores this figure: it has to be derived as total
+expenses minus the sum of the monthly rows.
+
 ### Full-dataset spending categories
 
 | Rank | Category | Expense total |
 |---|---|---:|
-| 1 | Rent | 48,822,528 |
-| 2 | Food | 38,410,740 |
-| 3 | Utilities | 18,244,248 |
-| 4 | Entertainment | 16,168,446 |
-| 5 | Transportation | 14,222,100 |
+| 1 | Food | 15,059,930 |
+| 2 | Rent | 10,364,133 |
+| 3 | Utilities | 8,970,763 |
+| 4 | Transportation | 8,110,333 |
+| 5 | Entertainment | 3,852,311 |
+
+The same five categories hold the top five places on both datasets, which is
+why decision `D06` did not have to change which categories are budgeted. Only
+the order and the amounts moved: Food and Rent swap first and second place.
 
 The five largest individual expense amounts were each 999,999.
 Their order was checked against the retained input order.
 These amounts are below the exclusion threshold of 100,000,000.
+
+**999,999 is a ceiling in the source data, not a real transaction.** It is the
+largest value either dataset contains, and the five largest expenses are all
+exactly equal to it. Report them as an artefact of the data rather than as a
+finding about spending.
 
 ## 8. Caller responsibilities and final validation
 
@@ -125,5 +151,8 @@ Remaining final work:
 - Rerun after the cleaning baseline fixes.
 - Record the exact revision, dataset identity and execution commands.
 - Verify the final menu/report/export flow.
+- Add the dated/undated expense split to the reported results, since the
+  monthly figures exclude 16.4% of expenses on this dataset and nothing in the
+  summary output states that.
 
 No commit SHA or final gate approval is inferred from an uploaded ZIP.

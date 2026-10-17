@@ -25,12 +25,12 @@ discussion.
 
 | # | Decision | Task | Blocks |
 |---|---|---|---|
-| D01 | Which CSV is the official dataset | `P0.2` | every reported figure |
+| D01 | Which CSV is the official dataset | `P0.2` | every reported figure · **recorded below, awaiting agreement** |
 | ~~D02~~ | ~~Whether the Kaggle licence permits committing raw data~~ | `P0.2` `P4.3` | **closed — see below** |
 | D03 | Class design, given the data has no account-type field | `P2.5` | `models/`, the report |
 | D04 | The closed category set — six contested names | `P1.2` | `cleaning/categories/`, every total |
 | D05 | Shared interfaces — raw row, cleaned row, transaction, error entry | `P1.5` | all four cleaners |
-| D06 | Budget scope — which five categories, what limits, what justification | `P3.3` | `analysis/budgets/`, the report |
+| D06 | Budget scope — which five categories, what limits, what justification | `P3.3` | `analysis/budgets/`, the report · **recorded below, awaiting agreement** |
 | D07 | How to handle the missing merchant column | `P4.4` | §4.2 compliance |
 | D08 | Corrected vs skipped — where the boundary sits | `P3.5` `P2.10` | three reported counts · **proposal recorded below, awaiting agreement** |
 | D09 | Who owns the CSV loader | — | all of Phase 2 |
@@ -42,8 +42,10 @@ discussion.
 `data/README.md` sets out the case that `budgetwise_finance_dataset.csv` is the
 file the assignment was written against: it is the only one containing `Rs.` and
 `INR` labels, the only one with `999999999` sentinel rows, and the only one whose
-per-symbol medians fall in the 5,600–6,600 band §4.5 cites. The decision still
-needs making and recording.
+per-symbol medians fall in the 5,600–6,600 band §4.5 cites.
+
+The decision has since been made the other way; see **D01** under *Recorded for
+Phase 3* below, where this evidence is restated as the case still to be answered.
 
 ### D04 — the six contested category names
 
@@ -190,6 +192,109 @@ name.
 **Affects:** `errorlog/` · every cleaner · `pipeline/` · the pipeline test
 that checks codes are lowercase, which should be replaced by a test against
 the agreed list.
+
+---
+
+## Recorded for Phase 3 — awaiting sign-off
+
+Added 2026-10-17 for `P3.3` and `P3.4`. Both entries record decisions already
+acted on in code. Move either to **Closed** only when the date and the people
+who agreed it are filled in.
+
+## D01 — `budgetwise_synthetic_dirty.csv` is the official dataset
+
+Date: *fill in* · Decided by: *fill in the names* · `P0.2`
+
+**Decision:** `data/raw/budgetwise_synthetic_dirty.csv` is the dataset every
+reported figure comes from. `budgetwise_finance_dataset.csv` stays in the
+repository but no longer backs any number in the report.
+
+**Why:** *fill in the team's reason.* Two lines of evidence pull in opposite
+directions, and the report has to address both.
+
+**Against the decision — the §4.5 markers.** The assignment's mandatory
+conventions only make sense against `finance_dataset`:
+
+| Evidence | Present in |
+|---|---|
+| `Rs.` and `INR` currency labels, which §4.5 says to strip | `finance_dataset` only |
+| `999999999` sentinel rows, §4.5's own worked example | `finance_dataset` only (78 rows) |
+| Per-symbol medians in the 5,600-6,600 band §4.5 cites | `finance_dataset` only |
+| `Investment` among §4.5's example canonical categories | `finance_dataset` only |
+
+**For the decision — it is genuinely the dirtier file.** Measured by what the
+cleaners cannot handle rather than by what they routinely fix:
+
+| Reason code | `finance_dataset` | `synthetic_dirty` |
+|---|---:|---:|
+| `invalid_date` — no rule matches the value | **0** | **2,259** |
+| `unknown_category` — outside the closed mapping | **0** | **1,540** |
+| Records left with no usable date | 454 | **2,581** |
+
+`finance_dataset` carries a higher *volume* of routine, recognised messiness —
+10,689 category case fixes, 10,944 payment-mode fixes, 900 exact duplicates —
+but the cleaners resolve all of it. `synthetic_dirty` contains forms the
+cleaners were never written for: 18 date shapes against 5, 213 category
+variants against 47, and character-scrambled category names. Reporting from it
+is therefore the stronger demonstration of robustness for §7.
+
+**But the cost has to be stated, not hidden.** Those 2,259 unparseable dates
+mean **2,581 records (17% of valid rows) carry no date at all**, against 454 in
+the other file. Every monthly figure in the report silently excludes them, so
+the dated/undated split belongs in the results rather than in a footnote.
+
+Whichever way the team argues it, the reason must be written here before `G5`,
+or §7's mark for reflection on design decisions is lost.
+
+**Affects:** every figure in the report · `analysis/budgets/` limits ·
+`interface/menu/` dataset constant · `data/README.md`, whose argument still
+favours the other file · the Phase 1 profiling evidence, which was measured on
+`finance_dataset` and has not been re-measured.
+
+## D06 — Budget scope: five categories and how their limits are set
+
+Date: *fill in* · Decided by: *fill in the names* · `P3.4`
+
+**Decision:** Monthly limits are configured for five categories —
+**Entertainment, Food, Rent, Transportation and Utilities**. Each limit is that
+category's median monthly spend in the chosen dataset, rounded up to the next
+500 dataset units. Categories with spending and no configured limit are
+reported as `unbudgeted`, never as zero.
+
+**Why:** The five are the five highest-spending expense categories, which makes
+them the ones worth budgeting. Measured on `budgetwise_synthetic_dirty.csv`:
+
+| Rank | Category | Total expenses |
+|---|---|---:|
+| 1 | Food | 15,059,930 |
+| 2 | Rent | 10,364,133 |
+| 3 | Utilities | 8,970,763 |
+| 4 | Transportation | 8,110,333 |
+| 5 | Entertainment | 3,852,311 |
+| 6 | Uncategorized | 2,716,414 |
+
+Sixth place is a bookkeeping bucket, not a spending category, so the cut falls
+naturally after five. The same five also ranked top in `finance_dataset`, so
+the D01 switch did not change which categories are budgeted — only the amounts.
+
+The median is used rather than the mean because one unusually expensive month
+would drag a mean upward and set a limit nobody would plan against. The 75th
+percentile and maximum are recorded in the justification table as context but
+do not set the limit.
+
+**Limits are generated, not typed.** `config/monthly_budgets.json` and
+`budgetwise/analysis/budgets/supplementary/budget_justification.md` are both
+written by:
+
+```bash
+python -m budgetwise.analysis.budgets.implementation.generate_budget_evidence
+```
+
+Re-running it after any change to the dataset or the cleaners keeps the limits,
+the evidence table and the report in step.
+
+**Affects:** `config/monthly_budgets.json` · `analysis/budgets/` ·
+report section 5 — **§4.4 requires the limits justified**.
 
 ---
 

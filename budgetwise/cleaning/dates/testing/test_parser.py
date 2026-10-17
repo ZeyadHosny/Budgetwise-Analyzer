@@ -22,13 +22,13 @@ MISSING_DATE = Reason.MISSING_DATE
 # ---- helper: load one column of the real dataset, if the file is here ----
 # The raw dataset lives in data/raw/ at the top of the repository.
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
-DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
+DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirty.csv")
 if not os.path.exists(DATASET_PATH):
     DATASET_PATH = None
 
 
 def load_column(column):
-    """Return every raw value of one column (all 15,900 rows)."""
+    """Return every raw value of one column (all 15,836 rows)."""
     with open(DATASET_PATH, encoding="utf-8", newline="") as csv_file:
         return [row[column] for row in csv.DictReader(csv_file)]
 
@@ -137,7 +137,13 @@ class InvalidDateTests(unittest.TestCase):
 
 @unittest.skipUnless(DATASET_PATH, "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """Every count below comes from the Phase 1 date profile (15,900 rows)."""
+    """Re-profiled against budgetwise_synthetic_dirty.csv (15,836 rows), D01.
+
+    This file holds 18 date shapes against the 5 parse_date was written for,
+    so 2,387 values match no rule and are rejected. That is a measured fact
+    about the data, not a target: if the parser is taught a new shape, these
+    counts move and are meant to be re-measured.
+    """
 
     @classmethod
     def setUpClass(cls):
@@ -146,30 +152,37 @@ class FullDatasetTests(unittest.TestCase):
 
     def test_format_counts(self):
         formats = Counter(find_date_format(raw) for raw in self.raw_values)
-        self.assertEqual(formats["YYYY-MM-DD"], 6091)
-        self.assertEqual(formats["MM/DD/YYYY"], 4676)
-        self.assertEqual(formats["DD-MM-YY"], 3044)
-        self.assertEqual(formats["DD-MM-YYYY"], 1603)
+        self.assertEqual(formats["YYYY-MM-DD"], 4430)
+        self.assertEqual(formats["MM/DD/YYYY"], 4750)
+        self.assertEqual(formats["DD-MM-YY"], 3925)
+        # This dataset carries no hyphen/four-digit dates at all, so D10's
+        # rule is never exercised here.
+        self.assertEqual(formats["DD-MM-YYYY"], 0)
+        # Shapes no rule recognises: the 18-format problem, see D01.
+        self.assertEqual(formats[None], 2731)
 
     def test_reason_counts(self):
         reasons = Counter(reason for _, found in self.results for reason in found)
-        self.assertEqual(reasons[MISSING_DATE], 486)
-        self.assertEqual(reasons[DATE_NORMALIZED], 4676 + 3044 + 1603)
-        self.assertEqual(reasons[INVALID_DATE], 0)
+        self.assertEqual(reasons[MISSING_DATE], 344)
+        self.assertEqual(reasons[DATE_NORMALIZED], 4750 + 3925)
+        # Unlike the other dataset, this one defeats the parser 2,387 times.
+        # Blank plus unreadable accounts for every unrecognised value:
+        self.assertEqual(reasons[INVALID_DATE], 2387)
+        self.assertEqual(344 + 2387, 2731)
 
     def test_ambiguous_date_counts(self):
         ambiguous = Counter(
             find_date_format(raw) for raw in self.raw_values if is_ambiguous_date(raw)
         )
-        self.assertEqual(ambiguous["MM/DD/YYYY"], 1865)   # the Phase 1 figure
-        self.assertEqual(ambiguous["DD-MM-YY"], 1198)
-        self.assertEqual(ambiguous["DD-MM-YYYY"], 650)
+        self.assertEqual(ambiguous["MM/DD/YYYY"], 1904)
+        self.assertEqual(ambiguous["DD-MM-YY"], 1537)
+        self.assertEqual(ambiguous["DD-MM-YYYY"], 0)
 
-    def test_every_cleaned_date_is_iso_and_between_2021_and_2024(self):
+    def test_every_cleaned_date_is_iso_and_between_2019_and_2022(self):
         for value, _ in self.results:
             if value is not None:
                 self.assertRegex(value, r"^\d{4}-\d{2}-\d{2}$")
-                self.assertTrue("2021-01-01" <= value <= "2024-12-31", value)
+                self.assertTrue("2019-01-01" <= value <= "2022-12-31", value)
 
 
 if __name__ == "__main__":

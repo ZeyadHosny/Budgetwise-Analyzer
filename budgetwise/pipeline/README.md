@@ -8,7 +8,7 @@ Runs raw rows through every cleaner and builds the cleaned dataset.
 | **Domain reviewer** | Patrick (`P2.10`). All team at `G2` |
 | **PR approval** | Zeyad or Patrick. See `CONTRIBUTING.md` |
 | **Tasks** | `P2.10` implementation · `G2` integration |
-| **Status** | Merged (#10). Integrated with Zeyad's model classes (#16) in the follow-up pull request |
+| **Status** | Merged; includes account-backed monthly budget comparisons |
 
 ## 1. What this folder does
 
@@ -36,6 +36,7 @@ all cleaned rows
  10. transaction object     models           Expense or Income
  11. menu filters           date range, category
  12. account                models           cash, bank or unknown
+ 13. monthly budget compare  analysis/budgets via each account's transactions
 ```
 
 Only two things remove a row: it cannot be used at all (duplicate, or a
@@ -50,8 +51,11 @@ from budgetwise.pipeline import clean_file, run
 result = run("data/raw/budgetwise_finance_dataset.csv")
 result["transactions"]     # list of ExpenseTransaction / IncomeTransaction
 result["accounts"]         # {"cash": CashAccount, "bank": BankAccount, "unknown": UnknownAccount}
+result["account_breakdown"] # counts and totals calculated through account getters
+result["summary"]           # total, monthly, and category analysis sections
 result["counts"]           # dict of the numbers the report needs
 result["timings"]          # seconds for load and clean
+result["budget_comparisons"] # monthly category status, based on returned accounts
 result["error"]            # None, or a message if the file could not be read
 
 run(path, start="2023-01-01", end="2023-12-31")    # menu option 2
@@ -73,6 +77,8 @@ Both return a **dictionary**. There is no `LoadResult` class, so write
 |---|---|---|
 | `transactions` | list of 14,651 objects | all of `analysis/` |
 | `accounts` | one `CashAccount`, one `BankAccount`, one `UnknownAccount` | report: cash versus bank |
+| `account_breakdown` | transaction count, total spent, total received per account | summary JSON |
+| `summary` | total, monthly, and category breakdowns, including chart data | menu/export |
 | `records` | list of 14,651 dictionaries, unfiltered | export, metrics |
 | `counts["input"]` | 15,900 | report: number of input records |
 | `counts["valid"]` | 14,651 | report: number of valid records |
@@ -81,6 +87,7 @@ Both return a **dictionary**. There is no `LoadResult` class, so write
 | `counts["duplicates"]` | 900 | report: duplicates detected |
 | `counts["categories_normalized"]` | 10,955 | report: categories normalized |
 | `timings` | `{"load": 0.04, "clean": 0.5}` | report: execution time |
+| `budget_comparisons` | monthly category limits, actuals, statuses, and differences | summary JSON |
 | `issues` | list of `(line, field, reason, raw)` | view error log |
 | `error` | `None` | menu message |
 
@@ -106,7 +113,7 @@ encapsulation. The pipeline is where the classes first meet the data.
 | `CashAccount` | child of `Account` | One per load. Holds the Cash transactions |
 | `BankAccount` | child of `Account` | One per load. Holds Card, UPI and Bank Transfer |
 | `UnknownAccount` | child of `Account` | One per load. Holds rows whose payment mode is blank, shown as `Unknown` |
-| `Budget` | stands alone | Not used here. It compares monthly totals with limits, which is the budget analysis (`P3.4`) |
+| `Budget` | stands alone | Used by the monthly comparison after accounts are populated; account getters supply its transactions |
 
 How they work together for one row:
 

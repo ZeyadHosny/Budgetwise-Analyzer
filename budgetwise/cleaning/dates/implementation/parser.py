@@ -11,9 +11,16 @@ WHAT THE PROJECT SAYS (Project-1.pdf 4.5)
   * A missing date is logged and left out of date-based analysis. The row is
     kept, because it can still count toward category totals.
 
-WHAT PHASE 1 FOUND (15,900 rows)
+WHAT PHASE 1 FOUND (budgetwise_finance_dataset.csv, 15,900 rows)
   * 6,091 YYYY-MM-DD, 4,676 MM/DD/YYYY, 3,044 DD-MM-YY, 1,603 DD-MM-YYYY
   * 486 missing, 0 in any other format, 1,865 ambiguous slash dates
+
+WHAT THE D01 DATASET HOLDS (budgetwise_synthetic_dirty.csv, 15,836 rows)
+  * 4,430 YYYY-MM-DD, 4,750 MM/DD/YYYY, 3,925 DD-MM-YY, 0 DD-MM-YYYY
+  * 344 missing, and 2,387 in shapes no rule below recognises
+  * Those 2,387 are rejected as INVALID_DATE, so 17% of valid rows reach
+    analysis with no date. Teaching this parser a new shape is the fix;
+    until then the loss is reported, not hidden.
 
 TEAM CONVENTION
   * DD-MM-YYYY (hyphen, 4-digit year) is read day first, like DD-MM-YY.
