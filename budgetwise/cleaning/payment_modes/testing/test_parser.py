@@ -82,5 +82,21 @@ class TestPaymentModeParser(unittest.TestCase):
         )
 
 
+    # Synthetic dirty dataset: one-letter misspellings
+    def test_dirty_spelling_variants(self):
+        cases = {"UPPI": "UPI", "PUI": "UPI", "Csah": "Cash", "Cassh": "Cash",
+                 "Crad": "Card", "Caard": "Card", "Bank Trasnfer": "Bank Transfer"}
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_payment_mode(raw),
+                                 (expected, "PAYMENT_MODE_NORMALIZED"))
+
+    # One letter from both Cash and Card, so left as Unknown.
+    def test_ambiguous_variants_stay_unknown(self):
+        for raw in ("Cah", "Cahs", "Cas", "Car", "Cad", "Cadr"):
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_payment_mode(raw),
+                                 ("Unknown", "PAYMENT_MODE_UNKNOWN"))
+
 if __name__ == "__main__":
     unittest.main()

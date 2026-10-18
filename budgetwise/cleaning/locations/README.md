@@ -1,84 +1,50 @@
-# Location Cleaning
+# Location cleaning
 
-Cleans raw location values and maps each one to a single standard city name.
+## Interface
 
-## Responsibility
+```python
+from budgetwise.cleaning.locations import normalize_location
 
-| Item | Details |
+normalize_location(raw: str | None) -> tuple[str, str | None]
+```
+
+| Input | Returns |
 |---|---|
-| Responsible | Henrietta |
-| Domain reviewer | Sarah |
-| PR approval | Zeyad or Patrick |
-| Tasks | `P1` location profiling (Bahareh) and `P2.6` implementation |
-| Status | Implemented and under review |
+| Already a standard name, e.g. `"Pune"` | `("Pune", None)` |
+| A known variant, e.g. `"PUNE"`, `"PUN"`, `" Pune "` | `("Pune", "LOCATION_NORMALIZED")` |
+| `None`, `""`, whitespace only, `N/A`, or not recognized | `("Unknown", "LOCATION_UNKNOWN")` |
 
-## Purpose
-
-The raw dataset's `location` column has 42 distinct values. Each city appears in up to four forms:
-
-- title case: `Pune`
-- uppercase: `PUNE`
-- lowercase: `pune`
-- three-letter abbreviation: `PUN`
-
-Some rows also have a blank value or `N/A`. Values can also carry extra spaces, such as `" Pune "`.
-
-This module maps every variant to one standard city name. It returns a reason code whenever the value was changed or could not be identified.
-
-
-
-### How it works
-
-1. Blank, whitespace-only, and `None` values return `Unknown`.
-2. The value is stripped of surrounding spaces and lowercased for lookup.
-3. `n/a` returns `Unknown`.
-4. Recognized values return the standard city name. If the original value differs from the standard name in any way, the reason code is `LOCATION_NORMALIZED`. This includes capitalization, abbreviations, and whitespace.
-5. Anything else returns `Unknown` with `LOCATION_UNKNOWN`, so it shows up in the error log instead of passing through silently.
+The function always returns a usable name and never drops a row. The pipeline
+writes the reason codes to `output/logs/errors.log` in lowercase.
 
 ## Mapping
 
-The mapping is closed. Unrecognized values are never passed through unchanged.
+The mapping is a dictionary in `implementation/parser.py`. Lookups ignore case
+and surrounding spaces. Each city is accepted in full or as a three-letter code:
 
-| Standard name | Accepted variants (case-insensitive, spaces trimmed) |
+```
+Ahmedabad (AHM)   Bangalore (BAN)   Chennai (CHE)   Delhi (DEL)     Hyderabad (HYD)
+Jaipur (JAI)      Kolkata (KOL)     Lucknow (LUC)   Mumbai (MUM)    Pune (PUN)
+```
+
+`Bengaluru`, the city's official name, also maps to `Bangalore`. The synthetic
+dirty dataset uses it on 1,539 raw rows and never uses `Bangalore` itself, so
+without it the city would be missing from every location count.
+
+On the synthetic dirty dataset, every nonblank value is now recognized. The 686
+retained `Unknown` rows are all blank.
+
+## Files
+
+| Folder | Contents |
 |---|---|
-| Ahmedabad | `Ahmedabad`, `AHMEDABAD`, `ahmedabad`, `AHM` |
-| Bangalore | `Bangalore`, `BANGALORE`, `bangalore`, `BAN` |
-| Chennai | `Chennai`, `CHENNAI`, `chennai`, `CHE` |
-| Delhi | `Delhi`, `DELHI`, `delhi`, `DEL` |
-| Hyderabad | `Hyderabad`, `HYDERABAD`, `hyderabad`, `HYD` |
-| Jaipur | `Jaipur`, `JAIPUR`, `jaipur`, `JAI` |
-| Kolkata | `Kolkata`, `KOLKATA`, `kolkata`, `KOL` |
-| Lucknow | `Lucknow`, `LUCKNOW`, `lucknow`, `LUC` |
-| Mumbai | `Mumbai`, `MUMBAI`, `mumbai`, `MUM` |
-| Pune | `Pune`, `PUNE`, `pune`, `PUN` |
-| Unknown | blank (931 rows), `N/A` (331 rows), whitespace only, `None`, any unrecognized value |
+| `implementation/` | `parser.py` |
+| `testing/` | `test_parser.py` |
 
-That's 10 cities × 4 variants plus blank and `N/A`, which gives the 42 profiled values.
+## Tests
 
-### Reference
-
-The variants above come from the Phase 1 location profiling in Bahareh's Phase 1 report.
-
-## Reason Codes
-
-| Reason code | Meaning |
-|---|---|
-| `LOCATION_NORMALIZED` | A recognized location was changed to its standard name (capitalization, abbreviation, or surrounding spaces) |
-| `LOCATION_UNKNOWN` | The location was missing, blank, `N/A`, or not recognized; set to `Unknown` |
-| `None` | The value was already the standard name; nothing to log |
-
-
-## Testing
-
-Tests are in `testing/test_parser.py`:
-
-- `test_all_profiled_location_variants`: all 42 profiled values, checked with `subTest` and an assertion that exactly 42 cases are listed
-- `test_location_with_spaces`: `" Pune "` → `LOCATION_NORMALIZED`
-- `test_missing_spaces`: whitespace only → `Unknown`
-- `test_missing_none`: `None` → `Unknown`
-- `test_unknown_location`: unrecognized value → `Unknown`
-
-Run from the project root:
+6 tests cover all 42 profiled values, `Bengaluru`, whitespace, missing values
+and unknown values.
 
 ```bash
 python -m unittest budgetwise.cleaning.locations.testing.test_parser -v
