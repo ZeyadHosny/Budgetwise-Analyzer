@@ -7,9 +7,14 @@
 §4.4: *"Each team must define reasonable monthly budget limits for at least five
 categories **and justify them**."*
 
-This file is a graded deliverable. For each category record the limit, how it
-was arrived at, and what data supports it — the median monthly spend, the
-observed range, whatever you used. Also record what happens to categories with
-no limit.
+This file is a graded deliverable. `budget_justification.md` is generated from
+the cleaned dataset by
+`budgetwise.analysis.budgets.implementation.generate_budget_evidence`. Review
+its limits, method, and data before submission. The generator also records what
+happens to categories with no configured limit.
 
-Without this file the team loses marks even with a perfectly working comparison.
+Regenerate it and the JSON limits from the repository root with:
+
+```bash
+python -m budgetwise.analysis.budgets.implementation.generate_budget_evidence
+```

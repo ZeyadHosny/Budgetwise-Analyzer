@@ -6,7 +6,7 @@
 Command, from the repository root:
 
 ```bash
-python -m unittest budgetwise.cleaning.dates.testing.test_parser -v
+python3 -m unittest budgetwise.cleaning.dates.testing.test_parser -v
 ```
 
 ## Run details
@@ -82,3 +82,26 @@ Rows with no date are kept. They are left out of date-based analysis only.
 24 tests: 20 that use small hand-written inputs and 4 that use the full
 dataset. All 24 passed in the run above. The 4 dataset tests are skipped if
 the CSV is not in `data/raw/`.
+
+
+## Dirty file (`budgetwise_synthetic_dirty.csv`)
+
+`parse_date()` on the `date` column of all 15,836 raw rows.
+
+| Result | Rows |
+|---|---|
+| Already `YYYY-MM-DD` | 4,430 |
+| Converted (`DATE_NORMALIZED`) | 11,050 |
+| Missing (blank) | 344 |
+| Invalid (`29/10/19` style: slash dates are month first) | 12 |
+
+Formats: `MM/DD/YYYY` 4,750, `YYYY-MM-DD` 4,430, `DD-MM-YY` 3,925,
+`Month DD YYYY` 2,350, `YYYY/MM/DD` 21, `MM/DD/YY` 16, blank 344.
+
+Day-first evidence: in `DD-MM-YY` dates the first number is above 12 in 2,388
+rows and the second never is; in `MM/DD/YYYY` dates the second is above 12 in
+2,846 rows and the first never is.
+
+After the pipeline (14,862 retained rows): 14,528 have a usable date,
+334 do not (322 missing, 12 invalid). Those 334 are left out of date-based
+analysis and still count by category.

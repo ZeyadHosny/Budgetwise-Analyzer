@@ -56,12 +56,14 @@ sample so the flow can be demonstrated:
 python implementation/menu.py --demo
 ```
 
-Remove the fallback once `P2.10` is merged.
+`P2.10` is merged, so the fallback is no longer a stand-in for missing
+work. It stays because the loop tests need a pipeline that touches no
+disk; see `demo_run`'s docstring for the contract it has to keep.
 
 ## Folders
 
 | Folder | Contents |
 |---|---|
 | `implementation/` | `menu.py` |
-| `testing/` | `test_menu.py` - 18 cases, `input()` patched |
+| `testing/` | `test_menu.py` - 23 cases, `input()` patched. Export behaviour is covered by `TC-052`-`TC-054` in `tests/end_to_end/`, not here |
 | `supplementary/` | `menu_flow.md` - feeds sec 5's design flow diagram |

@@ -1,24 +1,27 @@
 # budgetwise
 
 The application package. Every feature lives in its own folder and follows the
-same shape, so that once you understand one folder you understand all of them.
+same shape, so once you understand one folder you understand all of them.
 
 ## How a feature folder is arranged
 
 ```
 cleaning/dates/
 ├── README.md              owner, reviewer, tasks, what it produces
-├── __init__.py            the public surface — what other modules may import
-├── implementation/        the code the program actually runs
-├── testing/               tests and fixtures for this feature only
+├── __init__.py            the public surface: what other modules may import
+├── implementation/        the code the program runs
+├── testing/               tests and fixtures for this feature
 └── supplementary/         profiling findings and report evidence
 ```
 
 | Folder | What belongs here | Who reads it |
 |---|---|---|
 | `implementation/` | The working code. One concern per file. | The program |
-| `testing/` | Tests and small fixtures for this feature alone. Whole-pipeline tests live in `/tests/`. | `python -m unittest discover` |
-| `supplementary/` | Phase 1 profiling output and the evidence `P4.4` needs for the report. | Whoever writes the report |
+| `testing/` | Tests and small fixtures for this feature alone. Whole-program tests live in `/tests/`. | `python3 -m unittest discover` |
+| `supplementary/` | Profiling output and the evidence needed for the report. | Whoever writes the report |
+
+Every `testing/` folder needs an `__init__.py`; without it, its tests are
+silently skipped.
 
 ## Imports stay flat
 
@@ -42,31 +45,45 @@ from Zeyad or Patrick.
 
 ## The features
 
-| Feature | Owner | Tasks | Does |
-|---|---|---|---|
-| `loader/` | **unassigned** | — | Reads the CSV and yields numbered raw rows |
-| `pipeline/` | Sarah, Zeyad | `G2` | Runs raw rows through the cleaners and builds objects |
-| `models/` | Zeyad | `P2.5` | Transaction and Budget classes |
-| `errorlog/` | Sarah | `P2.4` | Writes `errors.log` and owns the reason codes |
-| `cleaning/dates/` | Bahareh | `P1.1` `P2.1` | Date parsing |
-| `cleaning/categories/` | Henrieta | `P1.2` `P2.2` | Category normalization |
-| `cleaning/amounts/` | Patrick | `P1.3` `P2.3` | Amount and currency parsing |
-| `cleaning/rows/` | Sarah | `P1.4` `P2.4` | Duplicates and row validation |
-| `analysis/aggregation/` | Henrieta | `P3.1` | Totals by category and month |
-| `analysis/summaries/` | Bahareh | `P3.2` | Income, expenses, balance, top five |
-| `analysis/budgets/` | Patrick | `P3.3` | Budget vs actual |
-| `interface/menu/` | Sarah | `P3.4` | The text menu and filters |
-| `interface/charts/` | Sarah | `P3.4` | Text bar chart |
-| `interface/export/` | Sarah | `P3.4` | CSV and JSON export |
-| `metrics/` | Zeyad | `P3.5` | Timings and run counts |
+Owners are taken from each feature's own README. Rows marked *confirm* disagree
+between files and need checking by the team.
 
-Phase 2 folders exist now. Phase 3 folders are created when Phase 3 begins.
+### Phase 2: loading and cleaning
+
+| Feature | Owner | Task | Does |
+|---|---|---|---|
+| `loader/` | Patrick | `P2.9` | Reads the CSV and returns numbered raw rows |
+| `errorlog/` | Patrick | `P2.8` | Writes `errors.log` and owns the shared `Reason` codes |
+| `cleaning/dates/` | Sarah | `P2.1` | Converts every date to `YYYY-MM-DD` |
+| `cleaning/categories/` | Henrietta | `P2.2` | Maps category variants to the approved set |
+| `cleaning/amounts/` | Patrick | `P2.3` | Turns amount text into unsigned numbers |
+| `cleaning/rows/` | Sarah | `P2.4` | Finds exact duplicate rows and checks each row is usable |
+| `cleaning/payment_modes/` | Henrietta | `P2.5` | Maps payment modes to standard names |
+| `cleaning/locations/` | Henrietta | `P2.6` | Maps locations to standard city names |
+| `cleaning/notes/` | Sarah | `P2.7` | Labels note quality; note text is never changed |
+| `pipeline/` | Sarah | `P2.10` | Runs every cleaner in order, builds transaction objects and accounts |
+
+### Phase 3: models, analysis and interface
+
+| Feature | Owner | Task | Does |
+|---|---|---|---|
+| `models/` | Zeyad | `P3.1` | Transaction and account classes |
+| `analysis/aggregation/` | Henrietta | `P3.2` | Totals by category and by month |
+| `analysis/summaries/` | Bahareh | `P3.3` | Income, expenses, balance, rankings and account summaries |
+| `analysis/budgets/` | Patrick | *confirm* | Budget against actual spending |
+| `interface/menu/` | Zeyad | `P3.5` | The text menu and filters; the program's entry point |
+| `interface/charts/` | Henrietta | `P3.6` | Text bar chart of spending |
+| `interface/export/` | *confirm* (Sarah or Patrick) | *confirm* (`P3.4` or `P3.7`) | CSV and JSON export |
+| `metrics/` | Henrietta | `P3.8` | Run counts and timings |
+
+All folders now exist. `analysis/budgets/` and `interface/export/` hold only
+their READMEs so far.
 
 ## Rules that apply everywhere
 
-- **Standard library only** in ingestion, cleaning, aggregation, and analysis.
-  No pandas, no NumPy — see `Project-1.pdf` §2.
+- **Standard library only** in loading, cleaning, aggregation and analysis.
+  No pandas, no NumPy (`Project-1.pdf` section 2).
 - **Cleaning functions never raise.** They return a value and a reason code.
 - **Cleaning functions never print and never read files.** `pipeline/` supplies
   the data; `interface/` does the talking.
-- **Protected attributes use `_name`, private use `__name`.** §4.3 grades this.
+- **Protected attributes use `_name`, private use `__name`.** Section 4.3 grades this.

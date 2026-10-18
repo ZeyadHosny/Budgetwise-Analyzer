@@ -9,7 +9,8 @@ largest_expenses(transactions, n=5) -> list[Transaction]
 compare_to_budget(transactions, year, month) -> list[BudgetResult]
 
 BudgetResult: category · limit · actual · status · difference
-    status is "over", "under", or "exact"
+    status is "over", "under", "exact", or "unbudgeted"
+    limit and difference are None for an unbudgeted category
 ```
 
 ## The limits live in config, not in code
@@ -30,8 +31,10 @@ method: take the median monthly spend per category from the cleaned data and set
 the limit near it, then say so. An arbitrary round number with no reasoning
 behind it is worth less than a slightly awkward number you can explain.
 
-**Categories with no limit.** Skip them, or report them as unbudgeted? Either is
-fine. Deciding silently is not — pick one and write it down.
+**Categories with no limit.** Report categories with spending and no configured
+limit as `unbudgeted`. Configured categories are included with actual zero when
+another expense exists in that month. If the month has no expenses, return an
+empty list.
 
 ## Watch for
 
@@ -45,3 +48,14 @@ report for Patrick's own cleaning module rather than a real transaction.
 - Hard-code limits in Python — they belong in `config/`
 - Reimplement the over/under logic — `models.Budget` owns it
 - Import pandas or numpy — violates §2
+
+To regenerate the historical limits and justification from the configured
+category list, run from the repository root:
+
+```bash
+python -m budgetwise.analysis.budgets.implementation.generate_budget_evidence
+```
+
+The script uses the median monthly expense, rounded upward to the next 500
+dataset units. Use `--increment`, `--dataset`, `--config`, and
+`--justification` to override its defaults.
