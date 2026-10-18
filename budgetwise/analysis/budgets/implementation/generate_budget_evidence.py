@@ -168,9 +168,23 @@ def generate(dataset_path=DEFAULT_DATASET, config_path=DEFAULT_CONFIG,
     cleaned = clean_file(dataset_path, error_log=_DiscardErrorLog())
     if cleaned["error"]:
         raise RuntimeError(cleaned["error"])
+
+    # Use 2019–2021 to set limits; reserve 2022 for comparison.
+    baseline_records = [
+        record
+        for record in cleaned["records"]
+        if (month := _transaction_month(record)) is not None
+        and "2019-01" <= month <= "2021-12"
+    ]
+
     months, evidence = calculate_evidence(
-        cleaned["records"], limits.keys(), increment
+        baseline_records, limits.keys(), increment
     )
+
+    if months != _month_range("2019-01", "2021-12"):
+        raise ValueError(
+            "Budget baseline must cover January 2019 to December 2021."
+        )
 
     config["limits"] = {item["category"]: item["limit"] for item in evidence}
     config["_comment"] = (
