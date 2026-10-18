@@ -23,6 +23,8 @@ def normalize_location(raw: str | None) -> tuple[str, str | None]:
 
         "bangalore": "Bangalore",
         "ban": "Bangalore",
+        # Official name, used in budgetwise_synthetic_dirty.csv.
+        "bengaluru": "Bangalore",
 
         "chennai": "Chennai",
         "che": "Chennai",
