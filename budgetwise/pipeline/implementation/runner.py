@@ -383,6 +383,8 @@ def run(path, start=None, end=None, category=None, error_log=None):
             result["budget_comparisons"] = _budget_comparisons(
                 result["accounts"], start, end, category
             )
+        _summarise(result)
+        if not result["error"] and Transaction is not None:
             result["summary"], chart_data = build_summary(
                 result,
                 _selection(start, end, category),
@@ -390,7 +392,6 @@ def run(path, start=None, end=None, category=None, error_log=None):
             result["account_breakdown"] = result["summary"].get(
                 "total_breakdown", {}
             ).get("account_breakdown", {})
-        _summarise(result)
         try:
             export_run(result, chart_data, path)
         except OSError as exc:
