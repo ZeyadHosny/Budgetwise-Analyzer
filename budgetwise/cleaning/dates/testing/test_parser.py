@@ -1,7 +1,7 @@
-"""
-Tests for parser.py   (column: date, task P2.1)
+"""Tests for date cleaning (P2.1).
+
 Run from the repository root:
-    python -m unittest budgetwise.cleaning.dates.testing.test_parser -v
+    python3 -m unittest budgetwise.cleaning.dates.testing.test_parser -v
 """
 import csv
 import os
@@ -19,17 +19,19 @@ DATE_NORMALIZED = Reason.DATE_NORMALIZED
 INVALID_DATE = Reason.INVALID_DATE
 MISSING_DATE = Reason.MISSING_DATE
 
-# ---- helper: load one column of the real dataset, if the file is here ----
-# The raw dataset lives in data/raw/ at the top of the repository.
+# The raw dataset, if present, is in data/raw/ at the repository root.
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
-DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirty.csv")
+DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
 if not os.path.exists(DATASET_PATH):
     DATASET_PATH = None
+DIRTY_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirty.csv")
+if not os.path.exists(DIRTY_PATH):
+    DIRTY_PATH = None
 
 
-def load_column(column):
-    """Return every raw value of one column (all 15,836 rows)."""
-    with open(DATASET_PATH, encoding="utf-8", newline="") as csv_file:
+def load_column(column, path=None):
+    """Return every raw value of one column of a dataset file."""
+    with open(path or DATASET_PATH, encoding="utf-8", newline="") as csv_file:
         return [row[column] for row in csv.DictReader(csv_file)]
 
 
@@ -60,7 +62,21 @@ class ValidFormatTests(unittest.TestCase):
         self.assertEqual(find_date_format("08/05/2022"), "MM/DD/YYYY")
         self.assertEqual(find_date_format("31-12-23"), "DD-MM-YY")
         self.assertEqual(find_date_format("21-09-2024"), "DD-MM-YYYY")
-        self.assertIsNone(find_date_format("December 22 2021"))
+        self.assertEqual(find_date_format("2022/12/09"), "YYYY/MM/DD")
+        self.assertEqual(find_date_format("03/24/22"), "MM/DD/YY")
+        self.assertEqual(find_date_format("December 22 2021"), "Month DD YYYY")
+        self.assertIsNone(find_date_format("22 December 2021"))
+
+    def test_formats_found_in_the_dirty_dataset(self):
+        self.assertEqual(parse_date("December 22 2021"), ("2021-12-22", [DATE_NORMALIZED]))
+        self.assertEqual(parse_date("september 5 2020"), ("2020-09-05", [DATE_NORMALIZED]))
+        self.assertEqual(parse_date("2022/12/09"), ("2022-12-09", [DATE_NORMALIZED]))
+        self.assertEqual(parse_date("03/24/22"), ("2022-03-24", [DATE_NORMALIZED]))
+
+    def test_two_digit_slash_date_is_month_first(self):
+        # Slash dates are month first (section 4.5), so 29/10/19 is not a date.
+        self.assertEqual(parse_date("04/11/22")[0], "2022-04-11")
+        self.assertEqual(parse_date("29/10/19"), (None, [INVALID_DATE]))
 
 
 class AmbiguousDateTests(unittest.TestCase):
@@ -88,8 +104,7 @@ class AmbiguousDateTests(unittest.TestCase):
                 self.assertFalse(is_ambiguous_date(raw))
 
     def test_invalid_dates_are_never_counted_as_ambiguous(self):
-        # Right shape, both numbers 12 or less, but not real dates.
-        # parse_date() rejects them, so they must not be counted either.
+        # Right shape but not real dates, so never counted as ambiguous.
         for raw in ("00/05/2023", "05/00/2023", "00-05-23", "01-01-0000", "00-00-2023"):
             with self.subTest(raw=raw):
                 self.assertIsNone(parse_date(raw)[0])
@@ -116,14 +131,14 @@ class InvalidDateTests(unittest.TestCase):
                 self.assertEqual(parse_date(raw), (None, [INVALID_DATE]))
 
     def test_slash_date_written_day_first_is_not_silently_swapped(self):
-        # 25/12/2023 is not a valid MM/DD/YYYY date. It must NOT become 25 December.
+        # Slash dates are month first, so 25/12/2023 is invalid, not 25 December.
         self.assertEqual(parse_date("25/12/2023"), (None, [INVALID_DATE]))
 
     def test_hyphen_date_written_month_first_is_not_silently_swapped(self):
         self.assertEqual(parse_date("12-25-23"), (None, [INVALID_DATE]))
 
     def test_unrecognized_formats_are_never_guessed(self):
-        junk = ("December 22 2021", "2022/12/09", "29/10/19", "8/5/2022", "2023-4-5",
+        junk = ("Dec 22 2021", "22 December 2021", "29/10/19", "8/5/2022", "2023-4-5",
                 "20230425", "25.12.2023", "2023-04-25T10:00", "asdfgh", "!!!", "12345")
         for raw in junk:
             with self.subTest(raw=raw):
@@ -137,13 +152,7 @@ class InvalidDateTests(unittest.TestCase):
 
 @unittest.skipUnless(DATASET_PATH, "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """Re-profiled against budgetwise_synthetic_dirty.csv (15,836 rows), D01.
-
-    This file holds 18 date shapes against the 5 parse_date was written for,
-    so 2,387 values match no rule and are rejected. That is a measured fact
-    about the data, not a target: if the parser is taught a new shape, these
-    counts move and are meant to be re-measured.
-    """
+    """Every count below comes from the Phase 1 date profile (15,900 rows)."""
 
     @classmethod
     def setUpClass(cls):
@@ -152,37 +161,52 @@ class FullDatasetTests(unittest.TestCase):
 
     def test_format_counts(self):
         formats = Counter(find_date_format(raw) for raw in self.raw_values)
-        self.assertEqual(formats["YYYY-MM-DD"], 4430)
-        self.assertEqual(formats["MM/DD/YYYY"], 4750)
-        self.assertEqual(formats["DD-MM-YY"], 3925)
-        # This dataset carries no hyphen/four-digit dates at all, so D10's
-        # rule is never exercised here.
-        self.assertEqual(formats["DD-MM-YYYY"], 0)
-        # Shapes no rule recognises: the 18-format problem, see D01.
-        self.assertEqual(formats[None], 2731)
+        self.assertEqual(formats["YYYY-MM-DD"], 6091)
+        self.assertEqual(formats["MM/DD/YYYY"], 4676)
+        self.assertEqual(formats["DD-MM-YY"], 3044)
+        self.assertEqual(formats["DD-MM-YYYY"], 1603)
 
     def test_reason_counts(self):
         reasons = Counter(reason for _, found in self.results for reason in found)
-        self.assertEqual(reasons[MISSING_DATE], 344)
-        self.assertEqual(reasons[DATE_NORMALIZED], 4750 + 3925)
-        # Unlike the other dataset, this one defeats the parser 2,387 times.
-        # Blank plus unreadable accounts for every unrecognised value:
-        self.assertEqual(reasons[INVALID_DATE], 2387)
-        self.assertEqual(344 + 2387, 2731)
+        self.assertEqual(reasons[MISSING_DATE], 486)
+        self.assertEqual(reasons[DATE_NORMALIZED], 4676 + 3044 + 1603)
+        self.assertEqual(reasons[INVALID_DATE], 0)
 
     def test_ambiguous_date_counts(self):
         ambiguous = Counter(
             find_date_format(raw) for raw in self.raw_values if is_ambiguous_date(raw)
         )
-        self.assertEqual(ambiguous["MM/DD/YYYY"], 1904)
-        self.assertEqual(ambiguous["DD-MM-YY"], 1537)
-        self.assertEqual(ambiguous["DD-MM-YYYY"], 0)
+        self.assertEqual(ambiguous["MM/DD/YYYY"], 1865)   # Phase 1 figure
+        self.assertEqual(ambiguous["DD-MM-YY"], 1198)
+        self.assertEqual(ambiguous["DD-MM-YYYY"], 650)
 
-    def test_every_cleaned_date_is_iso_and_between_2019_and_2022(self):
+    def test_every_cleaned_date_is_iso_and_between_2021_and_2024(self):
         for value, _ in self.results:
             if value is not None:
                 self.assertRegex(value, r"^\d{4}-\d{2}-\d{2}$")
-                self.assertTrue("2019-01-01" <= value <= "2022-12-31", value)
+                self.assertTrue("2021-01-01" <= value <= "2024-12-31", value)
+
+
+@unittest.skipUnless(DIRTY_PATH, "dirty dataset not found in data/raw/")
+class DirtyDatasetTests(unittest.TestCase):
+    """Counts on all 15,836 rows of budgetwise_synthetic_dirty.csv."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw_values = load_column("date", DIRTY_PATH)
+        cls.results = [parse_date(raw) for raw in cls.raw_values]
+
+    def test_format_counts(self):
+        formats = Counter(find_date_format(raw) for raw in self.raw_values)
+        self.assertEqual(formats, {"MM/DD/YYYY": 4750, "YYYY-MM-DD": 4430, "DD-MM-YY": 3925,
+                                   "Month DD YYYY": 2350, None: 344, "YYYY/MM/DD": 21,
+                                   "MM/DD/YY": 16})
+
+    def test_reason_counts(self):
+        reasons = Counter(reason for _, found in self.results for reason in found)
+        self.assertEqual(reasons[MISSING_DATE], 344)
+        self.assertEqual(reasons[INVALID_DATE], 12)        # day-first 2-digit slash dates
+        self.assertEqual(reasons[DATE_NORMALIZED], 15836 - 4430 - 344 - 12)
 
 
 if __name__ == "__main__":
