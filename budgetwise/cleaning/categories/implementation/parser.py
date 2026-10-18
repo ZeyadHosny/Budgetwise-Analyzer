@@ -29,6 +29,7 @@ CATEGORY_MAPPING = _load_mapping()
 
 OTHER_INCOME_VARIANTS = {
     "other income",
+    "other icnome",
     "toher income",
     "oter income",
     "othre income",

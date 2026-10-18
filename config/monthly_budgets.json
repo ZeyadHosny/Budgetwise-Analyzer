@@ -3,11 +3,11 @@
   "_owner": "Patrick (P3.3). Limits regenerated from budgetwise_synthetic_dirty.csv on 2026-10-17 following decision D01; supersedes the limits agreed at G1. Team to confirm before submission.",
   "currency_note": "Amounts are in the dataset's single underlying unit. No currency conversion is performed (§4.5).",
   "limits": {
-    "Entertainment": 15500,
+    "Entertainment": 17000,
     "Food": 67000,
-    "Rent": 50000,
-    "Transportation": 24500,
-    "Utilities": 22000
+    "Rent": 50500,
+    "Transportation": 27500,
+    "Utilities": 23000
   },
   "unbudgeted_categories": "Report categories with spending and no configured limit as unbudgeted."
 }

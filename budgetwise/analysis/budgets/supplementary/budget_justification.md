@@ -12,10 +12,10 @@ These are historical spending-based planning limits, not a claim that the amount
 
 | Category | Median monthly spend | 75th percentile | Highest month | Proposed limit |
 |---|---:|---:|---:|---:|
-| Entertainment | 15,285.00 | 22,872.75 | 1,020,422.00 | 15,500.00 |
-| Food | 66,556.50 | 334,575.50 | 2,076,935.00 | 67,000.00 |
-| Rent | 49,631.00 | 64,764.00 | 1,059,262.00 | 50,000.00 |
-| Transportation | 24,077.50 | 28,971.00 | 1,030,811.00 | 24,500.00 |
-| Utilities | 21,967.00 | 25,491.00 | 2,017,517.00 | 22,000.00 |
+| Entertainment | 16,940.50 | 24,727.50 | 1,020,422.00 | 17,000.00 |
+| Food | 66,707.50 | 334,624.00 | 2,076,935.00 | 67,000.00 |
+| Rent | 50,027.00 | 65,611.25 | 1,059,832.00 | 50,500.00 |
+| Transportation | 27,107.50 | 32,370.00 | 1,034,836.00 | 27,500.00 |
+| Utilities | 22,831.50 | 32,467.00 | 2,018,625.00 | 23,000.00 |
 
 The configured categories are retained from `monthly_budgets.json`. Categories with spending but no configured limit are reported as `unbudgeted` by the comparison function.
