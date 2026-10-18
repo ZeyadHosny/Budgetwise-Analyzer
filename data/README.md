@@ -62,9 +62,26 @@ sense against it:
 formats, and no shared rows — concatenating them would report totals over a
 population that does not exist.
 
-The second file is useful as a robustness fixture for `P4.1`: running the
-cleaner against formats it was never designed for is good evidence for §7's
-"correctness and robustness". Keep it out of the reported figures.
+## Which one the reported figures use
+
+**`budgetwise_synthetic_dirty.csv`**, by decision **D01** (2026-10-17), recorded
+in `docs/decisions.md`.
+
+That reverses the position this section argued. The reason for the switch is not
+yet written into D01, and the evidence above still points the other way, so it
+has to be supplied before `G5` — §7 marks reflection on design decisions, and an
+unexplained reversal is exactly the kind of thing a reader will ask about.
+
+Note what the switch means in practice. This file was kept as a robustness
+fixture precisely *because* its formats — 18 date shapes, 213 category variants,
+scrambled category names — are ones the cleaners were never designed for. The
+headline figures now come from the harder file. That is defensible, and arguably
+good evidence for §7's "correctness and robustness", but it is an argument
+someone has to make explicitly rather than leave implied.
+
+`budgetwise_finance_dataset.csv` stays in the repository. It still backs the
+Phase 1 profiling evidence in each module's `supplementary/` folder, which has
+not been re-measured against the new dataset.
 
 ## Licence — CC0: Public Domain
 

@@ -1,12 +1,14 @@
 # Raw-row evidence
 
-Measured on all 15,900 raw rows of `data/raw/budgetwise_finance_dataset.csv`,
-read with `csv.DictReader`, using the functions in `raw_rows.py`.
+Measured on all 15,836 raw rows of `data/raw/budgetwise_synthetic_dirty.csv`,
+the D01 dataset, read with `csv.DictReader`, using the functions in
+`raw_rows.py`. **Re-measured 2026-10-17 for decision `D01`**; the earlier
+`budgetwise_finance_dataset.csv` figures are kept alongside for comparison.
 
 Command, from the repository root:
 
 ```bash
-python -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
+python3 -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
 ```
 
 ## Run details
@@ -23,34 +25,37 @@ python -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
 
 ## Duplicates and malformed rows
 
-| Measure | Result | Phase 1 |
-|---|---|---|
-| Raw rows | 15,900 | 15,900 |
-| Exact raw duplicates | 900 | 900 |
-| Unique raw rows | 15,000 | 15,000 |
-| Malformed rows (wrong field count, or unusable required field) | 0 | |
+| Measure | D01 dataset | finance (old) |
+|---|---:|---:|
+| Raw rows | 15,836 | 15,900 |
+| Exact raw duplicates | 804 | 900 |
+| Unique raw rows | 15,032 | 15,000 |
+| Malformed rows (wrong field count, or unusable required field) | 0 | 0 |
 | Rows with a missing or blank transaction ID | 0 | 0 |
-| Rows with an unusual ID or type format | 0 | |
-| Distinct transaction IDs | 14,000 | 14,000 |
+| Rows with an unusual ID or type format | 0 | 0 |
+| Distinct transaction IDs | 14,858 | 14,000 |
+
+Both datasets are structurally sound: no malformed rows, no blank IDs. The
+difference between them is in field *content*, not row shape.
 
 ## Repeated transaction IDs
 
 The figure depends on which rows are counted, so each population is stated.
 
 | Population | Distinct repeated IDs | Rows carrying them |
-|---|---|---|
-| Raw file (15,900 rows) | 1,680 | 3,580 |
-| After exact duplicates are removed (15,000 rows) | 926 | 1,926 |
-| Final cleaned records (14,651 rows), from the pipeline | 888 | 1,846 |
+|---|---:|---:|
+| Raw file (15,836 rows) | 959 | 1,937 |
+| After exact duplicates are removed (15,032 rows) | 172 | 346 |
+| Final cleaned records (14,862 rows), from the pipeline | 163 | 328 |
 
-- 1,680 is the Phase 1 figure.
-- 754 of the 1,680 repeat only because of exact duplicates. They stop being
-  repeated once the 900 duplicate rows are removed.
-- The other 926 sit on rows that differ, so removing rows by ID alone would
+- **787 of the 959 repeat only because of exact duplicates.** They stop being
+  repeated once the 804 duplicate rows are removed. The proportion is far
+  higher than on the earlier dataset, where 754 of 1,680 were duplicate-only.
+- The other 172 sit on rows that differ, so removing rows by ID alone would
   have deleted legitimate transactions. All of those rows are kept.
-- 888 is lower than 926 because some of those rows are later skipped for a
-  blank or sentinel amount. That step belongs to the pipeline. The 888 IDs
-  and the 1,846 rows carrying them are measured by the pipeline, in
+- 163 is lower than 172 because some of those rows are later skipped for a
+  blank amount. That step belongs to the pipeline. The 163 IDs and the 328
+  rows carrying them are measured by the pipeline, in
   `budgetwise/pipeline/supplementary/pipeline_evidence.md`, not here.
 - Rows with no ID are never counted as sharing an ID. The dataset has none,
   so this rule changes no figure here. It protects against bad input.
@@ -61,7 +66,7 @@ Measured, not estimated:
 
 | What | Time | Where |
 |---|---|---|
-| All 47 tests, including the 7 that read the full 15,900-row file | 0.101 seconds | the run above |
+| All 47 tests, including the 7 that read the full 15,836-row file | 0.17 seconds | re-measured 2026-10-17 |
 | Splitting duplicates, finding repeated IDs twice and validating every row of the full file | about 0.09 seconds | a timed run in a test copy of the repository |
 
 Duplicates and repeated IDs are each found in one pass, using a set and a

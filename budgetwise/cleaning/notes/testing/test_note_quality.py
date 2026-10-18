@@ -19,13 +19,13 @@ PLACEHOLDER_NOTES = ("...", "!!!", "xyz123", "test", "misc", "asdfgh")
 
 # The raw dataset, if present, is in data/raw/ at the repository root.
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
-DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
+DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirty.csv")
 if not os.path.exists(DATASET_PATH):
     DATASET_PATH = None
 
 
 def load_column(column):
-    """Return every raw value of one column (all 15,900 rows)."""
+    """Return every raw value of one column (all 15,836 rows)."""
     with open(DATASET_PATH, encoding="utf-8", newline="") as csv_file:
         return [row[column] for row in csv.DictReader(csv_file)]
 
@@ -83,7 +83,14 @@ class LowInformationNoteTests(unittest.TestCase):
 
 @unittest.skipUnless(DATASET_PATH, "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """Every count below comes from the Phase 1 notes profile (15,900 rows)."""
+    """Re-profiled against budgetwise_synthetic_dirty.csv (15,836 rows), D01.
+
+    COVERAGE WARNING. This dataset contains no placeholder notes and no
+    "N/A" values, so LOW_INFORMATION and NOT_AVAILABLE are never produced
+    here. The zero assertions below record that, but the real coverage of
+    those two branches now rests entirely on the hand-written cases in
+    PlaceholderTests, not on this dataset.
+    """
 
     @classmethod
     def setUpClass(cls):
@@ -92,13 +99,14 @@ class FullDatasetTests(unittest.TestCase):
 
     def test_quality_counts_match_phase_1(self):
         qualities = Counter(quality for _, quality, _ in self.results)
-        self.assertEqual(qualities, {MEANINGFUL: 10072, LOW_INFORMATION: 3007,
-                                     MISSING: 2335, NOT_AVAILABLE: 486})
+        self.assertEqual(qualities, {MEANINGFUL: 14302, MISSING: 1534})
+        self.assertEqual(qualities[LOW_INFORMATION], 0)
+        self.assertEqual(qualities[NOT_AVAILABLE], 0)
 
     def test_reason_counts(self):
         reasons = Counter(reason for _, _, found in self.results for reason in found)
-        self.assertEqual(reasons[Reason.NOTES_MISSING], 2335 + 486)
-        self.assertEqual(reasons[Reason.NOTES_LOW_INFORMATION], 3007)
+        self.assertEqual(reasons[Reason.NOTES_MISSING], 1534)
+        self.assertEqual(reasons[Reason.NOTES_LOW_INFORMATION], 0)
 
     def test_every_note_is_returned_unchanged(self):
         for raw, (text, _, _) in zip(self.raw_values, self.results):

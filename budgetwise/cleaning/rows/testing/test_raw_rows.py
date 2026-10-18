@@ -1,8 +1,8 @@
-"""
-Tests for raw_rows.py   (task P2.4: required-column checks, duplicates,
-malformed rows, repeated IDs)
+"""Tests for row checks (P2.4): required columns, duplicates, malformed rows
+and repeated IDs.
+
 Run from the repository root:
-    python -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
+    python3 -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
 """
 import csv
 import io
@@ -21,17 +21,16 @@ from budgetwise.cleaning.rows import (
     validate_raw_row,
 )
 
-# The three column checks are internal helpers of this feature, so its own
-# tests import them from the implementation file.
+# Internal helpers, imported directly for testing.
 from budgetwise.cleaning.rows.implementation.raw_rows import (
     check_transaction_id,
     check_transaction_type,
     check_user_id,
 )
 
-# The raw dataset lives in data/raw/ at the top of the repository.
+# The raw dataset, if present, is in data/raw/ at the repository root.
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 4))
-DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
+DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirty.csv")
 if not os.path.exists(DATASET_PATH):
     DATASET_PATH = None
 
@@ -115,7 +114,7 @@ class TransactionTypeTests(unittest.TestCase):
                 self.assertEqual(check_transaction_type(raw), (None, [Reason.MALFORMED_ROW]))
 
     def test_unrecognized_type_is_not_guessed(self):
-        # "-500" checks that a sign is never read as a direction.
+        # "-500": a sign is never read as a direction.
         for raw in ("Refund", "Expenses", "Inc", "Debit", "N/A", "-500"):
             with self.subTest(raw=raw):
                 self.assertEqual(check_transaction_type(raw), (None, [Reason.MALFORMED_ROW]))
@@ -175,7 +174,7 @@ class ExactDuplicateTests(unittest.TestCase):
         self.assertEqual([number for number, _ in duplicates], [3, 4])
 
     def test_same_id_but_one_different_field_is_not_a_duplicate(self):
-        # Tried for every other column in turn.
+        # Change each other column in turn.
         for column in EXPECTED_COLUMNS[1:]:
             with self.subTest(column=column):
                 rows = numbered(make_row(), make_row(**{column: "different"}))
@@ -183,7 +182,7 @@ class ExactDuplicateTests(unittest.TestCase):
                 self.assertEqual((len(unique), duplicates), (2, []))
 
     def test_comparison_uses_raw_text_before_any_cleaning(self):
-        # All four clean to the same values, but the RAW rows differ.
+        # All four clean to the same values, but the raw rows differ.
         rows = numbered(
             make_row(category="Food"),
             make_row(category="food"),
@@ -212,7 +211,7 @@ class ValidateRawRowTests(unittest.TestCase):
         self.assertEqual(validate_raw_row(make_row()), (True, []))
 
     def test_blank_optional_fields_are_allowed(self):
-        # date, category, amount, payment_mode, location and notes all blank
+        # All six optional columns blank.
         row = read_csv_text("T0001,U001,,Income,,,,,")[0]
         self.assertEqual(validate_raw_row(row), (True, []))
 
@@ -262,7 +261,7 @@ class RepeatedIdTests(unittest.TestCase):
         self.assertEqual(find_repeated_ids(rows), {"T4999": 3})
 
     def test_rows_without_an_id_are_never_repeated_ids(self):
-        # Several rows with NO id do not "share" an id.
+        # Rows with no ID never share an ID.
         rows = numbered(
             make_row(transaction_id=""), make_row(transaction_id="", amount="1"),
             make_row(transaction_id="   "), make_row(transaction_id="   ", amount="2"),
@@ -289,7 +288,7 @@ class RepeatedIdTests(unittest.TestCase):
 
 @unittest.skipUnless(DATASET_PATH, "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """Phase 1 baseline: 15,900 rows, 900 exact duplicates, 1,680 repeated IDs."""
+    """Re-profiled for D01: 15,836 rows, 804 exact duplicates, 959 repeated IDs."""
 
     @classmethod
     def setUpClass(cls):
@@ -298,19 +297,19 @@ class FullDatasetTests(unittest.TestCase):
         cls.unique, cls.duplicates = split_exact_duplicates(cls.rows)
 
     def test_duplicate_and_unique_counts(self):
-        self.assertEqual(len(self.rows), 15900)
-        self.assertEqual(len(self.duplicates), 900)
-        self.assertEqual(len(self.unique), 15000)
+        self.assertEqual(len(self.rows), 15836)
+        self.assertEqual(len(self.duplicates), 804)
+        self.assertEqual(len(self.unique), 15032)
 
     def test_no_row_is_malformed(self):
         self.assertTrue(all(validate_raw_row(row) == (True, []) for _, row in self.rows))
 
     def test_repeated_ids_in_raw_file(self):
-        self.assertEqual(len(find_repeated_ids(self.rows)), 1680)
+        self.assertEqual(len(find_repeated_ids(self.rows)), 959)
 
     def test_repeated_ids_that_remain_after_duplicates_are_removed(self):
         # 754 of the 1,680 repeat only because of exact duplicates.
-        # The other 926 sit on rows that differ, and those rows are all kept.
+        # The other 926 are on rows that differ, and all are kept.
         self.assertEqual(len(find_repeated_ids(self.unique)), 926)
         self.assertEqual(len({row["transaction_id"] for _, row in self.unique}), 14000)
 
@@ -322,15 +321,15 @@ class FullDatasetTests(unittest.TestCase):
                 check_transaction_type(row["transaction_type"]), (row["transaction_type"], [])
             )
 
-    def test_user_and_type_counts_match_phase_1(self):
-        self.assertEqual(len({row["user_id"] for _, row in self.rows}), 150)
+    def test_user_and_type_counts_match_the_profile(self):
+        self.assertEqual(len({row["user_id"] for _, row in self.rows}), 192)
         types = Counter(row["transaction_type"] for _, row in self.rows)
-        self.assertEqual(types, {"Expense": 13517, "Income": 2383})
+        self.assertEqual(types, {"Expense": 13442, "Income": 2394})
 
-    def test_blank_counts_per_column_match_phase_1(self):
-        expected = {"transaction_id": 0, "user_id": 0, "date": 486, "transaction_type": 0,
-                    "category": 285, "amount": 291, "payment_mode": 808, "location": 931,
-                    "notes": 2335}
+    def test_blank_counts_per_column_match_the_profile(self):
+        expected = {"transaction_id": 0, "user_id": 0, "date": 344, "transaction_type": 0,
+                    "category": 158, "amount": 178, "payment_mode": 503, "location": 722,
+                    "notes": 1534}
         for column, count in expected.items():
             with self.subTest(column=column):
                 self.assertEqual(sum(1 for _, row in self.rows if row[column] == ""), count)

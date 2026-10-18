@@ -23,7 +23,7 @@ OPTIONS = (
 # The choices prompt_choice will accept. Anything else reprompts.
 VALID_CHOICES = ("1", "2", "3", "4", "5")
 # The dataset path, relative to the repository root.
-DATASET = "data/raw/budgetwise_finance_dataset.csv"
+DATASET = "data/raw/budgetwise_synthetic_dirty.csv"
 # Where task P2.8 writes the error log that option 4 displays.
 ERROR_LOG = Path("output/logs/errors.log")
 # The date format section 4.5 standardizes every date to.
@@ -31,18 +31,19 @@ DATE_FORMAT = "%Y-%m-%d"
 # The 14 canonical categories agreed at G1. Task P2.2 produces these from
 # the 47 raw spellings in the dataset.
 CATEGORIES = (
-    "Bonus", "Education", "Entertainment", "Food", "Freelance", "Health",
-    "Investment", "Others", "Rent", "Salary", "Savings", "Travel",
-    "Uncategorized", "Utilities",
+    "Bonus", "Education", "Entertainment", "Food", "Freelance",
+    "Healthcare", "Investment", "Other", "Rent", "Salary", "Savings",
+    "Transportation", "Uncategorized", "Utilities",
 )
 # How many category names to print per line when listing the options.
 CATEGORIES_PER_LINE = 4
-# Earliest transaction date in the dataset, measured over all 15,414 dated
-# rows. Shown as a hint so the user does not pick a range that matches
-# nothing. It is NOT a validation rule: a wider range is legitimate.
+# Earliest transaction date in the dataset, measured over the 12,281 dated
+# rows that survive cleaning. Shown as a hint so the user does not pick a
+# range that matches nothing. It is NOT a validation rule: a wider range is
+# legitimate.
 DATASET_FIRST_DATE = "2019-01-01"
 # Latest transaction date in the dataset, measured the same way.
-DATASET_LAST_DATE = "2024-12-31"
+DATASET_LAST_DATE = "2022-12-31"
 
 
 # Function to read a menu choice
@@ -112,10 +113,9 @@ def prompt_date_range():
     Return:
         tuple: (start, end) as 'YYYY-MM-DD', with end on or after start.
     """
-    print(f"  Transactions run from {DATASET_FIRST_DATE} to "
-          f"{DATASET_LAST_DATE}.")
-    print("  Rows with no date are excluded from a date range "
-          "- section 4.5.")
+    print(f"  Reference dataset date range: {DATASET_FIRST_DATE} to "
+      f"{DATASET_LAST_DATE}.")
+    print("  Rows with no date are excluded from a date range. ")
     while True:
         start = read_date("Start date")
         end = read_date("End date  ")
@@ -125,8 +125,9 @@ def prompt_date_range():
             continue
         if end < DATASET_FIRST_DATE or start > DATASET_LAST_DATE:
             print(f"  Note: {start} to {end} falls outside "
-                  f"{DATASET_FIRST_DATE}-{DATASET_LAST_DATE}, "
-                  f"so this will match no transactions.")
+                  f"the reference dataset range "
+                  f"{DATASET_FIRST_DATE} to {DATASET_LAST_DATE}. "
+                  f"\n  Results depend on the selected dataset.")
         return start, end
 
 
@@ -216,16 +217,26 @@ def format_summary(result):
         str: The formatted block, ready to print.
     """
     counts = result.get("counts", {})
+    matching = len(result.get("transactions", []))
+
     lines = [
         "",
-        f"  Loaded {len(result.get('transactions', [])):,} transactions",
-        f"    input      {counts.get('input', 0):>8,}",
-        f"    valid      {counts.get('valid', 0):>8,}",
-        f"    duplicates {counts.get('duplicates', 0):>8,}",
-        f"    skipped    {counts.get('skipped', 0):>8,}",
+        "  Dataset cleaning:",
+        f"    Rows read:            {counts.get('input', 0):>8,}",
+        f"    Valid rows:           {counts.get('valid', 0):>8,}",
+        f"    Duplicates removed:   {counts.get('duplicates', 0):>8,}",
+        f"    Invalid rows skipped: {counts.get('skipped', 0):>8,}",
     ]
+
     if counts.get("skipped") or counts.get("duplicates"):
-        lines.append(f"    see {ERROR_LOG} for the reasons")
+        lines.append(f"    See {ERROR_LOG} for cleaning reasons.")
+
+    lines.extend([
+        "",
+        "  Selected results:",
+        f"    Matching transactions: {matching:,}",
+    ])
+
     return "\n".join(lines)
 
 
@@ -284,18 +295,24 @@ def run_menu(pipeline_run=run, dataset=DATASET):
         try:
             if choice == "1":
                 result = pipeline_run(dataset)
+                if result["error"]:
+                    raise result["error"]
                 print(format_summary(result))
 
             elif choice == "2":
                 start, end = prompt_date_range()
                 result = pipeline_run(dataset, start=start, end=end)
+                if result["error"]:
+                    raise result["error"]
                 print(format_summary(result))
                 print(f"  Range {start} to {end}. Rows with no date are "
-                      f"excluded from a date range - section 4.5.")
+                      f"excluded from a date range")
 
             elif choice == "3":
                 category = prompt_category()
                 result = pipeline_run(dataset, category=category)
+                if result["error"]:
+                    raise result["error"]
                 print(format_summary(result))
                 print(f"  Category {category}. The filter runs after "
                       f"normalization, so 'Fod' and 'Foodd' match too.")
@@ -311,7 +328,7 @@ def run_menu(pipeline_run=run, dataset=DATASET):
         except (EOFError, KeyboardInterrupt):
             print("\n  Exiting.")
             return
-        except FileNotFoundError as exc:
+        except (FileNotFoundError, ValueError) as exc:
             print(f"  Could not open the dataset: {exc}")
         except NotImplementedError as exc:
             print(f"  Not available yet: {exc}")
@@ -321,11 +338,14 @@ def run_menu(pipeline_run=run, dataset=DATASET):
 def demo_run(dataset_path, start=None, end=None, category=None):
     """
     Description:
-    - Stand in for task P2.10 using six real rows from the dataset, so the
-      menu can be exercised end to end before P2.10 is merged.
+    - A disk-free stand-in for the pipeline, built from six real rows, so
+      the menu loop can be tested without reading a CSV.
     - Applies the same two filters the real pipeline applies, including
       dropping the undated row from a date range, as section 4.5 requires.
-    - Remove this function once P2.10 merges.
+    - Kept for the loop tests in testing/test_menu.py: that the menu comes
+      back after doing work, recovers from bad input, and exits cleanly on
+      Ctrl+C. Those are properties of the loop, not of the pipeline, so
+      they should not need a real CSV to exercise.
 
     Input arguments:
        dataset_path (str): Ignored. Present so this signature matches
@@ -335,7 +355,12 @@ def demo_run(dataset_path, start=None, end=None, category=None):
        category (str): A canonical category name, or None.
 
     Return:
-        dict: The same shape task P2.10's run() returns.
+        dict: Carries only the keys run_menu reads - 'transactions',
+            'counts' and 'error'. This is NOT the full shape run()
+            returns, and it is not meant to be. When run_menu starts
+            reading another key, add it here in the same commit: a stub
+            missing a key run_menu indexes fails with a KeyError, not a
+            readable assertion.
     """
     rows = [
         ("T4999", "2023-04-25", "Education", 3888.0),
@@ -343,7 +368,7 @@ def demo_run(dataset_path, start=None, end=None, category=None):
         ("T3133", "2024-07-17", "Rent", 9567.0),
         ("T12350", None, "Food", 6299.0),
         ("T9824", "2024-12-12", "Salary", 62061.0),
-        ("T2699", "2023-02-25", "Travel", 2553.0),
+        ("T2699", "2023-02-25", "Transportation", 2553.0),
     ]
     kept = rows
     if start and end:
@@ -356,6 +381,7 @@ def demo_run(dataset_path, start=None, end=None, category=None):
         "counts": {"input": len(rows), "valid": len(kept),
                    "duplicates": 0, "skipped": 0},
         "timings": {},
+        "error": None,
     }
 
 
