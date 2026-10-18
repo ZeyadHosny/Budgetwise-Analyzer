@@ -51,6 +51,7 @@ OTHER_INCOME_VARIANTS = {
     "other incmoe",
     "oher income",
     "other incoe",
+    "other icnome",
 }
 
 

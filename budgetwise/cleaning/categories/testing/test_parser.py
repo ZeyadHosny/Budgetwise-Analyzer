@@ -325,5 +325,44 @@ class TestCategoryParser(unittest.TestCase):
         )
 
 
+    # Synthetic dirty dataset: spelling variants added to the mapping
+    def test_dirty_spelling_variants(self):
+        cases = {
+            "Foood": "Food", "oFod": "Food", "Reent": "Rent", "eRnt": "Rent",
+            "Tarvel": "Transportation", "Utilitiees": "Utilities",
+            "Entertainmetn": "Entertainment", "Educatino": "Education",
+            "Heealth": "Healthcare", "aSvings": "Savings", "Otherrs": "Other",
+            "Salaryy": "Salary", "Bnous": "Bonus",
+        }
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(
+                    normalize_category(raw),
+                    (expected, "CATEGORY_NORMALIZED")
+                )
+
+    def test_other_income_maps_to_other_for_income(self):
+        for raw in ("Other Income", "Other  Income", "OtherIncome",
+                    "tOher Income", "Other Icnome"):
+            with self.subTest(raw=raw):
+                self.assertEqual(
+                    normalize_category(raw, transaction_type="Income"),
+                    ("Other", "CATEGORY_NORMALIZED")
+                )
+
+    def test_other_income_on_an_expense_stays_uncategorized(self):
+        self.assertEqual(
+            normalize_category("Other Income", transaction_type="Expense"),
+            ("Uncategorized", Reason.UNKNOWN_CATEGORY)
+        )
+
+    # "ent" is one edit from Rent but also an abbreviation of Entertainment,
+    # so it is left unmapped on purpose.
+    def test_ambiguous_variant_stays_uncategorized(self):
+        self.assertEqual(
+            normalize_category("ent"),
+            ("Uncategorized", Reason.UNKNOWN_CATEGORY)
+        )
+
 if __name__ == "__main__":
     unittest.main()
