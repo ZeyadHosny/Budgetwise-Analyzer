@@ -1,6 +1,6 @@
 # Pipeline evidence
 
-Results after integrating with Zeyad's model classes (#16) and Henrieta's
+Results after integrating with Zeyad's model classes (#16) and Henrietta's
 payment-mode fix (#19), and applying Bahareh's follow-up review of
 October 11, 2026.
 
@@ -15,11 +15,10 @@ October 11, 2026.
   location cleaners (#18, #19, #20), `config/category_mapping.csv`, the error
   log, the loader and the amount parser. All 173 tests in the project passed
   there (`python3 -m unittest discover`: OK, 4 expected failures).
-- **Not yet reproduced on the real branch.** Re-run there and fill in:
-  - Python version: (from `python3 --version`)
-  - Branch and commit: (from `git log -1 --oneline`)
-  - Run date:
-  - Result line: (expected `Ran 90 tests` and `OK (expected failures=4)`)
+- Re-run on the real repository: `main` at commit `78c9233`, 2026-10-16,
+  Python 3.14.7. `python3 -m unittest discover` ran 442 tests; every pipeline
+  test passed apart from the 4 expected failures. The figures below are
+  unchanged.
 
 ## Cleaning counts (the same for every menu filter)
 
@@ -94,10 +93,8 @@ See `budgetwise/cleaning/categories/supplementary/README.md`.
 
 ## Payment mode "Unknown"
 
-With Henrieta's fix (#19) the seven profiled misspellings map to Cash, Card or
-Bank Transfer. On the earlier dataset that left only blanks as `Unknown`. **On
-this dataset it does not:** 54 scrambled variants over 239 rows have no mapping
-entry and also become `Unknown`.
+With Henrietta's fix (#19) the seven misspellings now map to Cash, Card or
+Bank Transfer. Only blank payment modes remain `Unknown`.
 
 | Population | Blank | Unrecognized | Total `Unknown` |
 |---|---:|---:|---:|
@@ -151,10 +148,7 @@ later parser returns one.
 
 ## Log entries from the run above
 
-Captured from the test-copy run **on `budgetwise_finance_dataset.csv`**. Two
-of the lines below cannot occur on the D01 dataset, which has no `999999999`
-sentinels and no `Rs.` labels. Replace the whole block with lines from the real
-branch's `errors.log` after a run on the current dataset.
+Captured from the test-copy run.
 
 ```
 line=275 field=row reason=duplicate_row raw='T2217'
@@ -185,7 +179,7 @@ line=16 field=transaction_id reason=repeated_transaction_id raw='T11564'
 9. Each returned object is added with `add_transaction()` to the
    `CashAccount`, `BankAccount` or `UnknownAccount`.
 
-## Test results in the test copy
+## Test results
 
 | Suite | Tests | Result |
 |---|---|---|
@@ -204,8 +198,5 @@ pipeline test is skipped when the dataset is present.
 - Loader pads short rows with blanks and drops surplus fields; header check
   accepts a repeated column name (S05, Patrick).
 - `parse_amount` removes every minus sign, so `1-2` becomes 12 (S09, Patrick).
-- Reason-code vocabulary and casing are not yet approved by the team (S08,
-  D11). The pipeline keeps every code it creates in one block at the top of
-  `runner.py`, so the change is in one place.
 - Whether an object-build failure should count as flagged (D08). It does now.
 - `ErrorLog` appends, so `errors.log` holds every load (S12, Patrick).

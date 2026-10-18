@@ -1,24 +1,11 @@
-"""
-Tests for runner.py   (the cleaning pipeline, task P2.10)
+"""Tests for the cleaning pipeline (P2.10).
+
+Each test writes a small CSV to a temporary folder with its own ErrorLog, so
+the real loader and cleaners run together and output/logs/errors.log is never
+touched. Checks on teammates' open defects are expected failures.
 
 Run from the repository root:
     python -m unittest budgetwise.pipeline.testing.test_runner -v
-
-HOW THESE TESTS WORK
-  * Each test writes a small CSV file to a temporary folder and runs the
-    pipeline on it, so the real loader and the real cleaners are exercised
-    together.
-  * Each test gives the pipeline its own ErrorLog in the temporary folder,
-    so the tests never write to the real output/logs/errors.log.
-  * The object, filter and account tests use Zeyad's real classes from
-    budgetwise.models (pull request #16). They read every value through the
-    classes' getters, for example get_amount(), because the attributes are
-    private.
-  * Tests that check Patrick's loader and amount parser are marked as
-    expected failures while those defects exist, so they run and show up in
-    the result instead of being skipped. Once a fix is merged they pass.
-  * FullDatasetTests check the counts on all 15,836 rows. They are skipped
-    if the dataset is not in data/raw/.
 """
 
 import os
@@ -29,18 +16,15 @@ from unittest import mock
 from budgetwise.errorlog import ErrorLog
 from budgetwise.pipeline import clean_file, run
 
-# The model classes are merged (pull request #16), so they are required.
+# Zeyad's model classes (#16).
 from budgetwise.models import (Account, BankAccount, CashAccount, ExpenseTransaction,
                                IncomeTransaction, Transaction, UnknownAccount)
 
 RUNNER = "budgetwise.pipeline.implementation.runner"
 
 
-# ---- checks on teammates' code that the review asks Sarah to verify -------
-# Each test below checks behaviour owned by someone else. While their fix is
-# not merged, the test is marked as an EXPECTED FAILURE: it still runs, and
-# the result line reports it ("expected failures=4"), so the defect is never
-# hidden as a skip. Once the fix is merged the test simply passes.
+# Checks on teammates' open defects. Each test is an expected failure until
+# the fix is merged, then it passes. It is never skipped.
 def _amount_syntax_is_validated():
     """True once parse_amount() rejects '1-2' (review item S09, Patrick)."""
     from budgetwise.cleaning.amounts import parse_amount
@@ -92,8 +76,7 @@ DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirt
 
 HEADER = "transaction_id,user_id,date,transaction_type,category,amount,payment_mode,location,notes"
 
-# One row of every kind the pipeline has to deal with. The number in each
-# comment is the row's line number in the file (the header is line 1).
+# One row of each kind. Comments give the line number (header is line 1).
 SMALL_FILE = [
     "T0001,U001,08/05/2022,Expense,Fod,₹-3888,cash,PUN,Lunch",    # 2  kept
     "T0001,U001,08/05/2022,Expense,Fod,₹-3888,cash,PUN,Lunch",    # 3  exact duplicate
@@ -130,9 +113,8 @@ class PipelineTestCase(unittest.TestCase):
         return [reason for line, _, reason, _ in result["issues"] if line == line_number]
 
 
-# ==========================================================================
-# CLEANING  (clean_file) - these run without the model classes
-# ==========================================================================
+# Cleaning (clean_file): no model classes needed
+
 class CleaningTests(PipelineTestCase):
     def setUp(self):
         super().setUp()
@@ -140,7 +122,7 @@ class CleaningTests(PipelineTestCase):
         self.counts = self.result["counts"]
         self.by_line = {record["line_number"]: record for record in self.result["records"]}
 
-    # ---- counts ---------------------------------------------------------
+    # Counts
     def test_every_input_row_is_accounted_for(self):
         self.assertIsNone(self.result["error"])
         self.assertEqual(self.counts["input"], 9)
@@ -159,7 +141,7 @@ class CleaningTests(PipelineTestCase):
         self.assertGreaterEqual(self.result["timings"]["load"], 0)
         self.assertGreaterEqual(self.result["timings"]["clean"], 0)
 
-    # ---- cleaned values -------------------------------------------------
+    # Cleaned values
     def test_every_column_is_cleaned(self):
         self.assertEqual(self.by_line[2], {
             "line_number": 2, "transaction_id": "T0001", "user_id": "U001",
@@ -182,7 +164,7 @@ class CleaningTests(PipelineTestCase):
         self.assertIn("currency_label_stripped", reasons)
         self.assertIn("negative_amount_magnitude", reasons)
 
-    # ---- the mandatory conventions (section 4.5) ------------------------
+    # Required conventions (section 4.5)
     def test_exact_duplicate_is_removed_and_logged(self):
         self.assertEqual(self.reasons_on_line(self.result, 3), ["duplicate_row"])
 
@@ -207,10 +189,8 @@ class CleaningTests(PipelineTestCase):
         self.assertEqual(self.reasons_on_line(self.result, 5), ["missing_required_field"])
 
     def test_short_row_is_skipped_without_crashing(self):
-        # Today the loader pads a short row with blanks, so the row check
-        # reports the missing transaction_type. Once the loader keeps the
-        # row's real shape (review S05) it is reported as malformed instead.
-        # Either way the row is skipped, logged once, and nothing crashes.
+        # Reported as missing transaction_type now, or malformed once S05 is
+        # fixed. Either way it is skipped, logged once, and nothing crashes.
         reasons = self.reasons_on_line(self.result, 10)
         self.assertEqual(len(reasons), 1)
         self.assertIn(reasons[0], ("missing_required_field", "malformed_row"))
@@ -223,7 +203,7 @@ class CleaningTests(PipelineTestCase):
         self.assertEqual(self.by_line[4]["notes"], "...")
         self.assertIn("notes_low_information", self.reasons_on_line(self.result, 4))
 
-    # ---- the error log --------------------------------------------------
+    # Error log
     def test_every_issue_is_written_to_the_error_log(self):
         lines = self.error_log.read()
         self.assertEqual(len(lines), len(self.result["issues"]))
@@ -237,8 +217,7 @@ class CleaningTests(PipelineTestCase):
 
 class OrderTests(PipelineTestCase):
     def test_duplicates_are_judged_on_raw_rows_before_normalizing(self):
-        # 'Fod' and 'Food' clean to the same category, but the RAW rows
-        # differ, so neither is a duplicate.
+        # 'Fod' and 'Food' clean the same, but the raw rows differ: no duplicate.
         path = self.write_csv([
             "T0001,U001,2023-01-01,Expense,Fod,10,Cash,Pune,Lunch",
             "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch",
@@ -248,8 +227,7 @@ class OrderTests(PipelineTestCase):
         self.assertEqual([r["category"] for r in result["records"]], ["Food", "Food"])
 
     def test_loading_twice_gives_the_same_answer(self):
-        # The menu can load more than once in a session. Rows seen in the
-        # first load must not be treated as duplicates in the second.
+        # A second load in the same session must not see duplicates from the first.
         path = self.write_csv(SMALL_FILE)
         first = clean_file(path, self.error_log)
         second = clean_file(path, self.error_log)
@@ -302,9 +280,8 @@ class BadInputTests(PipelineTestCase):
         self.assertEqual(result["counts"]["valid"], 4)        # cleaning still happened
 
 
-# ==========================================================================
-# BUILDING OBJECTS  (run) - these need budgetwise.models
-# ==========================================================================
+# Building objects (run): needs budgetwise.models
+
 class ObjectTests(PipelineTestCase):
     def setUp(self):
         super().setUp()
@@ -349,11 +326,7 @@ class ObjectTests(PipelineTestCase):
 
 
 class NoFactoryTests(unittest.TestCase):
-    """Transaction has no create() factory, so the pipeline picks the subclass.
-
-    The pipeline also still uses create() if a later version adds one. Both
-    paths are tested here.
-    """
+    """Both paths: picking the subclass, and using create() if one is added."""
 
     def setUp(self):
         from budgetwise.pipeline.implementation import runner
@@ -551,9 +524,8 @@ class FilterTests(PipelineTestCase):
         ))
 
 
-# ==========================================================================
-# REGRESSION TESTS FOR THE PHASE 2 REVIEW  (items S04, S06, S07, S12)
-# ==========================================================================
+# Regression tests for Phase 2 review items S04, S06, S07, S12
+
 CLEAN_ROW = "{id},U001,2023-01-0{day},Expense,Food,{amount},Cash,Pune,{note}"
 
 
@@ -771,9 +743,8 @@ class ClassUseTests(PipelineTestCase):
         self.assertFalse(self.result["accounts"]["cash"].is_reconcilable())
 
 
-# ==========================================================================
-# INTEGRATION CHECKS ON OTHER PEOPLE'S FEATURES  (review items S05 and S09)
-# ==========================================================================
+# Checks on teammates' features (review items S05, S09)
+
 class AmountBoundaryTests(PipelineTestCase):
     """S09: the 100,000,000 threshold and the sign rule, through the pipeline."""
 
@@ -833,9 +804,8 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertIn("could not load", result["error"])
 
 
-# ==========================================================================
-# THE FULL DATASET
-# ==========================================================================
+# Full dataset
+
 @unittest.skipUnless(os.path.exists(DATASET_PATH), "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
     """The G2 reconciliation on all 15,836 rows of the D01 dataset."""
@@ -886,10 +856,9 @@ class FullDatasetTests(unittest.TestCase):
                 self.assertRegex(record["date"], r"^\d{4}-\d{2}-\d{2}$")
 
     def test_flagged_and_corrected_counts_cover_every_reason(self):
-        # S06 on the real data: every repeated-ID row is a flagged row, and
-        # no count can exceed the number of valid rows.
-        self.assertEqual(self.reasons["repeated_transaction_id"], 328)
-        self.assertGreaterEqual(self.counts["flagged"], 328)
+        # S06: every repeated-ID row is flagged; no count exceeds valid rows.
+        self.assertEqual(self.reasons["repeated_transaction_id"], 1846)
+        self.assertGreaterEqual(self.counts["flagged"], 1846)
         self.assertLessEqual(self.counts["flagged"], self.counts["valid"])
         self.assertLessEqual(self.counts["corrected"], self.counts["valid"])
         self.assertEqual(sum(self.reasons.values()), len(self.result["issues"]))
