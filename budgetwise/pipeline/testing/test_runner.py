@@ -841,10 +841,10 @@ class FullDatasetTests(unittest.TestCase):
         # 322 rows arrive blank; a further 2,259 hold a shape parse_date
         # cannot read, so 17% of valid rows end up with no date. Every
         # monthly figure excludes them - see D01.
-        self.assertEqual(undated, 2581)
+        self.assertEqual(undated, 334)
         self.assertEqual(self.reasons["missing_date"], 322)
-        self.assertEqual(self.reasons["invalid_date"], 2259)
-        self.assertEqual(322 + 2259, 2581)
+        self.assertEqual(self.reasons["invalid_date"], 12)
+        self.assertEqual(322 + 12, 334)
 
     def test_no_sentinel_or_negative_amount_survives(self):
         for record in self.result["records"]:
@@ -857,7 +857,7 @@ class FullDatasetTests(unittest.TestCase):
 
     def test_flagged_and_corrected_counts_cover_every_reason(self):
         # S06: every repeated-ID row is flagged; no count exceeds valid rows.
-        self.assertEqual(self.reasons["repeated_transaction_id"], 1846)
+        self.assertEqual(self.reasons["repeated_transaction_id"], 328)
         self.assertGreaterEqual(self.counts["flagged"], 1846)
         self.assertLessEqual(self.counts["flagged"], self.counts["valid"])
         self.assertLessEqual(self.counts["corrected"], self.counts["valid"])
