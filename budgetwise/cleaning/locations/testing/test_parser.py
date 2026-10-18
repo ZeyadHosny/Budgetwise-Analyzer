@@ -107,5 +107,11 @@ class TestLocationParser(unittest.TestCase):
         )
 
 
+    def test_bengaluru_maps_to_bangalore(self):
+        for raw in ("Bengaluru", "bengaluru", "BENGALURU"):
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_location(raw),
+                                 ("Bangalore", "LOCATION_NORMALIZED"))
+
 if __name__ == "__main__":
     unittest.main()

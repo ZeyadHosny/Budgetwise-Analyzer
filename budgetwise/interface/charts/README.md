@@ -1,64 +1,55 @@
-# interface/charts
+# Charts
 
-The text-based bar chart of spending.
+Draws text bar charts of spending with `*` characters (§4.4).
 
 | | |
 |---|---|
 | **Responsible** | Henrietta |
-| **Domain reviewer** | Sarah (`P3.6`) |
-| **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
-| **Tasks** | `P3.6` |
-| **Status** | Implemented and under review |
+| **Domain reviewer** | Sarah |
+| **PR approval** | Zeyad or Patrick (see `CONTRIBUTING.md`) |
+| **Task** | `P3.6` |
+| **Status** | Implemented |
 
-## 1. What this folder does
-
-§4.4 requires *"a simple text-based visualization of spending by month or
-category (e.g., bar chart using `*` characters)"*.
-
-Small requirement, and one of the easier marks in the project. It is also the
-thing an audience actually looks at during the presentation, so it is worth
-getting to look tidy.
-
-## 2. How other modules use it
+## Interface
 
 ```python
 from budgetwise.interface.charts import bar_chart
 
-print(bar_chart(totals_by_category(transactions, kind="expense"), width=40))
+bar_chart(totals: dict, width: int = 40, title: str = "",
+          sort_by_value: bool = False) -> str
 ```
 
-Takes the dict `analysis/aggregation` already produces. Returns a string — it
-does not print, so it can be tested.
+It takes the dictionaries from `analysis/aggregation` and returns the chart as
+a string. It never prints, so the menu decides where it goes and the tests can
+check it.
 
-## 3. What it produces
+## Behaviour
 
-Expense totals from the full dataset (provisional, before `G4`):
+| Rule | How |
+|---|---|
+| Scaling | The largest value gets `width` stars; others get `round(value / max * width)` |
+| Small values | Any value above zero gets at least one star |
+| Zero and empty | A zero value shows no stars; an empty dict returns `""` |
+| Month keys | `("2022", "06")` is shown as `2022-06` |
+| Alignment | Labels left, numbers right with thousands separators; long labels cut to 16 characters |
+| Order | Dictionary order (date order for months), or largest first with `sort_by_value=True` |
+| Bad width | `width < 1` raises `ValueError` |
+
+## Example
+
+Expense spending by category, synthetic dirty dataset (top five):
 
 ```
-Rent            ****************************************  48,822,528
-Food            *******************************           38,410,740
-Utilities       ***************                           18,244,248
-Entertainment   *************                             16,168,446
-Transportation  ************                              14,222,100
+Food            ****************************************  16,187,376
+Rent            **************************                10,462,237
+Utilities       **********************                     9,037,864
+Transportation  ********************                       8,242,883
+Entertainment   **********                                 3,909,424
 ```
 
-By month:
+Full category and monthly charts are in `supplementary/chart_samples.md`.
 
-```
-2023-05  *************                             1,538,647
-2023-06  ******************************            3,627,880
-2023-07  *****************************             3,525,434
-```
-
-## 4. Requirements and tasks covered
-
-| Requirement | Source | Task |
-|---|---|---|
-| Simple text-based visualization of spending by month or category | §4.4 | `P3.6` |
-| Bar chart using `*` characters | §4.4 | `P3.6` |
-| Text-based interface, no GUI | §2 | `P3.6` |
-
-## 5. Folders
+## Files
 
 | Folder | Contents |
 |---|---|
@@ -66,10 +57,11 @@ By month:
 | `testing/` | `test_bar_chart.py` |
 | `supplementary/` | `chart_samples.md` |
 
-## 6. Done when
+## Tests
 
-- [x] Renders by category and by month
-- [x] Bars scale to the largest value and fit the stated width
-- [x] Labels and numbers align in columns
-- [x] Empty input returns an empty string, not a crash
-- [x] A saved sample is in `chart_samples.md` for the report and slides (regenerate after `G4`)
+16 tests cover scaling, small and zero values, empty input, equal values,
+month keys, alignment, ordering, titles, long labels and invalid widths.
+
+```bash
+python -m unittest budgetwise.interface.charts.testing.test_bar_chart -v
+```
