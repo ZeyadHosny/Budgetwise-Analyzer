@@ -19,13 +19,13 @@ Henrietta · `P3.2` · evidence for §4.2 and §7
 - `totals_by_category` **includes** undated transactions.
 - `totals_by_month` **skips** them.
 
-So the two totals legitimately differ, by exactly the amount of the undated transactions. On the full dataset (provisional run, before `G4`):
+So the two totals legitimately differ, by exactly the amount of the undated transactions. On the synthetic dirty dataset (`budgetwise_synthetic_dirty.csv`):
 
 | | Expense total |
 |---|---|
-| Sum of `totals_by_category(kind="expense")` | 165,749,066 |
-| Sum of `totals_by_month(kind="expense")` | 162,224,605 |
-| Difference = undated expense transactions | 3,524,461 |
+| Sum of `totals_by_category(kind="expense")` | 53,348,034 |
+| Sum of `totals_by_month(kind="expense")` | 53,104,693 |
+| Difference = undated expense transactions | 243,341 |
 
 This is the expected result, not a bug.
 

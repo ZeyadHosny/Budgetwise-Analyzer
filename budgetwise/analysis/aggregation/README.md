@@ -1,66 +1,77 @@
-# analysis/aggregation
+# Aggregation
 
-Groups cleaned transactions into totals by category and by month.
+Groups cleaned transactions into totals by category and by month. Summaries,
+budgets and charts all build on these functions instead of re-walking the
+transactions.
 
 | | |
 |---|---|
 | **Responsible** | Henrietta |
-| **Domain reviewer** | Bahareh (`P3.2`) |
-| **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
-| **Tasks** | `P3.2` |
-| **Status** | Implemented and under review |
+| **Domain reviewer** | Bahareh |
+| **PR approval** | Zeyad or Patrick (see `CONTRIBUTING.md`) |
+| **Task** | `P3.2` |
+| **Status** | Implemented |
 
-## 1. What this folder does
-
-The shared counting layer. Everything in `summaries/` and `budgets/` is built
-on top of these functions rather than re-walking the transaction list.
-
-This folder is also where §4.2 is demonstrated, and §4.2 is graded directly —
-the assignment names **lists, dictionaries, sets, and tuples** and expects each
-to be used for the job it suits:
-
-| Structure | Used for | Why |
-|---|---|---|
-| `list` | the transactions themselves | ordered, iterated repeatedly |
-| `dict` | totals by category, totals by month | keyed lookup and accumulation |
-| `set` | unique categories | membership and de-duplication |
-| `tuple` | the `(year, month)` key | immutable, so it can be a dict key |
-
-## 2. How other modules use it
+## Interface
 
 ```python
 from budgetwise.analysis.aggregation import (
-    totals_by_category, totals_by_month, unique_categories,
+    totals_by_category, count_by_category, unique_categories,
+    totals_by_month, totals_by_month_and_category,
 )
-
-by_cat = totals_by_category(transactions, kind="expense")
-by_month = totals_by_month(transactions, kind="expense")
 ```
 
-`summaries/` and `budgets/` both use these. Neither re-implements them.
-
-## 3. What it produces
-
-| Call | Returns |
+| Function | Returns |
 |---|---|
-| `totals_by_category(txns, kind="expense")` | `{"Food": 8_210_400.0, "Rent": 7_980_120.0, ...}` |
-| `totals_by_month(txns, kind="expense")` | `{("2023", "07"): 1_204_880.0, ...}` |
-| `unique_categories(txns)` | `{"Food", "Rent", "Transportation", ...}` — a set |
-| `count_by_category(txns, kind="expense")` | `{"Food": 3120, ...}` |
-| `totals_by_month_and_category(txns, kind="expense")` | `{("2023", "07"): {"Food": 98000.0, ...}, ...}` |
+| `totals_by_category(txns, kind=None)` | `{"Food": 16187376.0, ...}` |
+| `count_by_category(txns, kind=None)` | `{"Food": 3734, ...}` |
+| `unique_categories(txns)` | a `set` of category names |
+| `totals_by_month(txns, kind=None)` | `{("2022", "06"): 215224.0, ...}` in date order |
+| `totals_by_month_and_category(txns, kind=None)` | `{("2022", "06"): {"Food": 66285.0, ...}, ...}` |
 
-Month keys are tuples, not strings, so they sort chronologically without any
-date parsing. Transactions with no date are absent from `totals_by_month` but
-still present in `totals_by_category` — §4.5 requires exactly that.
+- `kind` is `"expense"`, `"income"` or `None` for both. Any other value raises
+  `ValueError`, so a typo fails instead of returning empty totals.
+- `txns` can be `Transaction` objects or the cleaned records from
+  `clean_file()`. `implementation/fields.py` reads both.
+- Amounts are summed as magnitudes; direction comes from `transaction_type`.
 
-## 4. Requirements and tasks covered
+## Data structures (§4.2)
 
-| Requirement | Source | Task |
+| Structure | Used for | Why |
 |---|---|---|
-| Use dictionaries to aggregate totals by category and by month | §4.2 | `P3.2` |
-| Use sets to identify unique categories | §4.2 | `P3.2` |
-| Use tuples for fixed keys such as `(year, month)` | §4.2 | `P3.2` |
-| Store transactions as a list of objects | §4.2 | `P3.2` |
-| Missing date excluded from date analysis, still counts to category totals | §4.5 | `P3.2` |
-| Organize and aggregate using appropriate data structures | §2 | `P3.2` |
+| `list` | the transactions | ordered and walked once per total |
+| `dict` | totals by category and by month | keyed accumulation in one step |
+| `set` | unique categories | membership without duplicates |
+| `tuple` | the `(year, month)` key | immutable, so it can be a key, and sorts by date |
 
+## Undated transactions (§4.5)
+
+A row with no usable date counts in category totals but not in monthly totals,
+so the two sums differ. On the synthetic dirty dataset:
+
+| Expense total | Amount |
+|---|---:|
+| By category | 53,348,034 |
+| By month | 53,104,693 |
+| Difference: undated expenses | 243,341 |
+
+This is expected. `supplementary/data_structure_choices.md` explains each
+choice in more detail for the report.
+
+## Files
+
+| Folder | Contents |
+|---|---|
+| `implementation/` | `by_category.py`, `by_month.py`, `fields.py` |
+| `testing/` | `test_by_category.py`, `test_by_month.py`, `fixture.py` |
+| `supplementary/` | `data_structure_choices.md` |
+
+## Tests
+
+27 tests check every total against a 20-row fixture summed by hand, using both
+input shapes, including undated rows, the `kind` filter, set and tuple types,
+date order and empty input.
+
+```bash
+python -m unittest budgetwise.analysis.aggregation.testing.test_by_category budgetwise.analysis.aggregation.testing.test_by_month -v
+```
