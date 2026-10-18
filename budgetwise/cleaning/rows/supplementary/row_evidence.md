@@ -8,7 +8,7 @@ the D01 dataset, read with `csv.DictReader`, using the functions in
 Command, from the repository root:
 
 ```bash
-python -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
+python3 -m unittest budgetwise.cleaning.rows.testing.test_raw_rows -v
 ```
 
 ## Run details
