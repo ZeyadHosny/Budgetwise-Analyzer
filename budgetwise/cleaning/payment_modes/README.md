@@ -58,22 +58,43 @@ The function always returns a usable name and never causes a row to be dropped.
 
 ## Mapping
 
-The mapping is closed. Unrecognized values are never passed through unchanged.
+Unrecognized values are never passed through unchanged: anything the mapping
+does not know becomes `Unknown`, so no raw string reaches analysis.
 
-| Standard name | Raw variants in the data | Rows |
-|---|---|---|
-| UPI | `UPI`, `UPi`, `Upi`, `upi` | 3,660 |
-| Card | `Card`, `CARD`, `card`, `Crd`, `CRD` | 3,854 |
-| Cash | `Cash`, `CASH`, `cash`, `Csh`, `csh` | 3,799 |
-| Bank Transfer | `Bank Transfer`, `bank transfer`, `BankTransfer`, `Bank_Transfer`, `Bank Transfr` | 3,779 |
-| Unknown | blank | 808 |
-| **Total** | 20 distinct values | **15,900** |
+Re-measured 2026-10-17 for decision `D01` on
+`data/raw/budgetwise_synthetic_dirty.csv`, before the pipeline removes
+duplicates:
 
-Counts are raw rows in `data/raw/budgetwise_finance_dataset.csv`, before the pipeline removes duplicates.
+| Standard name | Raw variants present | Rows | finance (old) |
+|---|---|---:|---:|
+| UPI | `UPI` | 3,736 | 3,660 |
+| Card | `Card`, `Crd` | 3,727 | 3,854 |
+| Cash | `Cash`, `Csh` | 3,791 | 3,799 |
+| Bank Transfer | `Bank Transfer`, `Bank Transfr`, `BankTransfer` | 3,840 | 3,779 |
+| Unknown — blank | blank | 503 | 808 |
+| Unknown — **unrecognized**, 54 variants | `CCash`, `Caard`, `aCrd`, `Cadr`, `UIP`, `PI`, `Csah`, `Bank Trasnfer`, `aBnk Transfer`, … | **239** | 0 |
+| **Total** | 63 distinct values | **15,836** | **15,900** |
+
+**The mapping is not closed against this dataset.** It covers 9 of the 63
+distinct values. The other 54 are character scrambles over 239 rows, and they
+all land in `Unknown` alongside the 503 genuinely blank values.
+
+That matters for the report in one specific way: `Unknown` no longer means
+"the row had no payment mode". It now means "blank **or** unreadable", and the
+two are 503 and 239 rows respectively. Where the distinction matters, cite
+them separately rather than quoting a single `Unknown` figure.
+
+The pipeline's `payment_mode_normalized` count drops to 12 as a result,
+against 10,944 on the earlier dataset: almost nothing in this file matches a
+known variant that needs rewriting, because the dirt is scrambling rather than
+capitalization.
 
 ### Reference
 
-The variants above come from the Phase 1 payment-mode profiling in Bahareh's Phase 1 report: **[insert report title / file path]**.
+The 20-variant list the mapping implements comes from the Phase 1
+payment-mode profiling of `budgetwise_finance_dataset.csv` in Bahareh's
+Phase 1 report: **[insert report title / file path]**. The table above is a
+fresh measurement against the D01 dataset and is not from that report.
 
 ## Reason Codes
 

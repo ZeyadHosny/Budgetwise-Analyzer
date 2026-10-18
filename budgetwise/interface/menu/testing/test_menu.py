@@ -147,6 +147,13 @@ class TestCategory(unittest.TestCase):
     - Menu option 3, matching against the 14 canonical categories.
     """
 
+    def test_choices_match_normalized_category_names(self):
+      self.assertEqual(menu.CATEGORIES, (
+        "Bonus", "Education", "Entertainment", "Food", "Freelance",
+        "Healthcare", "Investment", "Other", "Rent", "Salary",
+        "Savings", "Transportation", "Uncategorized", "Utilities",
+      ))
+
     # Test that an exact category name is accepted
     def test_exact_match(self):
         """
@@ -278,6 +285,18 @@ class TestLoop(unittest.TestCase):
         with patch("builtins.input", side_effect=["1", "5"]):
             menu.run_menu(pipeline_run=menu.demo_run)
 
+    # test_successful_load_exports_cleaned_records_and_summary was removed
+    # here. It patched menu.export_cleaned and menu.export_summary, which
+    # stopped existing when commit a2c40f4 moved exporting into the
+    # pipeline (pipeline/implementation/runner.py, export_run). It also
+    # expected a 'bar_chart' key inside the summary, which no longer
+    # exists either - charts are written to their own .txt file by
+    # interface/export/chart_export.py.
+    #
+    # The behaviour it checked is covered end to end, against the real
+    # exporters rather than mocks, by TC-052, TC-053 and TC-054 in
+    # tests/end_to_end/test_budget_wise_analyzer_e2e.py.
+
     # Test that bad input does not end the program
     def test_invalid_then_exit(self):
         """
@@ -307,7 +326,7 @@ class TestLoop(unittest.TestCase):
           lets the menu be built and demonstrated independently.
         """
         with patch("builtins.input", side_effect=["1", "5"]):
-            menu.run_menu()
+            menu.run_menu(pipeline_run=None)
 
 
 class TestSummary(unittest.TestCase):

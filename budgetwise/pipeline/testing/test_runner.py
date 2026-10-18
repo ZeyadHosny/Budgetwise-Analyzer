@@ -5,7 +5,7 @@ the real loader and cleaners run together and output/logs/errors.log is never
 touched. Checks on teammates' open defects are expected failures.
 
 Run from the repository root:
-    python3 -m unittest budgetwise.pipeline.testing.test_runner -v
+    python -m unittest budgetwise.pipeline.testing.test_runner -v
 """
 
 import os
@@ -72,7 +72,7 @@ def _loader_rejects_duplicate_headers():
         folder.cleanup()
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 3))
-DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_finance_dataset.csv")
+DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirty.csv")
 
 HEADER = "transaction_id,user_id,date,transaction_type,category,amount,payment_mode,location,notes"
 
@@ -236,20 +236,20 @@ class OrderTests(PipelineTestCase):
 
 
 class BadInputTests(PipelineTestCase):
-    def test_missing_file_gives_an_error_message_not_a_crash(self):
+    def test_missing_file_raises_file_not_found(self):
         result = clean_file(os.path.join(self.folder, "no_such_file.csv"), self.error_log)
-        self.assertIn("could not load", result["error"])
+        self.assertEqual(type(result["error"]), FileNotFoundError)
         self.assertEqual(result["records"], [])
         self.assertEqual(result["counts"]["input"], 0)
 
-    def test_wrong_header_does_not_crash(self):
+    def test_wrong_header_raises_value_error(self):
         result = clean_file(self.write_csv(["1,2"], header="first,second"), self.error_log)
-        self.assertIn("could not load", result["error"])
+        self.assertEqual(type(result["error"]), ValueError)
 
-    def test_empty_file_does_not_crash(self):
+    def test_empty_file_raises_value_error(self):
         path = os.path.join(self.folder, "empty.csv")
         open(path, "w", encoding="utf-8").close()
-        self.assertIn("could not load", clean_file(path, self.error_log)["error"])
+        self.assertEqual(type(clean_file(path, self.error_log)["error"]), ValueError)
 
     def test_header_only_file(self):
         result = clean_file(self.write_csv([]), self.error_log)
@@ -394,6 +394,39 @@ class AccountTests(unittest.TestCase):
                      for account in self.result["accounts"].values())
         self.assertEqual(placed, len(self.result["transactions"]))
 
+    def test_account_breakdown_uses_each_accounts_getters(self):
+        self.assertEqual(
+            set(self.result["account_breakdown"]),
+            set(self.result["accounts"]),
+        )
+        for kind, account in self.result["accounts"].items():
+            with self.subTest(kind=kind):
+                self.assertEqual(self.result["account_breakdown"][kind], {
+                    "transaction_count": account.get_transaction_count(),
+                    "total_spent": account.get_total_spent(),
+                    "total_received": account.get_total_received(),
+                })
+
+    def test_run_builds_three_section_summary_from_accounts(self):
+        result = self.result
+        summary = result["summary"]
+        self.assertEqual(
+            set(summary) - {"scope", "selection", "selected_transactions",
+                            "metrics"},
+            {"total_breakdown", "monthly_breakdown"},
+        )
+        self.assertEqual(
+            summary["selected_transactions"],
+            sum(account.get_transaction_count()
+                for account in result["accounts"].values()),
+        )
+        self.assertEqual(
+            summary["total_breakdown"]["totals"]["expenses"],
+            sum(account.get_total_spent()
+                for account in result["accounts"].values()),
+        )
+        self.assertTrue(summary["monthly_breakdown"]["months"])
+
     def test_accounts_hold_the_same_objects_as_the_list(self):
         listed = {id(t) for t in self.result["transactions"]}
         for account in self.result["accounts"].values():
@@ -447,6 +480,48 @@ class FilterTests(PipelineTestCase):
         for name in ("input", "duplicates", "skipped", "valid", "corrected",
                      "flagged", "repeated_ids", "by_reason", "objects_built"):
             self.assertEqual(filtered["counts"][name], everything["counts"][name], name)
+
+    def test_budget_comparisons_are_built_from_account_transactions(self):
+        result = run(self.path, error_log=self.error_log)
+        comparisons = {
+            item["month"]: item["categories"]
+            for item in result["budget_comparisons"]
+        }
+
+        food_august = next(
+            item for item in comparisons["2022-08"]
+            if item["category"] == "Food"
+        )
+        self.assertEqual(food_august["actual"], 3888.0)
+        self.assertEqual(food_august["status"], "under")
+        self.assertIsNone(next(
+            item for item in comparisons["2023-02"]
+            if item["category"] == "Uncategorized"
+        )["limit"])
+
+    def test_partial_date_filter_is_recorded_in_budget_comparison(self):
+        result = run(
+            self.path,
+            start="2022-08-05",
+            end="2022-08-05",
+            error_log=self.error_log,
+        )
+        comparison = result["budget_comparisons"][0]
+        self.assertEqual(comparison["month"], "2022-08")
+        self.assertEqual(comparison["period"], {
+            "start": "2022-08-05",
+            "end": "2022-08-05",
+            "full_month": False,
+        })
+
+    def test_category_filter_limits_budget_results_to_selected_category(self):
+        result = run(self.path, category="Food", error_log=self.error_log)
+        self.assertTrue(result["budget_comparisons"])
+        self.assertTrue(all(
+            item["category"] == "Food"
+            for month in result["budget_comparisons"]
+            for item in month["categories"]
+        ))
 
 
 # Regression tests for Phase 2 review items S04, S06, S07, S12
@@ -713,7 +788,6 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertEqual(result["records"], [])
         self.assertIn("malformed_row", result["counts"]["by_reason"])
 
-    @until_fixed(_loader_keeps_row_structure())      # review S05, Patrick
     def test_rows_differing_only_in_a_surplus_field_are_not_duplicates(self):
         result = clean_file(self.write_csv([
             "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,EXTRA-A",
@@ -734,7 +808,7 @@ class LoaderStructureTests(PipelineTestCase):
 
 @unittest.skipUnless(os.path.exists(DATASET_PATH), "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """The G2 reconciliation on all 15,900 rows."""
+    """The G2 reconciliation on all 15,836 rows of the D01 dataset."""
 
     @classmethod
     def setUpClass(cls):
@@ -750,20 +824,27 @@ class FullDatasetTests(unittest.TestCase):
         cls.folder.cleanup()
 
     def test_input_equals_valid_plus_skipped_plus_duplicates(self):
-        self.assertEqual(self.counts["input"], 15900)
-        self.assertEqual(self.counts["duplicates"], 900)
-        self.assertEqual(self.counts["skipped"], 349)
-        self.assertEqual(self.counts["valid"], 14651)
-        self.assertEqual(15900, 14651 + 349 + 900)
+        self.assertEqual(self.counts["input"], 15836)
+        self.assertEqual(self.counts["duplicates"], 804)
+        self.assertEqual(self.counts["skipped"], 170)
+        self.assertEqual(self.counts["valid"], 14862)
+        self.assertEqual(15836, 14862 + 170 + 804)
 
     def test_skipped_rows_are_blank_amounts_and_sentinels(self):
-        self.assertEqual(self.reasons["missing_amount"], 271)
-        self.assertEqual(self.reasons["sentinel_amount"], 78)
+        self.assertEqual(self.reasons["missing_amount"], 170)
+        # This dataset carries no 999999999 sentinels; the §4.5 rule still
+        # runs, it simply never fires here. See D01.
+        self.assertEqual(self.reasons.get("sentinel_amount", 0), 0)
 
     def test_rows_with_no_date_are_kept(self):
         undated = sum(1 for record in self.result["records"] if record["date"] is None)
-        self.assertEqual(undated, 454)
-        self.assertEqual(self.reasons["missing_date"], 454)
+        # 322 rows arrive blank; a further 2,259 hold a shape parse_date
+        # cannot read, so 17% of valid rows end up with no date. Every
+        # monthly figure excludes them - see D01.
+        self.assertEqual(undated, 2581)
+        self.assertEqual(self.reasons["missing_date"], 322)
+        self.assertEqual(self.reasons["invalid_date"], 2259)
+        self.assertEqual(322 + 2259, 2581)
 
     def test_no_sentinel_or_negative_amount_survives(self):
         for record in self.result["records"]:
@@ -786,11 +867,11 @@ class FullDatasetTests(unittest.TestCase):
         totals = {"Income": 0.0, "Expense": 0.0}
         for record in self.result["records"]:
             totals[record["transaction_type"]] += record["amount"]
-        self.assertEqual(totals, {"Income": 144_624_974.0, "Expense": 165_749_066.0})
+        self.assertEqual(totals, {"Income": 134_553_045.0, "Expense": 53_348_034.0})
 
     def test_repeated_ids_are_all_kept(self):
-        self.assertEqual(self.counts["repeated_ids"], 888)
-        self.assertEqual(self.reasons["repeated_transaction_id"], 1846)
+        self.assertEqual(self.counts["repeated_ids"], 163)
+        self.assertEqual(self.reasons["repeated_transaction_id"], 328)
 
 
 if __name__ == "__main__":

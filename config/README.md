@@ -15,8 +15,16 @@ Every raw category string found in the data, mapped to a normalized name. The
 mapping must be **closed** — §4.5 requires that every raw value has an entry, so
 nothing falls through silently.
 
-Pre-filled from the real data: all **47** distinct raw category strings found in
+Pre-filled from all **47** distinct raw category strings found in
 `budgetwise_finance_dataset.csv`, with their row counts.
+
+**The mapping is not closed against the D01 dataset.**
+`budgetwise_synthetic_dirty.csv` holds 212 distinct nonblank variants; this
+file has entries for 20 of them, leaving **192 variants over 1,634 rows**
+reported as `unknown_category` and routed to `Uncategorized`. Two approved
+categories, `Freelance` and `Investment`, match no rows there at all. See
+`budgetwise/cleaning/categories/supplementary/README.md` for the breakdown and
+what `D04` has to settle.
 
 | Column | Meaning |
 |---|---|
@@ -61,5 +69,10 @@ them justified**. The justification goes in
 `budgetwise/analysis/budgets/supplementary/budget_justification.md` — it is a
 graded part of the report, not a note.
 
-The file ships with five placeholder limits. Replace them with figures the team
-can defend, and record the reasoning.
+The limits are generated from cleaned monthly expense history by
+`budgetwise.analysis.budgets.implementation.generate_budget_evidence`. The
+script uses each configured category's median monthly spend rounded up to the
+next 500 dataset units and writes the supporting table to
+`budgetwise/analysis/budgets/supplementary/budget_justification.md`. The team
+should review the categories, method, and resulting values before treating them
+as agreed limits.

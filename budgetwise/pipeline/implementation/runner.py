@@ -9,8 +9,12 @@ The step order, counts and use of the model classes are explained in README.md.
 
 import math
 import time
+from calendar import monthrange
+from datetime import datetime
 from collections import Counter
 
+from budgetwise.analysis.budgets import compare_to_budget
+from budgetwise.analysis.summaries import build_summary, monthly_expenses
 from budgetwise.cleaning.amounts import parse_amount
 from budgetwise.cleaning.categories import normalize_category
 from budgetwise.cleaning.dates import parse_date
@@ -20,6 +24,7 @@ from budgetwise.cleaning.payment_modes import normalize_payment_mode
 from budgetwise.cleaning.rows import find_repeated_ids, is_duplicate, validate_raw_row
 from budgetwise.errorlog import ErrorLog, Reason
 from budgetwise.loader import load_rows
+from budgetwise.interface.export import export_cleaned, export_summary, export_charts
 
 # If the model classes are missing, cleaning still works and run() says why
 # it has no objects.
@@ -95,10 +100,15 @@ def _clean_rows(path, error_log):
     started = time.perf_counter()
     try:
         numbered_rows = list(load_rows(path))
-    except Exception as error:       # missing file, bad header or encoding
-        result["error"] = f"could not load {path}: {error}"
+    except ValueError as error:       # missing file, bad header, bad encoding
+        result["error"] = ValueError("CSV is empty")
         record_issue(0, "file", Reason.FILE_NOT_LOADED, str(error))
         return result
+    except FileNotFoundError as error:
+        result["error"] = FileNotFoundError("CSV is missing")
+        record_issue(0, "file", Reason.FILE_NOT_LOADED, str(error))
+        return result
+    
     loaded = time.perf_counter()
     result["timings"]["load"] = round(loaded - started, 4)
     counts["input"] = len(numbered_rows)
@@ -247,17 +257,60 @@ def run(path, start=None, end=None, category=None, error_log=None):
         result = _clean_rows(path, error_log)
         result["transactions"] = []
         result["accounts"] = {}
+        result["account_breakdown"] = {}
+        result["budget_comparisons"] = []
+        result["summary"] = {}
+        chart_data = {
+            "total_breakdown": [],
+            "monthly_breakdown": [],
+        }
         if result["error"]:
             pass
         elif Transaction is None:
             result["error"] = "rows were cleaned, but budgetwise.models has no Transaction class yet"
         else:
             _build_objects(result, error_log, start, end, category)
+            result["budget_comparisons"] = _budget_comparisons(
+                result["accounts"], start, end, category
+            )
+            result["summary"], chart_data = build_summary(
+                result,
+                _selection(start, end, category),
+            )
+            result["account_breakdown"] = result["summary"].get(
+                "total_breakdown", {}
+            ).get("account_breakdown", {})
         _summarise(result)
+        try:
+            export_run(result, chart_data, path)
+        except OSError as exc:
+            print(f"  Export failed: {exc}")
         return result
     finally:
         if owns_log:
             error_log.close()
+
+def export_run(result, charts, dataset):
+    """Render charts and export the summary already built by the pipeline."""
+    transactions = result.get("transactions")
+    if transactions is None or (result.get("error") and not transactions):
+        return
+    summary = result.get("summary")
+    if not isinstance(summary, dict):
+        return
+
+    generated_at = datetime.now()
+    cleaned_path = export_cleaned(transactions, dataset, when=generated_at)
+    summary_path = export_summary(summary, dataset, when=generated_at)
+    chart_path = export_charts(
+        charts.get("total_breakdown", {}),
+        charts.get("monthly_breakdown", {}),
+        dataset,
+        when=generated_at,
+    )
+    print(f"  Cleaned CSV: {cleaned_path}")
+    print(f"  JSON summary: {summary_path}")
+    print(f"  Charts: {chart_path}")
 
 
 def _build_objects(result, error_log, start, end, category):
@@ -294,6 +347,59 @@ def _build_objects(result, error_log, start, end, category):
             unknown.add_transaction(transaction)
 
     counts["returned"] = len(transactions)
+
+
+def _budget_comparisons(accounts, start=None, end=None, category=None):
+    """Compare selected account transactions with monthly category limits."""
+    account_transactions = []
+    for account in accounts.values():
+        account_transactions.extend(account.get_transactions())
+
+    comparisons_by_month = []
+    for year, month in monthly_expenses(account_transactions):
+        comparisons = compare_to_budget(account_transactions, year, month)
+        if category:
+            comparisons = [
+                item for item in comparisons
+                if item.category.lower() == category.strip().lower()
+            ]
+
+        month_start = f"{year}-{month}-01"
+        month_end = f"{year}-{month}-{monthrange(int(year), int(month))[1]:02d}"
+        period_start = max(month_start, start) if start else month_start
+        period_end = min(month_end, end) if end else month_end
+        comparisons_by_month.append({
+            "month": f"{year}-{month}",
+            "period": {
+                "start": period_start,
+                "end": period_end,
+                "full_month": period_start == month_start and period_end == month_end,
+            },
+            "categories": [
+                {
+                    "category": item.category,
+                    "limit": item.limit,
+                    "actual": item.actual,
+                    "status": item.status,
+                    "difference": item.difference,
+                }
+                for item in comparisons
+            ],
+        })
+    return comparisons_by_month
+
+
+def _selection(start, end, category):
+    if category:
+        return {"type": "category", "category": category}
+    if start or end:
+        selection = {"type": "date_range"}
+        if start:
+            selection["start"] = start
+        if end:
+            selection["end"] = end
+        return selection
+    return {"type": "all"}
 
 
 def _build_transaction(record):

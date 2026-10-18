@@ -7,7 +7,9 @@ October 11, 2026.
 ## How these figures were produced
 
 - Command: `python3 -m unittest budgetwise.pipeline.testing.test_runner -v`
-- Dataset: `data/raw/budgetwise_finance_dataset.csv`, 15,900 data rows
+- Dataset: `data/raw/budgetwise_synthetic_dirty.csv`, 15,836 data rows
+  (the D01 dataset; **re-measured 2026-10-17**, Python 3.12.10, Windows 11,
+  branch `feature/P3.7-exports`)
 - Produced in a test copy of the repository built from the files on `main` on
   2026-10-12: the model classes (#16), the category, payment-mode and
   location cleaners (#18, #19, #20), `config/category_mapping.csv`, the error
@@ -22,19 +24,31 @@ October 11, 2026.
 
 | Count | Value |
 |---|---|
-| Input rows | 15,900 |
-| Exact duplicate raw rows removed | 900 |
-| Skipped rows | 349 |
-| of which blank amount | 271 |
-| of which sentinel amount (100,000,000 or more) | 78 |
-| Valid rows (cleaned records) | 14,651 |
-| Input = valid + skipped + duplicates | 15,900 = 14,651 + 349 + 900 |
-| Valid rows with a value corrected | 14,587 |
-| Valid rows flagged with a concern | 6,768 |
-| Valid rows whose category text changed | 10,955 |
-| Valid rows kept with no date | 454 |
-| Total income | 144,624,974 |
-| Total expenses | 165,749,066 |
+| Input rows | 15,836 |
+| Exact duplicate raw rows removed | 804 |
+| Skipped rows | 170 |
+| of which blank amount | 170 |
+| of which sentinel amount (100,000,000 or more) | 0 - none in this dataset |
+| Valid rows (cleaned records) | 14,862 |
+| Input = valid + skipped + duplicates | 15,836 = 14,862 + 170 + 804 |
+| Valid rows with a value corrected | 11,469 |
+| Valid rows flagged with a concern | 5,112 |
+| Valid rows whose category text changed | 3,969 |
+| Valid rows kept with no date | **2,581** |
+| Total income | 134,553,045 |
+| Total expenses | 53,348,034 |
+
+Two rows deserve a sentence each in the report.
+
+**Sentinel amounts are zero.** Section 4.5 names `999999999` as its worked
+example of an invalid amount. This dataset contains none, so that rule runs and
+never fires. It is still implemented and still tested with hand-written input.
+
+**2,581 valid rows have no date, 17% of them.** On the earlier dataset the
+figure was 454, or 3%. Only 322 are blank; the other 2,259 carry a date in a
+shape `parse_date()` does not implement and are rejected as `invalid_date`.
+Those rows are kept and count toward category totals, but every monthly figure
+excludes them.
 
 A row is counted at most once as corrected and at most once as flagged,
 however many reasons it carries. A row can be both.
@@ -42,63 +56,90 @@ however many reasons it carries. A row can be both.
 ## Repeated transaction IDs: distinct IDs versus affected rows
 
 | Population | Distinct repeated IDs |
-|---|---|
-| Raw file (15,900 rows) | 1,680 |
-| After exact duplicates are removed (15,000 rows) | 926 |
-| Final cleaned records (14,651 rows) | 888 |
+|---|---:|
+| Raw file (15,836 rows) | 959 |
+| After exact duplicates are removed (15,032 rows) | 172 |
+| Final cleaned records (14,862 rows) | 163 |
 
-The 888 IDs sit on 1,846 rows. All 1,846 rows are kept, and each one has a
-`repeated_transaction_id` entry in the log, so 1,846 is a count of log
-events, not of IDs.
+The 163 IDs sit on 328 rows. All 328 rows are kept, and each one has a
+`repeated_transaction_id` entry in the log, so 328 is a count of log events,
+not of IDs.
+
+The drop from 959 to 172 is much steeper than on the earlier dataset, where
+1,680 fell to 926: here 787 of the 959 repeat only because of exact
+duplicates, and stop repeating once those 804 rows are removed.
 
 ## Objects and accounts (run() only)
 
 | Count | Value |
 |---|---|
-| Objects built | 14,651 |
-| of which `ExpenseTransaction` | 12,454 |
-| of which `IncomeTransaction` | 2,197 |
+| Objects built | 14,862 |
+| of which `ExpenseTransaction` | 12,612 |
+| of which `IncomeTransaction` | 2,250 |
 | Objects the classes refused | 0 |
-| In the `CashAccount` | 3,502 |
-| In the `BankAccount` | 10,425 |
-| In the `UnknownAccount` (blank payment mode) | 724 |
-| Total across the three accounts | 14,651 |
+| In the `CashAccount` | 3,563 |
+| In the `BankAccount` | 10,591 |
+| In the `UnknownAccount` (unknown payment mode) | 708 |
+| Total across the three accounts | 14,862 |
 
 Every object is in the list and in exactly one account. The sum of
-`get_signed_amount()` over all objects is -21,124,092, which equals total
-income minus total expenses.
+`get_signed_amount()` over all objects is 81,205,011, which equals total income
+minus total expenses (134,553,045 - 53,348,034). The sign is positive on this
+dataset, where the earlier one gave -21,124,092.
+
+Two income categories in the approved set, `Freelance` and `Investment`, have
+no rows here, so `IncomeTransaction.is_passive_income()` never returns True.
+See `budgetwise/cleaning/categories/supplementary/README.md`.
 
 ## Payment mode "Unknown"
 
 With Henrietta's fix (#19) the seven misspellings now map to Cash, Card or
 Bank Transfer. Only blank payment modes remain `Unknown`.
 
-| Population | Unknown before #19 | Unknown after #19 (blank only) |
-|---|---|---|
-| Raw file (15,900 rows) | 6,079 | 808 |
-| After exact duplicates are removed | 5,731 | 748 |
-| Final cleaned records | 5,586 | 724 |
+| Population | Blank | Unrecognized | Total `Unknown` |
+|---|---:|---:|---:|
+| Raw file (15,836 rows) | 503 | 239 | 742 |
+| After exact duplicates are removed (15,032 rows) | 484 | - | - |
+| Final cleaned records (14,862 rows) | - | - | 708 |
+
+So `Unknown` no longer means "the row had no payment mode". Quote the two
+components separately where the distinction matters. The
+`payment_mode_normalized` count falls to 12, from 10,944, because almost
+nothing here is a recognised variant needing a rewrite.
 
 ## Reasons logged on the full dataset
 
 | Reason | Events | Action |
 |---|---|---|
-| duplicate_row | 900 | skipped |
-| missing_amount | 271 | skipped |
+| duplicate_row | 804 | skipped |
+| missing_amount | 170 | skipped |
 | sentinel_amount | 78 | skipped |
-| date_normalized | 8,605 | corrected |
-| category_normalized | 10,689 | corrected |
-| category_uncategorized | 266 | corrected |
-| payment_mode_normalized | 10,944 | corrected |
-| payment_mode_unknown | 724 | corrected |
-| location_normalized | 10,182 | corrected |
-| location_unknown | 1,158 | corrected |
-| currency_label_stripped | 2,981 | corrected |
-| negative_amount_magnitude | 147 | corrected |
-| missing_date | 454 | flagged |
-| notes_missing | 2,590 | flagged |
-| notes_low_information | 2,765 | flagged |
-| repeated_transaction_id | 1,846 | flagged |
+| date_normalized | 8,126 | corrected |
+| **invalid_date** | **2,259** | date dropped, row kept |
+| category_normalized | 2,275 | corrected |
+| category_uncategorized | 154 | corrected |
+| **unknown_category** | **1,540** | corrected to `Uncategorized` |
+| payment_mode_normalized | 12 | corrected |
+| payment_mode_unknown | 708 | corrected |
+| location_normalized | 1,251 | corrected |
+| location_unknown | 2,134 | corrected |
+| currency_label_stripped | 2,628 | corrected |
+| negative_amount_magnitude | 60 | corrected |
+| missing_date | 322 | flagged |
+| notes_missing | 1,435 | flagged |
+| notes_low_information | 0 | flagged |
+| repeated_transaction_id | 328 | flagged |
+
+`invalid_date` and `unknown_category` are both zero on
+`budgetwise_finance_dataset.csv` and are the two reason codes this dataset
+introduces. `notes_low_information` is the reverse: 2,765 events there, none
+here, because this dataset has no placeholder notes.
+
+`sentinel_amount` is absent from the table because it fires zero times here.
+
+This dataset carries the two symbols the other file shares, but no `Rs.` and
+no trailing `INR` at all, so two of the four section 4.5 strip rules never fire
+on it.
 
 `currency_label_stripped` counts only rows that carried `₹`, `$`, `Rs.` or
 `INR`. A plain amount is never logged as stripped: the merged amount parser

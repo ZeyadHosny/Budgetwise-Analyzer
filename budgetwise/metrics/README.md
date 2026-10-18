@@ -1,6 +1,6 @@
 # Metrics
 
-Counts and times each run of the program for the report.
+Records the counts and phase timings of each run for the report (§5).
 
 | | |
 |---|---|
@@ -10,21 +10,22 @@ Counts and times each run of the program for the report.
 | **Task** | `P3.8` |
 | **Status** | Implemented, under review |
 
-## What it measures
+## Measurements
 
-Section 5 requires seven measured values:
+Section 5 requires the following values:
 
-| Measurement | Source |
+| Measurement | Definition |
 |---|---|
 | Input records | Rows read from the CSV |
 | Valid records | Rows kept after cleaning |
-| Corrected records | Kept rows with at least one value standardized |
+| Corrected records | Valid rows with at least one value standardized, counted once per row |
 | Skipped records | Rows that could not be cleaned |
-| Duplicates detected | Exact copies removed before cleaning |
-| Categories normalized | Rows whose category was changed |
+| Duplicates detected | Exact copies of an earlier raw row, removed before cleaning |
+| Categories normalized | Valid rows whose category was changed |
 | Execution time | Loading, cleaning and analysis, timed separately |
 
-The counts must satisfy: input = valid + skipped + duplicates.
+The counts reconcile as: input = valid + skipped + duplicates.
+Corrected records are a subset of valid records and are not part of this check.
 
 ## Usage
 
@@ -40,8 +41,26 @@ with timed(metrics, "analysis"):
 print(metrics.format_report())
 ```
 
-`from_pipeline` takes the counts and the load and clean times from the cleaning
-pipeline. `timed` adds the analysis time.
+`RunMetrics.from_pipeline` copies the counts and the loading and cleaning times
+from the pipeline result. `timed` measures any further phase, such as analysis.
+`reconciles()` returns `True` when the counts add up.
+
+## Execution time for the report
+
+`supplementary/run_timings.py` runs the pipeline seven times, each in a new
+Python process, and prints each run's stage times with the median and range per
+stage. It times loading, cleaning, object building, budget comparisons, summary
+building, cleaning statistics and export separately, plus the pipeline total and
+a separate financial-analysis step. Run it from the repository root:
+
+```bash
+python budgetwise/metrics/supplementary/run_timings.py
+python budgetwise/metrics/supplementary/run_timings.py --dataset data/raw/budgetwise_finance_dataset.csv
+```
+
+`--dataset` chooses the CSV (the synthetic dirty dataset by default) and `--runs` the
+number of runs (seven by default). Each run exports its cleaned CSV, summary and
+charts to `output/`, as the program does.
 
 ## Example output
 
@@ -68,9 +87,9 @@ Final figures will come from the G4 frozen run. See
 
 | Folder | Contents |
 |---|---|
-| `implementation/` | `counters.py`, `timers.py` |
+| `implementation/` | `counters.py` (run counts), `timers.py` (phase timer) |
 | `testing/` | `test_counters.py` |
-| `supplementary/` | `measured_results.md` |
+| `supplementary/` | `measured_results.md`, `run_timings.py` |
 
 ## Tests
 
@@ -80,8 +99,9 @@ python -m unittest budgetwise.metrics.testing.test_counters -v
 
 ## Status
 
-- [x] All seven measurements produced
+- [x] All required measurements produced
 - [x] Loading, cleaning and analysis timed separately
 - [x] Counts reconcile
+- [x] Repeated timing script for the report
 - [ ] Corrected and skipped definitions agreed by the team (`D08`)
 - [ ] Final results recorded from the G4 run

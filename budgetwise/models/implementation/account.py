@@ -130,9 +130,9 @@ class Account:
         Return:
             float: The sum of the expense magnitudes. 0.0 when empty.
         """
-        return sum(transaction.get_amount()
-                   for transaction in self.__transactions
-                   if transaction.get_transaction_type() == EXPENSE_TYPE)
+        return float(sum(transaction.get_amount()
+                         for transaction in self.__transactions
+                         if transaction.get_transaction_type() == EXPENSE_TYPE))
 
     # Method to calculate the total received
     def get_total_received(self):
@@ -146,9 +146,9 @@ class Account:
         Return:
             float: The sum of the income magnitudes. 0.0 when empty.
         """
-        return sum(transaction.get_amount()
-                   for transaction in self.__transactions
-                   if transaction.get_transaction_type() == INCOME_TYPE)
+        return float(sum(transaction.get_amount()
+                         for transaction in self.__transactions
+                         if transaction.get_transaction_type() == INCOME_TYPE))
 
     # Method to format the part of the summary every ledger shares
     def format_totals(self):
