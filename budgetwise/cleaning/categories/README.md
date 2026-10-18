@@ -1,122 +1,73 @@
-# Category Cleaning
+# Category cleaning
 
-This feature cleans and standardizes transaction category values into a fixed set of approved categories.
-
-## Responsibility
-
-| Item | Details |
-|---|---|
-| Responsible | Henrietta |
-| Domain reviewers | Bahareh (`P1.2`) and Sarah (`P2.2`) |
-| PR approval | Zeyad or Patrick |
-| Tasks | `P1.2` profiling and `P2.2` implementation |
-| Status | Implemented and under review |
-
-## Purpose
-
-The raw dataset contains category values with:
-
-- different capitalization
-- spelling mistakes
-- abbreviations
-- extra spaces
-- missing values
-
-These values are converted into approved category names. Examples:
-
-```
-FOOD    -> Food
-Fod     -> Food
-Rentt   -> Rent
-Traval  -> Transportation
-Helth   -> Healthcare
-Misc    -> Other
-```
-
-Missing or blank categories are kept in the dataset and mapped to `Uncategorized`.
-
-## Approved Categories
-
-The 14 approved categories:
-
-```
-Food            Rent            Transportation   Entertainment
-Utilities       Education       Healthcare       Savings
-Other           Freelance       Investment       Bonus
-Salary          Uncategorized
-```
-
-## Category Mapping
-
-The raw-to-normalized category mapping is stored in:
-
-```
-config/category_mapping.csv
-```
-
-It covers all 46 nonblank category variants found in the raw dataset. The mapping is closed, so unknown values are never passed through unchanged.
-
-### Reference
-
-The category variants and counts come from Bahareh's Phase 1 category profiling (`P1.2`)
-## Public Function
+## Interface
 
 ```python
 from budgetwise.cleaning.categories import normalize_category
 
-normalize_category(raw: str | None) -> tuple[str, str | None]
+normalize_category(raw: str | None, transaction_type: str | None = None) -> tuple[str, str | None]
 ```
 
-The function returns `(normalized_category, reason_code)`:
-
-| Situation | Returns |
+| Input | Returns |
 |---|---|
-| Value is already the approved name (`"Food"`) | `("Food", None)` |
-| Value was changed: case, spelling, abbreviation, or extra spaces | `("Food", "CATEGORY_NORMALIZED")` |
-| Value is `None`, `""`, or whitespace only | `("Uncategorized", "CATEGORY_UNCATEGORIZED")` |
-| Value is not in the mapping | `("Uncategorized", "unknown_category")` |
+| Already an approved name, e.g. `"Food"` | `("Food", None)` |
+| A known variant, e.g. `"FOOD"`, `"Foood"`, `" Food "` | `("Food", "CATEGORY_NORMALIZED")` |
+| An `Other Income` variant on an income row | `("Other", "CATEGORY_NORMALIZED")` |
+| `None`, `""` or whitespace only | `("Uncategorized", "CATEGORY_UNCATEGORIZED")` |
+| Not in the mapping | `("Uncategorized", "unknown_category")` |
 
-The function always returns a usable category name and never causes a row to be dropped.
+The function always returns a usable name and never drops a row. The pipeline
+writes the reason codes to `output/logs/errors.log` in lowercase.
 
-## Reason Codes
+## Approved categories
 
-| Reason Code | Meaning |
-|---|---|
-| `CATEGORY_NORMALIZED` | The category was corrected or standardized, including removing extra spaces |
-| `CATEGORY_UNCATEGORIZED` | The category was missing or blank |
-| `unknown_category` | The value was not found in the approved mapping |
+```
+Food        Rent        Transportation   Entertainment   Utilities
+Education   Healthcare  Savings          Other           Freelance
+Investment  Bonus       Salary           Uncategorized
+```
 
-The cleaning pipeline (`budgetwise/pipeline/implementation/runner.py`) writes these codes to `output/logs/errors.log` in lowercase (`category_normalized`, `category_uncategorized`, `unknown_category`).
+`Travel` maps to `Transportation`, `Health` to `Healthcare`, and `Misc`,
+`Others` and `Other Income` to `Other` (decision `D04`). Income and expense
+totals are always calculated separately, so income `Other` never mixes with
+expense `Other`. `Freelance` and `Investment` have no rows in the synthetic
+dirty dataset.
 
+## Mapping
 
-## Implementation Update
+The mapping is data, not code: `config/category_mapping.csv` holds
+`raw,normalized` pairs and is loaded once at import. Lookups ignore case and
+surrounding spaces. Attaching the CSV meets §4.5's requirement to include the
+mapping in the report.
 
-Whitespace handling was corrected so values with extra spaces (for example `" Food "`) are recorded as `CATEGORY_NORMALIZED`.
+| Dataset | Nonblank variants | Covered |
+|---|---:|---|
+| `budgetwise_finance_dataset.csv` | 46 | all 46 |
+| `budgetwise_synthetic_dirty.csv` | 212 | all but `ent` |
 
-## Testing
+The synthetic dirty dataset added 192 variants (1,634 raw rows, 1,540
+retained). A variant is mapped when it differs from one approved name by a
+single letter and from every other name by at least three. 191 are mapped:
+166 in the CSV and 25 `Other Income` variants in `parser.py`. The pipeline
+passes the transaction type, so `Other Income` becomes `Other` only on income
+rows; on an expense row it stays `Uncategorized`.
 
-The tests cover:
+Two cases stay `Uncategorized`, with the reason logged:
 
-- all 46 profiled nonblank variants (capitalization, spelling mistakes, abbreviations)
-- extra spaces
-- missing values: `""`, `"   "`, and `None`
-- unknown categories
+| Value | Rows (raw / retained) | Reason |
+|---|---|---|
+| `ent` | 19 / 18 | One letter from `Rent`, but also the start of `Entertainment`; nothing in the rows shows which was meant |
+| blank | 158 / 154 | Missing value |
 
-Run from the project root:
+Every added variant, with its counts, is listed in
+`supplementary/dirty_variant_mapping.md`.
+
+## Tests
+
+55 tests cover all 46 variants in the original dataset, the new spelling
+variants, `Other Income` on income and expense rows, the ambiguous `ent`, whitespace, missing values and
+unknown values.
 
 ```bash
 python -m unittest budgetwise.cleaning.categories.testing.test_parser -v
 ```
-
-Expected result: 51 tests, all passing.
-
-## Project Connection
-
-The category work is completed in two stages:
-
-```
-P1.2 -> profile and organize raw category values (Bahareh)
-P2.2 -> implement category normalization (Henrietta)
-```
-
-The category variants identified during `P1.2` are used to build the normalization rules for `P2.2`.

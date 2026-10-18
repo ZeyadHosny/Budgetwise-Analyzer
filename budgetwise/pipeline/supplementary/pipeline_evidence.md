@@ -89,7 +89,7 @@ dataset, where the earlier one gave -21,124,092.
 
 Two income categories in the approved set, `Freelance` and `Investment`, have
 no rows here, so `IncomeTransaction.is_passive_income()` never returns True.
-See `budgetwise/cleaning/categories/supplementary/README.md`.
+See `budgetwise/cleaning/categories/README.md`.
 
 ## Payment mode "Unknown"
 

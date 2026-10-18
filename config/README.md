@@ -23,7 +23,7 @@ Pre-filled from all **47** distinct raw category strings found in
 file has entries for 20 of them, leaving **192 variants over 1,634 rows**
 reported as `unknown_category` and routed to `Uncategorized`. Two approved
 categories, `Freelance` and `Investment`, match no rows there at all. See
-`budgetwise/cleaning/categories/supplementary/README.md` for the breakdown and
+`budgetwise/cleaning/categories/README.md` for the breakdown and
 what `D04` has to settle.
 
 | Column | Meaning |

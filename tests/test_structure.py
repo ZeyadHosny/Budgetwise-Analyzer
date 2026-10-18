@@ -18,14 +18,13 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 PACKAGE = REPO / "budgetwise"
 
+# One README per feature, at the top of its folder. The implementation/,
+# testing/ and supplementary/ subfolders do not need their own.
 REQUIRED_FILES = (
     "README.md",
     "__init__.py",
-    "implementation/README.md",
     "implementation/__init__.py",
-    "testing/README.md",
     "testing/__init__.py",
-    "supplementary/README.md",
 )
 
 FORBIDDEN = re.compile(r"^\s*(?:import|from)\s+(pandas|numpy)\b", re.MULTILINE)
