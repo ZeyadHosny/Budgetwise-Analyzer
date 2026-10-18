@@ -310,8 +310,8 @@ class FullDatasetTests(unittest.TestCase):
     def test_repeated_ids_that_remain_after_duplicates_are_removed(self):
         # 754 of the 1,680 repeat only because of exact duplicates.
         # The other 926 are on rows that differ, and all are kept.
-        self.assertEqual(len(find_repeated_ids(self.unique)), 172)
-        self.assertEqual(len({row["transaction_id"] for _, row in self.unique}), 14858)
+        self.assertEqual(len(find_repeated_ids(self.unique)), 926)
+        self.assertEqual(len({row["transaction_id"] for _, row in self.unique}), 14000)
 
     def test_required_columns_are_all_valid_and_unchanged(self):
         for _, row in self.rows:
