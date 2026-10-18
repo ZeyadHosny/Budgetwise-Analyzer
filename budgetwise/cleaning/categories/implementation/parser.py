@@ -27,7 +27,37 @@ def _load_mapping() -> dict[str, str]:
 CATEGORY_MAPPING = _load_mapping()
 
 
-def normalize_category(raw: str | None) -> tuple[str, str | None]:
+OTHER_INCOME_VARIANTS = {
+    "other income",
+    "toher income",
+    "oter income",
+    "othre income",
+    "othr income",
+    "other incoome",
+    "othe income",
+    "other incoem",
+    "other inncome",
+    "otehr income",
+    "othe rincome",
+    "other incom",
+    "otherincome",
+    "oother income",
+    "other nicome",
+    "other iincome",
+    "other inome",
+    "ohter income",
+    "other icome",
+    "otheer income",
+    "other incmoe",
+    "oher income",
+    "other incoe",
+}
+
+
+def normalize_category(
+    raw: str | None,
+    transaction_type: str | None = None,
+) -> tuple[str, str | None]:
     """
     Normalize a raw category value.
 
@@ -41,6 +71,16 @@ def normalize_category(raw: str | None) -> tuple[str, str | None]:
 
     # Remove surrounding spaces and ignore capitalization for lookup
     cleaned = raw.strip().lower()
+
+    # Recognize explicit Other Income variants, including extra spaces.
+    compact = " ".join(cleaned.split())
+    if compact in OTHER_INCOME_VARIANTS:
+        kind = (transaction_type or "").strip().lower()
+
+        if kind == "income":
+            return "Other", Reason.CATEGORY_NORMALIZED
+
+        return "Uncategorized", Reason.UNKNOWN_CATEGORY
 
     # Known category
     if cleaned in CATEGORY_MAPPING:
