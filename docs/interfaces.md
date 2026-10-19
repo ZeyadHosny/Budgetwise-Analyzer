@@ -1,18 +1,12 @@
 # Agreed interfaces
 
-**Status: outstanding.** Owner: Zeyad · Task: `P1.5` · Agreed at: `G1`
+**Status: complete.** Owner: Zeyad · Task: `P1.5` · Decision D05
 
-**Updated 2026-10-11 and 2026-10-12 by Sarah** for `P2.1`, `P2.4`, `P2.7` and `P2.10` only:
-the rows marked *implemented* below, and the section "What `clean_file()` and
-`run()` return". These now match the code and each feature's `__init__.py`.
-Rows owned by other people are unchanged and still need their owners to confirm.
+Last updated 2026-10-19. Every row below matches the merged code and each
+feature's `__init__.py`.
 
-The function signatures every module depends on. Written **before** Phase 2
-implementation starts, so four people building cleaners in parallel are building
-against something already settled.
-
-This closes flag `F04` — the plan requires agreed interfaces but no task produces
-a concrete contract.
+The function signatures every module depends on, so people building modules in
+parallel built against something already settled.
 
 ## Where the contracts actually live
 
@@ -26,27 +20,25 @@ from .implementation.parser import parse_date
 This file records the signatures and the reasoning; `__init__.py` is what Python
 checks. **They must agree.** See `CONTRIBUTING.md` §6.
 
-## To be filled in at P1.5
+## Function signatures
 
 | Module | Function | Signature | Owner |
 |---|---|---|---|
-| `loader` | `load_rows` | `(path) -> Iterator[tuple[int, dict]]` | unassigned |
+| `loader` | `load_rows` | `(filename) -> Iterator[tuple[int, dict]]` · *implemented* · yields `(line_number, raw_row)` | Patrick (`P2.9`) |
 | `cleaning/dates` | `parse_date` | `(raw_date) -> tuple[str \| None, list[str]]` · *implemented* · returns `(date_or_None, reasons_list)` | Sarah (`P2.1`) |
-| `cleaning/categories` | `normalize` | `(raw) -> tuple[str, str \| None]` | Henrieta |
-| `cleaning/amounts` | `parse_amount` | `(raw) -> tuple[float \| None, str \| None, str \| None]` | Patrick |
+| `cleaning/categories` | `normalize_category` | `(raw, transaction_type=None) -> tuple[str, str \| None]` · *implemented* · `transaction_type` decides where Other Income goes | Henrietta (`P2.2`) |
+| `cleaning/amounts` | `parse_amount` | `(raw) -> tuple[float \| None, str \| None, str \| None]` · *implemented* | Patrick (`P2.3`) |
 | `cleaning/rows` | `is_duplicate` | `(raw_row, seen_keys) -> bool` · *implemented* · `seen_keys` is a `set` the caller creates once per load | Sarah (`P2.4`) |
 | `cleaning/rows` | `validate_raw_row` | `(raw_row) -> tuple[bool, list[tuple[str, str]]]` · *implemented* · returns `(usable, problems)`, each problem a `(column, detail)` pair | Sarah (`P2.4`) |
 | `cleaning/rows` | `has_required_fields` | `(raw_row) -> bool` · *implemented* · the yes/no form of `validate_raw_row` | Sarah (`P2.4`) |
 | `cleaning/rows` | `find_repeated_ids` | `(numbered_rows) -> dict[str, int]` · *implemented* · IDs on two or more rows, with the row count | Sarah (`P2.4`) |
 | `cleaning/notes` | `classify_note_quality` | `(raw_note) -> tuple[str, str, list[str]]` · *implemented* · returns `(note, quality, reasons_list)` | Sarah (`P2.7`) |
-| `errorlog` | `ErrorLog.record` | `(line, field, reason, raw) -> None` | Patrick (`P2.8`). Previously listed under Sarah |
+| `errorlog` | `ErrorLog.record` | `(line, field, reason, raw) -> None` · *implemented* | Patrick (`P2.8`) |
 | `models` | `Transaction`, `ExpenseTransaction`, `IncomeTransaction` | `(transaction_id, user_id, date, category, amount, payment_mode='', original_currency='plain')` · *implemented, merged in #16* · no `create()` factory | Zeyad (`P3.1`) |
 | `models` | `Account.add_transaction` | `(transaction) -> None` · *implemented, merged in #16* · inherited by `CashAccount`, `BankAccount`, `UnknownAccount` | Zeyad (`P3.1`) |
 | `pipeline` | `clean_file` | `(path, error_log=None) -> dict` · *implemented, merged in #10* | Sarah (`P2.10`) |
-| `pipeline` | `run` | `(path, start=None, end=None, category=None, error_log=None) -> dict` · *implemented, merged in #10; fix for the real model classes in a follow-up pull request* · there is no `LoadResult` class | Sarah (`P2.10`), models with Zeyad |
+| `pipeline` | `run` | `(path, start=None, end=None, category=None, error_log=None) -> dict` · *implemented, merged in #10, working with the real model classes* · there is no `LoadResult` class | Sarah (`P2.10`), models with Zeyad |
 
-The signatures above are proposals drawn from each feature's README. Confirm,
-amend, or replace them at `G1`, then uncomment the matching `__init__.py` lines.
 
 ### Notes on the implemented contracts
 
@@ -77,9 +69,9 @@ amend, or replace them at `G1`, then uncomment the matching `__init__.py` lines.
   | extra values at the end | the extras in a list under the key `None` | not usable: "too many fields" |
   | not a `dict` at all | anything else | not usable, never raises |
 
-  Patrick's `load_rows` currently fills a missing field with `""` and drops
-  extra values, so these two cases reach the cleaners as an ordinary row. The
-  loader and this table need to agree (review S05).
+  `load_rows` fills a missing field with `""`, so a short row reaches the
+  cleaners as an ordinary row. Rows with extra values are rejected and logged.
+  The remaining loader checks are expected failures in the tests (review S05).
 
 ### Model classes, as merged in #16
 
@@ -164,14 +156,14 @@ Rules:
   `Card`, `UPI`, `Bank Transfer`; unknown for anything else, in practice a
   blank payment mode shown as `Unknown`.
 - A record the classes refuse is logged as `transaction_not_built` and so is
-  counted once in `flagged`. Whether it should be is still open (`D08`).
+  counted once in `flagged` (decision D08). On the final run there were none.
 
 The menu's filters change `transactions`, `accounts` and `returned` only. They
 never change `records` or the cleaning counts.
 
-## Shapes that need agreeing
+## Shapes agreed
 
-- **Raw row** — a `dict[str, str]` of the nine columns, exactly as read
-- **Reason code** — the vocabulary in `budgetwise/errorlog/`
-- **LoadResult** — resolved for `P2.10`: there is no `LoadResult` class. `clean_file` and `run` return the dictionary described above
-- **Retained vs skipped** — implemented as `input = valid + skipped + duplicates`. The definitions of corrected and flagged are proposed in [`decisions.md`](decisions.md) and still need team agreement
+- **Raw row**: a `dict[str, str]` of the nine columns, exactly as read
+- **Reason code**: the one `Reason` list in `budgetwise/errorlog/` (decision D11)
+- **LoadResult**: there is no `LoadResult` class. `clean_file` and `run` return the dictionary described above
+- **Retained vs skipped**: `input = valid + skipped + duplicates`. Corrected and flagged are defined in decision D08 in [`decisions.md`](decisions.md)

@@ -1,44 +1,38 @@
 # Presentation
 
-**5 marks for the presentation, 2 for Q&A — 7 in total, more than the code.**
+**5 marks for the presentation, 2 for Q&A: 7 in total, more than the code.**
 
 | | |
 |---|---|
-| **Responsible** | Henrieta (`P5.2` build · `P6.3` rehearsal 2) |
-| **Contributors** | Patrick (`P5.3` demo and Q&A) · Zeyad (`P6.1` rehearsal 1) |
+| **Responsible** | Henrietta (`P5.2` build · `P6.3` rehearsal 2) |
+| **Contributors** | Patrick (`P5.3` demo and Q&A) · Zeyad (`P6.1` rehearsal 1) · slides assembled by Bahareh |
 | **When** | In class, Oct 19, 2026 |
 | **Length** | One 20-minute slot, including Q&A |
-| **Status** | Not started |
+| **Status** | Slides final; speaking split agreed in [`outline.md`](outline.md) |
 
 ## What it must cover
 
-§5 names five things:
+§5 names five things, and the slides cover each:
 
-1. Key problems studied
-2. A clear overview of the pipeline
-3. Design choices
-4. Key findings
-5. Limitations
+1. Key problems studied (slides 2 to 4)
+2. A clear overview of the pipeline (slides 5 to 8)
+3. Design choices (slides 9 to 11)
+4. Key findings (slides 12 to 17)
+5. Limitations (slide 18)
 
-Followed by questions from the audience.
+Followed by a live demo and questions from the audience.
 
 ## Even participation is graded
 
 §7 lists *"clarity of communication and **even participation across team
-members**"* as an evaluation criterion. `P5.2`'s own note says to allocate
-speaking time evenly.
-
-This is the rarest kind of mark — one you can guarantee in advance by deciding
-who speaks for how long, and rehearsing it. Record the split in
-[`outline.md`](outline.md).
+members**"* as an evaluation criterion. Every member presents three to five
+slides; the split is in [`outline.md`](outline.md).
 
 ## Every member must understand the whole pipeline
 
 `P5.3`'s note: *"Every member can explain cleaning, OOP, analysis, and
-outputs."* Questions come from the audience, not from a script, and they will
-not be routed to whoever wrote that module.
-
-See [`qa_preparation.md`](qa_preparation.md).
+outputs."* Questions come from the audience and will not be routed to whoever
+wrote that module. See [`qa_preparation.md`](qa_preparation.md).
 
 ## Files
 
