@@ -13,8 +13,10 @@ def load_rows(filename):
                 header = next(reader)
             except StopIteration:
                 raise ValueError("CSV file is empty")
-            
-            validate_header(header)
+            try:
+                validate_header(header)
+            except ValueError as error:
+                raise error
 
             for line_no, values in enumerate(reader, start=2):
                 row = {}

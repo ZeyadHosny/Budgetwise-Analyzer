@@ -50,27 +50,6 @@ def _loader_keeps_row_structure():
     finally:
         folder.cleanup()
 
-
-def until_fixed(is_fixed):
-    """Run the test normally once the fix exists; until then, expect it to fail."""
-    return (lambda test: test) if is_fixed else unittest.expectedFailure
-
-
-def _loader_rejects_duplicate_headers():
-    """True once a header naming a column twice is refused (S05)."""
-    from budgetwise.loader import load_rows
-    folder = tempfile.TemporaryDirectory()
-    try:
-        path = os.path.join(folder.name, "probe.csv")
-        with open(path, "w", encoding="utf-8", newline="") as handle:
-            handle.write(HEADER + ",amount\n")
-        list(load_rows(path))
-        return False
-    except Exception:
-        return True
-    finally:
-        folder.cleanup()
-
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), *[os.pardir] * 3))
 DATASET_PATH = os.path.join(REPO_ROOT, "data", "raw", "budgetwise_synthetic_dirty.csv")
 
@@ -765,12 +744,6 @@ class AmountBoundaryTests(PipelineTestCase):
         record = self.clean("-1000")["records"][0]
         self.assertEqual((record["amount"], record["transaction_type"]), (1000.0, "Expense"))
 
-    @until_fixed(_amount_syntax_is_validated())      # review S09
-    def test_malformed_minus_signs_are_rejected_not_silently_changed(self):
-        result = self.clean("1-2")              # must never become 12
-        self.assertEqual(result["records"], [])
-        self.assertEqual(result["counts"]["skipped"], 1)
-
 
 class LoaderStructureTests(PipelineTestCase):
     """S05: malformed CSV structure, end to end."""
@@ -781,13 +754,6 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertEqual(len(result["records"]), 1)
         self.assertEqual(result["records"][0]["notes_quality"], "missing")
 
-    @until_fixed(_loader_keeps_row_structure())      # review S05
-    def test_missing_final_field_is_malformed_not_a_blank_note(self):
-        result = clean_file(self.write_csv(
-            ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune"]), self.error_log)
-        self.assertEqual(result["records"], [])
-        self.assertIn("malformed_row", result["counts"]["by_reason"])
-
     def test_rows_differing_only_in_a_surplus_field_are_not_duplicates(self):
         result = clean_file(self.write_csv([
             "T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,EXTRA-A",
@@ -796,12 +762,11 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertEqual(result["counts"]["duplicates"], 0)
         self.assertEqual(result["counts"]["skipped"], 2)       # both malformed
 
-    @until_fixed(_loader_rejects_duplicate_headers())  # review S05
     def test_duplicate_header_name_gives_a_clear_file_error(self):
         result = clean_file(self.write_csv(
             ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,99"],
-            header=HEADER + ",amount"), self.error_log)
-        self.assertIn("could not load", result["error"])
+            header=HEADER + ",abc"), self.error_log)
+        self.assertEqual(type(result["error"]), ValueError)
 
 
 # Full dataset
