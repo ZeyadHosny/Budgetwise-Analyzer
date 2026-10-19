@@ -1,19 +1,6 @@
 # menu
 
-The interactive text menu - the program's entry point.
-
-| | |
-|---|---|
-| **Responsible** | Zeyad |
-| **Domain reviewer** | Patrick (`P3.5`) |
-| **Task** | `P3.5` |
-| **Assignment** | sec 4.1 menu-driven loading, five options, `while` loop over `input()`; sec 2 text menu, no GUI |
-| **Depends on** | `P2.10` `run()` - Sarah; `P3.3` `P3.4` `P3.6` `P3.7` for display |
-| **Status** | Implemented; the pipeline it calls is not yet written |
-
-## The five options
-
-sec 4.1 prints the menu it expects, so this is not open to interpretation:
+The interactive text menu. `main.py` starts it with `run_menu()`.
 
 ```
 === BudgetWise Finance Analyzer ===
@@ -25,45 +12,46 @@ sec 4.1 prints the menu it expects, so this is not open to interpretation:
 Choose an option:
 ```
 
-**Option 3 is the one teams miss.** sec 4.1's prose mentions only a date
-range; the category filter appears solely in the printed block.
+## Options
 
-## Nothing may crash
+| Option | What it does |
+|---|---|
+| `1` | Runs the pipeline on the dataset in `budgetwise/settings.py` and prints the export paths and cleaning counts. |
+| `2` | Shows the dataset's date range, asks for a start and end date (`YYYY-MM-DD`), and runs the pipeline on that range. Undated rows are excluded. |
+| `3` | Lists the 14 categories, asks for one (case-insensitive), and runs the pipeline on that category. |
+| `4` | Prints `output/logs/errors.log`, or a message if it does not exist. |
+| `5` | Exits. |
 
-sec 7 grades *"the program runs on real, messy data without crashing"*, and
-this is demonstrated live on Oct 19.
+The menu repeats after options 1-4.
+
+## Invalid input
 
 | Input | Response |
 |---|---|
-| `9`, `banana`, empty | `Please choose 1 to 5.` and reprompt |
-| `2023-13-45` at a date prompt | `Not a valid date.` and reprompt |
-| end date before start | rejected and reprompt |
-| unknown category | lists the available ones and reprompts |
-| `Ctrl+C` | exits cleanly, no traceback |
+| Anything other than `1`-`5` | `Please choose 1 to 5.` and asks again |
+| Invalid date, e.g. `2023-13-45` | `Not a valid date.` and asks again |
+| End date before start date | Explains the problem and asks for both dates again |
+| Range outside the data | Accepted, with a note that it falls outside the dataset range |
+| Unknown category | Lists the valid categories and asks again |
+| Missing dataset file | `Could not open the dataset` and returns to the menu |
+| `Ctrl+C` or end of input | Exits without a traceback |
 
-## This module owns the printing
+## Demo mode
 
-Everywhere else returns values. `interface/` is the only place `print()` and
-`input()` appear - that separation is what lets every other module be tested
-without simulating a user.
-
-## Running it before the pipeline exists
-
-`run()` is `P2.10`. Until it lands, the menu runs against a small built-in
-sample so the flow can be demonstrated:
+Runs the menu on six built-in sample rows, without reading the CSV. Run from the repository folder:
 
 ```bash
-python implementation/menu.py --demo
+python -m budgetwise.interface.menu.implementation.menu --demo
 ```
 
-`P2.10` is merged, so the fallback is no longer a stand-in for missing
-work. It stays because the loop tests need a pipeline that touches no
-disk; see `demo_run`'s docstring for the contract it has to keep.
+The unit tests use the same sample data (`demo_run`).
 
-## Folders
+## Files
 
-| Folder | Contents |
+| Path | Contents |
 |---|---|
-| `implementation/` | `menu.py` |
-| `testing/` | `test_menu.py` - 23 cases, `input()` patched. Export behaviour is covered by `TC-052`-`TC-054` in `tests/end_to_end/`, not here |
-| `supplementary/` | `menu_flow.md` - feeds sec 5's design flow diagram |
+| `implementation/menu.py` | Menu loop, input prompts, and result summary |
+| `testing/test_menu.py` | Unit tests with `input()` patched |
+| `supplementary/menu_flow.md` | Flow of each option through the program |
+
+End-to-end menu tests are in `tests/end_to_end/test_menu_e2e.py`.

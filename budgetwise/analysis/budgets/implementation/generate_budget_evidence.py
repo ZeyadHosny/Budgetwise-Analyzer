@@ -3,6 +3,7 @@
 import argparse
 import json
 import math
+from calendar import monthrange
 from datetime import datetime
 from pathlib import Path
 from statistics import median
@@ -10,10 +11,11 @@ from statistics import median
 from budgetwise.analysis.aggregation import totals_by_month_and_category
 from budgetwise.analysis.budgets.implementation.limits import load_limits
 from budgetwise.pipeline import clean_file
+from budgetwise.settings import (
+    BUDGET_BASELINE_START, BUDGET_BASELINE_END, DATASET_PATH, PROJECT_ROOT,
+)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-DEFAULT_DATASET = PROJECT_ROOT / "data" / "raw" / "budgetwise_synthetic_dirty.csv"
 DEFAULT_CONFIG = PROJECT_ROOT / "config" / "monthly_budgets.json"
 DEFAULT_JUSTIFICATION = (
     PROJECT_ROOT / "budgetwise" / "analysis" / "budgets" / "supplementary"
@@ -153,13 +155,22 @@ def _render_justification(months, evidence, dataset_path, increment):
     return "\n".join(rows)
 
 
-def generate(dataset_path=DEFAULT_DATASET, config_path=DEFAULT_CONFIG,
+def generate(dataset_path=DATASET_PATH, config_path=DEFAULT_CONFIG,
              justification_path=DEFAULT_JUSTIFICATION,
              increment=ROUNDING_INCREMENT):
     """Update the configured limits and write the accompanying evidence."""
     dataset_path = Path(dataset_path)
     config_path = Path(config_path)
     justification_path = Path(justification_path)
+
+    baseline_start = datetime.strptime(BUDGET_BASELINE_START, "%Y-%m-%d").date()
+    baseline_end = datetime.strptime(BUDGET_BASELINE_END, "%Y-%m-%d").date()
+    if baseline_start > baseline_end:
+        raise ValueError("Budget baseline start cannot be after its end.")
+    if (baseline_start.day != 1 or
+            baseline_end.day != monthrange(baseline_end.year, baseline_end.month)[1]):
+        raise ValueError("Budget baseline must use complete calendar months.")
+    start, end = baseline_start.isoformat(), baseline_end.isoformat()
 
     with config_path.open("r", encoding="utf-8") as config_file:
         config = json.load(config_file)
@@ -169,22 +180,23 @@ def generate(dataset_path=DEFAULT_DATASET, config_path=DEFAULT_CONFIG,
     if cleaned["error"]:
         raise RuntimeError(cleaned["error"])
 
-    # Use 2019–2021 to set limits; reserve 2022 for comparison.
+    # Only the configured history contributes to budget limits.
     baseline_records = [
         record
         for record in cleaned["records"]
-        if (month := _transaction_month(record)) is not None
-        and "2019-01" <= month <= "2021-12"
+        if record["date"] is not None and start <= record["date"] <= end
     ]
+
+    observed_months = sorted({_transaction_month(record) for record in baseline_records})
+    if (not observed_months or observed_months[0] != start[:7]
+            or observed_months[-1] != end[:7]):
+        raise ValueError(
+            f"Budget baseline must cover {start} to {end}."
+        )
 
     months, evidence = calculate_evidence(
         baseline_records, limits.keys(), increment
     )
-
-    if months != _month_range("2019-01", "2021-12"):
-        raise ValueError(
-            "Budget baseline must cover January 2019 to December 2021."
-        )
 
     config["limits"] = {item["category"]: item["limit"] for item in evidence}
     config["_comment"] = (
@@ -207,7 +219,7 @@ def generate(dataset_path=DEFAULT_DATASET, config_path=DEFAULT_CONFIG,
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
+    parser.add_argument("--dataset", type=Path, default=DATASET_PATH)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--justification", type=Path, default=DEFAULT_JUSTIFICATION)
     parser.add_argument("--increment", type=float, default=ROUNDING_INCREMENT)

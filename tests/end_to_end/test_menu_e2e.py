@@ -152,7 +152,7 @@ def range_check(start, end, outside):
 
 
 # Anchored to the D01 dataset's span, 2019-01-01 to 2022-12-31, which
-# menu.DATASET_FIRST_DATE and DATASET_LAST_DATE report as the hint range.
+# the date prompt derives from the cleaned default dataset.
 # Move these whenever that span moves, or the boundary cases stop testing
 # the boundary.
 for name, start, end, outside in [
@@ -318,8 +318,24 @@ class MenuWorkflowTests(WorkflowCase):
         self.counts_output(1, 1, 1, 0, 0)
         self.assertNotIn('will match no transactions', self.last_stdout,
                          'The menu predicts zero matches even though the selected dataset has a matching transaction')
-        self.assertIn('Reference dataset date range:', self.last_stdout)
-        self.assertIn('Results depend on the selected dataset.', self.last_stdout)
+        self.assertIn('Selected dataset date range: 2026-10-01 to 2026-10-01', self.last_stdout)
+        self.assertNotIn('falls outside', self.last_stdout)
+
+    def test_date_hint_uses_cleaned_dates_and_excludes_rejected_amounts(self):
+        self.load([
+            row(10, date='03/01/2024'),
+            row(20, date='2024-07-31'),
+            row('BAD', date='2099-01-01'),
+            row(30, date='invalid'),
+        ], start='2024-03-01', end='2024-07-31')
+        self.assertIn('Selected dataset date range: 2024-03-01 to 2024-07-31', self.last_stdout)
+        self.assertNotIn('falls outside', self.last_stdout)
+
+    def test_no_usable_dates_does_not_invent_a_date_hint(self):
+        self.load([row(10, date='')], start='2024-01-01', end='2024-12-31')
+        self.assertIn('No valid dated transactions', self.last_stdout)
+        self.assertNotIn('falls outside', self.last_stdout)
+        self.assertNotIn('dataset date range:', self.last_stdout)
 
 
 def interrupt_check(prefix, exception):
