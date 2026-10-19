@@ -1,77 +1,47 @@
 # models
 
-The object model — transaction classes and the budget class.
+Transaction, account, and budget classes used by the rest of the package. This folder does not import from any other feature.
 
-| | |
-|---|---|
-| **Responsible** | Zeyad |
-| **Domain reviewer** | Patrick (`P2.5`) |
-| **PR approval** | Zeyad or Patrick — see `CONTRIBUTING.md` |
-| **Tasks** | `P2.5` |
-| **Status** | Budget model implemented; design documentation remains |
+## Classes
 
-## 1. What this folder does
+| Class | Parent | Purpose |
+|---|---|---|
+| `Transaction` | - | Base class for one cleaned transaction. |
+| `ExpenseTransaction` | `Transaction` | Money going out. Signed amount is negative. Adds `is_discretionary()`. |
+| `IncomeTransaction` | `Transaction` | Money coming in. Signed amount is positive. Adds `is_earned()` and `get_source_type()`. |
+| `Account` | - | Base class for a group of transactions by payment mode. |
+| `CashAccount` | `Account` | Cash payments. Not reconcilable. |
+| `BankAccount` | `Account` | Card, UPI, and Bank Transfer payments. Reconcilable. |
+| `UnknownAccount` | `Account` | Rows with no payment mode. Not reconcilable. |
+| `Budget` | - | A category's monthly limit and its over/under comparison. |
 
-The classes every other module passes around. This folder is where §4.3 is
-satisfied, and §4.3 is graded directly: inheritance, encapsulation, and a Budget
-class are all named requirements.
+`Transaction.get_transaction_type()`, `Transaction.get_signed_amount()`, `Account.is_reconcilable()`, and `Account.describe()` raise `NotImplementedError`; the subclasses provide them.
 
-**The data does not support an Account hierarchy.** The nine columns include
-`user_id` and `payment_mode` but nothing describing an account type. The
-assignment marks the `Account` hierarchy as *suggested, not required*, and warns
-against "artificial subclasses solely to satisfy the requirement". Design classes
-the data actually supports and record the reasoning — that decision belongs to
-`G1`.
+## Encapsulation
 
-## 2. How other modules use it
+Attributes are private (for example `__amount`, `__kind`, `__transactions`) and read through `get_` methods. `set_amount()` rejects negative, missing, and non-numeric values. `Account.get_transactions()` returns a copy, so the stored list cannot be changed from outside. `Budget` rejects an empty category and negative limits.
+
+## Usage
 
 ```python
-from budgetwise.models import Transaction, ExpenseTransaction, Budget
+from budgetwise.models import ExpenseTransaction, Budget
 
-t = ExpenseTransaction(
-    transaction_id="T4999", user_id="U018",
-    date="2023-07-14", category="Food", amount=5891.0,
-)
-t.signed_amount        # -5891.0 — direction from the subclass, not the sign
-t.month                # ("2023", "07") — the tuple key analysis groups by
+t = ExpenseTransaction("T4999", "U018", "2023-07-14", "Food", 5891.0)
+t.get_signed_amount()   # -5891.0
+t.get_month()           # ('2023', '07')
+t.is_discretionary()    # True
+t.set_amount(-5)        # ValueError
+
+Budget("Food", 67000).status(52014)   # ('under', -14986.0)
 ```
 
-Every module uses these. They depend on nothing else in the package.
+`Budget.status()` returns `over`, `under`, or `exact` with the difference (actual minus limit).
 
-## 3. What it produces
+## Files
 
-| Expression | Returns | Why |
-|---|---|---|
-| `ExpenseTransaction(...).signed_amount` | `-5891.0` | Direction comes from `transaction_type`, never the raw sign (§4.5) |
-| `IncomeTransaction(...).signed_amount` | `+5891.0` | Same rule, opposite sign |
-| `t.month` | `("2023", "07")` | The tuple key §4.2 requires |
-| `t.amount = -5` | `ValueError` | Amount is stored as an unsigned magnitude |
-| `Budget("Food", 8000).status(9500)` | `("over", 1500.0)` | §4.4 over/under indicator |
-
-## 4. Requirements and tasks covered
-
-| Requirement | Source | Task |
-|---|---|---|
-| At least one clear example of inheritance, meaningful "is-a" | §4.3 | `P2.5` |
-| Encapsulation — private/protected attributes with controlled access | §4.3 | `P2.5` |
-| A `Budget` class comparing spending to limits and flagging overages | §4.3 | `P2.5` |
-| Store transactions as a list of objects | §4.2 | `P2.5` |
-| Use tuples for fixed keys such as `(year, month)` | §4.2 | `P2.5` |
-| Direction from `transaction_type`, not the sign of the amount | §4.5 | `P2.5` |
-| Justify the class design in the report | §4.3 | `P4.4` |
-
-## 5. Folders
-
-| Folder | Contents |
+| Path | Contents |
 |---|---|
-| `implementation/` | `transaction.py`, `budget.py` |
-| `testing/` | `test_transaction.py`, `test_budget.py` |
-| `supplementary/` | `class_diagram.md`, `design_justification.md` |
-
-## 6. Done when
-
-- [ ] One base class with at least one subclass, a real "is-a" relationship
-- [ ] At least one protected or private attribute with a property controlling access
-- [ ] A test proves the attribute cannot be set to an invalid value
-- [ ] `Budget` returns over/under plus the difference
-- [ ] `class_diagram.md` and `design_justification.md` written — both are report material
+| `implementation/transaction.py` | `Transaction`, `ExpenseTransaction`, `IncomeTransaction`, category groups |
+| `implementation/account.py` | `Account`, `CashAccount`, `BankAccount`, `UnknownAccount` |
+| `implementation/budget.py` | `Budget` |
+| `testing/` | Unit tests for each module |
