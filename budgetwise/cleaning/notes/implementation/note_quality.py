@@ -1,4 +1,4 @@
-"""Notes quality (P2.7, Sarah).
+"""Notes quality.
 
 Labels each note's quality. The note text is never changed. Rules are
 explained in README.md.
@@ -12,7 +12,7 @@ MISSING = "missing"                    # blank or None
 NOT_AVAILABLE = "not_available"        # the text N/A
 LOW_INFORMATION = "low_information"    # known placeholder
 
-# Placeholders found in Phase 1, compared in lowercase.
+# Placeholders found when profiling the data, compared in lowercase.
 PLACEHOLDER_NOTES = ("...", "!!!", "xyz123", "test", "misc", "asdfgh")
 
 

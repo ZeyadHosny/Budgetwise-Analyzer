@@ -1,5 +1,5 @@
 """
-runner.py  -  the cleaning pipeline            (task P2.10, owner: Sarah)
+runner.py  -  the cleaning pipeline
 
 WHAT THIS FILE DOES
   It does not clean anything itself. It calls each teammate's function in
@@ -28,7 +28,7 @@ performed on the original raw rows before data normalization")
     8. date-range and category filters from the menu
     9. add_transaction()         models      cash, bank or unknown account
 
-HOW THE CLASSES ARE USED (budgetwise.models, Zeyad)
+HOW THE CLASSES ARE USED (budgetwise.models)
   Transaction          the parent. Never built directly: its
                        get_transaction_type() and get_signed_amount() only
                        work in a child. It has no create() factory, so the
@@ -42,7 +42,7 @@ HOW THE CLASSES ARE USED (budgetwise.models, Zeyad)
   BankAccount          one per load. Holds Card, UPI and Bank Transfer.
   UnknownAccount       one per load. Holds rows whose payment mode is Unknown.
   Budget               NOT used here. It compares monthly totals to limits,
-                       which is analysis (task P3.4), after the pipeline.
+                       which is analysis, after the pipeline.
   Every value on an object is private and read through a getter, for
   example transaction.get_amount() or account.get_transaction_count().
 
@@ -92,8 +92,8 @@ from budgetwise.errorlog import ErrorLog, Reason
 from budgetwise.loader import load_rows
 from budgetwise.interface.export import export_cleaned, export_summary, export_charts
 
-# The classes are Zeyad's task. Until they are merged, cleaning still works
-# and run() explains why it has no objects to return.
+# Model classes. If they cannot be imported, cleaning still works and
+# run() explains why there are no objects.
 try:
     from budgetwise.models import (BankAccount, CashAccount, ExpenseTransaction,
                                    IncomeTransaction, Transaction, UnknownAccount)
@@ -101,10 +101,8 @@ except ImportError:
     Transaction = ExpenseTransaction = IncomeTransaction = None
     CashAccount = BankAccount = UnknownAccount = None
 
-# Which account a payment mode belongs to (Zeyad's design: cash in hand
-# versus money held at a bank). Any other value, such as 'Unknown' for a
-# blank payment mode, goes to the UnknownAccount, which Zeyad's model
-# provides for exactly those rows.
+# Which account each payment mode goes to. Any other value, such as
+# 'Unknown' for a blank payment mode, goes to the UnknownAccount.
 CASH_MODES = {"Cash"}
 BANK_MODES = {"Card", "UPI", "Bank Transfer"}
 
@@ -522,7 +520,7 @@ def _selection(start, end, category):
 def _build_transaction(record):
     """Turn one cleaned record into an ExpenseTransaction or IncomeTransaction.
 
-    Zeyad's merged Transaction class has no create() factory, so the
+    The Transaction class has no create() factory, so the
     subclass is picked here. If a factory is added later, it is used
     instead. Any type other than Expense or Income raises an error, so
     it is never silently treated as income.

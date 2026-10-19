@@ -1,4 +1,4 @@
-"""Tests for date cleaning (P2.1).
+"""Tests for date cleaning.
 
 Run from the repository root:
     python3 -m unittest budgetwise.cleaning.dates.testing.test_parser -v
@@ -36,7 +36,7 @@ def load_column(column, path=None):
 
 
 class ValidFormatTests(unittest.TestCase):
-    """The four formats found in Phase 1, with the examples from that report."""
+    """The four formats found when profiling the data, with examples."""
 
     def test_iso_date_is_kept_with_no_reason(self):
         self.assertEqual(parse_date("2023-04-25"), ("2023-04-25", []))
@@ -152,7 +152,7 @@ class InvalidDateTests(unittest.TestCase):
 
 @unittest.skipUnless(DATASET_PATH, "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """Every count below comes from the Phase 1 date profile (15,900 rows)."""
+    """Every count below comes from profiling the finance file (15,900 rows)."""
 
     @classmethod
     def setUpClass(cls):
@@ -176,7 +176,7 @@ class FullDatasetTests(unittest.TestCase):
         ambiguous = Counter(
             find_date_format(raw) for raw in self.raw_values if is_ambiguous_date(raw)
         )
-        self.assertEqual(ambiguous["MM/DD/YYYY"], 1865)   # Phase 1 figure
+        self.assertEqual(ambiguous["MM/DD/YYYY"], 1865)   # profiled figure
         self.assertEqual(ambiguous["DD-MM-YY"], 1198)
         self.assertEqual(ambiguous["DD-MM-YYYY"], 650)
 

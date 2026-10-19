@@ -1,4 +1,4 @@
-"""Date cleaning (P2.1, Sarah).
+"""Date cleaning.
 
 Converts each raw date to YYYY-MM-DD, or returns None with a reason code.
 The separator and year length decide the format; the numbers are never used

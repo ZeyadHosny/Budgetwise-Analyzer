@@ -1,4 +1,4 @@
-"""Tests for notes quality (P2.7).
+"""Tests for notes quality.
 
 Run from the repository root:
     python3 -m unittest budgetwise.cleaning.notes.testing.test_note_quality -v
@@ -83,7 +83,7 @@ class LowInformationNoteTests(unittest.TestCase):
 
 @unittest.skipUnless(DATASET_PATH, "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """Re-profiled against budgetwise_synthetic_dirty.csv (15,836 rows), D01.
+    """Re-profiled against budgetwise_synthetic_dirty.csv (15,836 rows).
 
     COVERAGE WARNING. This dataset contains no placeholder notes and no
     "N/A" values, so LOW_INFORMATION and NOT_AVAILABLE are never produced
@@ -97,7 +97,7 @@ class FullDatasetTests(unittest.TestCase):
         cls.raw_values = load_column("notes")
         cls.results = [classify_note_quality(raw) for raw in cls.raw_values]
 
-    def test_quality_counts_match_phase_1(self):
+    def test_quality_counts_match_profile(self):
         qualities = Counter(quality for _, quality, _ in self.results)
         self.assertEqual(qualities, {MEANINGFUL: 14302, MISSING: 1534})
         self.assertEqual(qualities[LOW_INFORMATION], 0)
