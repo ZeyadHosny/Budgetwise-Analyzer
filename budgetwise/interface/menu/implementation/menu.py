@@ -8,7 +8,8 @@
 import sys
 from datetime import datetime
 from pathlib import Path
-from budgetwise.pipeline import run
+from budgetwise.pipeline import clean_file, run
+from budgetwise.settings import DATASET_PATH
 
 # The heading printed above the options on every pass of the loop.
 BANNER = "=== BudgetWise Finance Analyzer ==="
@@ -22,8 +23,6 @@ OPTIONS = (
 )
 # The choices prompt_choice will accept. Anything else reprompts.
 VALID_CHOICES = ("1", "2", "3", "4", "5")
-# The dataset path, relative to the repository root.
-DATASET = "data/raw/budgetwise_synthetic_dirty.csv"
 # Where task P2.8 writes the error log that option 4 displays.
 ERROR_LOG = Path("output/logs/errors.log")
 # The date format section 4.5 standardizes every date to.
@@ -37,13 +36,6 @@ CATEGORIES = (
 )
 # How many category names to print per line when listing the options.
 CATEGORIES_PER_LINE = 4
-# Earliest transaction date in the dataset, measured over the 12,281 dated
-# rows that survive cleaning. Shown as a hint so the user does not pick a
-# range that matches nothing. It is NOT a validation rule: a wider range is
-# legitimate.
-DATASET_FIRST_DATE = "2019-01-01"
-# Latest transaction date in the dataset, measured the same way.
-DATASET_LAST_DATE = "2022-12-31"
 
 
 # Function to read a menu choice
@@ -90,8 +82,24 @@ def read_date(label):
                   "for example 2023-07-14.")
 
 
+class _DiscardErrorLog:
+    """Keep the date preview from adding duplicate entries to errors.log."""
+
+    def record(self, line, field, reason, raw):
+        pass
+
+
+def dataset_date_range(dataset):
+    """Find the cleaned date span without exporting or writing an error log."""
+    result = clean_file(dataset, error_log=_DiscardErrorLog())
+    if result["error"]:
+        raise result["error"]
+    dates = [record["date"] for record in result["records"] if record["date"]]
+    return (min(dates), max(dates)) if dates else None
+
+
 # Function to read a start and end date
-def prompt_date_range():
+def prompt_date_range(dataset=DATASET_PATH):
     """
     Description:
     - Read a start and end date for menu option 2.
@@ -108,13 +116,17 @@ def prompt_date_range():
       the one case that can never be what the user meant.
 
     Input arguments:
-       None (reads from input())
+       dataset: CSV file used to derive the date-range hint.
 
     Return:
         tuple: (start, end) as 'YYYY-MM-DD', with end on or after start.
     """
-    print(f"  Reference dataset date range: {DATASET_FIRST_DATE} to "
-      f"{DATASET_LAST_DATE}.")
+    span = dataset_date_range(dataset)
+    if span:
+        first_date, last_date = span
+        print(f"  Selected dataset date range: {first_date} to {last_date}.")
+    else:
+        print("  No valid dated transactions in the selected dataset.")
     print("  Rows with no date are excluded from a date range. ")
     while True:
         start = read_date("Start date")
@@ -123,11 +135,9 @@ def prompt_date_range():
             print(f"  The end date ({end}) is before the start date "
                   f"({start}). Enter the earlier date first.")
             continue
-        if end < DATASET_FIRST_DATE or start > DATASET_LAST_DATE:
+        if span and (end < first_date or start > last_date):
             print(f"  Note: {start} to {end} falls outside "
-                  f"the reference dataset range "
-                  f"{DATASET_FIRST_DATE} to {DATASET_LAST_DATE}. "
-                  f"\n  Results depend on the selected dataset.")
+                  f"the selected dataset range {first_date} to {last_date}.")
         return start, end
 
 
@@ -258,7 +268,7 @@ def missing_pipeline(*args, **kwargs):
 
 
 # Function holding the while loop section 4.1 requires
-def run_menu(pipeline_run=run, dataset=DATASET):
+def run_menu(pipeline_run=run, dataset=DATASET_PATH):
     """
     Description:
     - Run the menu loop section 4.1 requires. Prints the options, reads a
@@ -300,7 +310,7 @@ def run_menu(pipeline_run=run, dataset=DATASET):
                 print(format_summary(result))
 
             elif choice == "2":
-                start, end = prompt_date_range()
+                start, end = prompt_date_range(dataset)
                 result = pipeline_run(dataset, start=start, end=end)
                 if result["error"]:
                     raise result["error"]

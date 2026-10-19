@@ -28,8 +28,11 @@ import tempfile
 import time
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[3]
-DATASET = "data/raw/budgetwise_synthetic_dirty.csv"
+# Support direct execution before importing the package's shared settings.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from budgetwise.settings import DATASET_PATH, PROJECT_ROOT
+
+REPO = PROJECT_ROOT
 DEFAULT_RUNS = 7
 
 COLUMNS = [
@@ -47,7 +50,6 @@ COLUMNS = [
 
 def one_run(dataset):
     """Time one run. Imports happen before any timer starts."""
-    sys.path.insert(0, str(REPO))
     os.chdir(REPO)
     from budgetwise.errorlog import ErrorLog
     from budgetwise.pipeline.implementation import runner
@@ -106,7 +108,7 @@ def one_run(dataset):
 
 def main():
     parser = argparse.ArgumentParser(description="Time the BudgetWise pipeline.")
-    parser.add_argument("--dataset", default=DATASET,
+    parser.add_argument("--dataset", default=str(DATASET_PATH),
                         help="CSV to run on, relative to the repository root")
     parser.add_argument("--runs", type=int, default=DEFAULT_RUNS)
     args = parser.parse_args()
