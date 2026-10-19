@@ -1,4 +1,4 @@
-"""Tests for row checks (P2.4): required columns, duplicates, malformed rows
+"""Tests for row checks: required columns, duplicates, malformed rows
 and repeated IDs.
 
 Run from the repository root:
@@ -288,7 +288,7 @@ class RepeatedIdTests(unittest.TestCase):
 
 @unittest.skipUnless(DATASET_PATH, "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """Re-profiled for D01: 15,836 rows, 804 exact duplicates, 959 repeated IDs."""
+    """Dirty dataset: 15,836 rows, 804 exact duplicates, 959 repeated IDs."""
 
     @classmethod
     def setUpClass(cls):

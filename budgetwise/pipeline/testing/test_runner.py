@@ -1,4 +1,4 @@
-"""Tests for the cleaning pipeline (P2.10).
+"""Tests for the cleaning pipeline.
 
 Each test writes a small CSV to a temporary folder with its own ErrorLog, so
 the real loader and cleaners run together and output/logs/errors.log is never
@@ -16,7 +16,7 @@ from unittest import mock
 from budgetwise.errorlog import ErrorLog
 from budgetwise.pipeline import clean_file, run
 
-# Zeyad's model classes (#16).
+# Model classes.
 from budgetwise.models import (Account, BankAccount, CashAccount, ExpenseTransaction,
                                IncomeTransaction, Transaction, UnknownAccount)
 
@@ -26,7 +26,7 @@ RUNNER = "budgetwise.pipeline.implementation.runner"
 # Checks on teammates' open defects. Each test is an expected failure until
 # the fix is merged, then it passes. It is never skipped.
 def _amount_syntax_is_validated():
-    """True once parse_amount() rejects '1-2' (review item S09, Patrick)."""
+    """True once parse_amount() rejects '1-2' (review item S09)."""
     from budgetwise.cleaning.amounts import parse_amount
     try:
         return parse_amount("1-2")[0] is None
@@ -36,7 +36,7 @@ def _amount_syntax_is_validated():
 
 def _loader_keeps_row_structure():
     """True once load_rows() no longer pads a short row with blanks or drops
-    surplus fields (review item S05, Patrick)."""
+    surplus fields (review item S05)."""
     from budgetwise.loader import load_rows
     folder = tempfile.TemporaryDirectory()
     try:
@@ -57,7 +57,7 @@ def until_fixed(is_fixed):
 
 
 def _loader_rejects_duplicate_headers():
-    """True once a header naming a column twice is refused (S05, Patrick)."""
+    """True once a header naming a column twice is refused (S05)."""
     from budgetwise.loader import load_rows
     folder = tempfile.TemporaryDirectory()
     try:
@@ -524,7 +524,7 @@ class FilterTests(PipelineTestCase):
         ))
 
 
-# Regression tests for Phase 2 review items S04, S06, S07, S12
+# Regression tests for review items S04, S06, S07, S12
 
 CLEAN_ROW = "{id},U001,2023-01-0{day},Expense,Food,{amount},Cash,Pune,{note}"
 
@@ -643,7 +643,7 @@ class FailureBoundaryTests(PipelineTestCase):
         second = clean_file(path, self.error_log)
         self.assertEqual(first["counts"], second["counts"])
         self.assertEqual(len(first["issues"]), len(second["issues"]))
-        # The log file is in append mode (Patrick's choice), so it holds both.
+        # The log file is in append mode, so it holds both.
         self.assertEqual(len(self.error_log.read()), 2 * len(first["issues"]))
 
 
@@ -765,7 +765,7 @@ class AmountBoundaryTests(PipelineTestCase):
         record = self.clean("-1000")["records"][0]
         self.assertEqual((record["amount"], record["transaction_type"]), (1000.0, "Expense"))
 
-    @until_fixed(_amount_syntax_is_validated())      # review S09, Patrick
+    @until_fixed(_amount_syntax_is_validated())      # review S09
     def test_malformed_minus_signs_are_rejected_not_silently_changed(self):
         result = self.clean("1-2")              # must never become 12
         self.assertEqual(result["records"], [])
@@ -781,7 +781,7 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertEqual(len(result["records"]), 1)
         self.assertEqual(result["records"][0]["notes_quality"], "missing")
 
-    @until_fixed(_loader_keeps_row_structure())      # review S05, Patrick
+    @until_fixed(_loader_keeps_row_structure())      # review S05
     def test_missing_final_field_is_malformed_not_a_blank_note(self):
         result = clean_file(self.write_csv(
             ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune"]), self.error_log)
@@ -796,7 +796,7 @@ class LoaderStructureTests(PipelineTestCase):
         self.assertEqual(result["counts"]["duplicates"], 0)
         self.assertEqual(result["counts"]["skipped"], 2)       # both malformed
 
-    @until_fixed(_loader_rejects_duplicate_headers())  # review S05, Patrick
+    @until_fixed(_loader_rejects_duplicate_headers())  # review S05
     def test_duplicate_header_name_gives_a_clear_file_error(self):
         result = clean_file(self.write_csv(
             ["T0001,U001,2023-01-01,Expense,Food,10,Cash,Pune,Lunch,99"],
@@ -808,7 +808,7 @@ class LoaderStructureTests(PipelineTestCase):
 
 @unittest.skipUnless(os.path.exists(DATASET_PATH), "raw dataset not found in data/raw/")
 class FullDatasetTests(unittest.TestCase):
-    """The G2 reconciliation on all 15,836 rows of the D01 dataset."""
+    """The reconciliation on all 15,836 rows of the dirty dataset."""
 
     @classmethod
     def setUpClass(cls):
@@ -833,14 +833,13 @@ class FullDatasetTests(unittest.TestCase):
     def test_skipped_rows_are_blank_amounts_and_sentinels(self):
         self.assertEqual(self.reasons["missing_amount"], 170)
         # This dataset carries no 999999999 sentinels; the §4.5 rule still
-        # runs, it simply never fires here. See D01.
+        # runs, it simply never fires here.
         self.assertEqual(self.reasons.get("sentinel_amount", 0), 0)
 
     def test_rows_with_no_date_are_kept(self):
         undated = sum(1 for record in self.result["records"] if record["date"] is None)
-        # 322 rows arrive blank; a further 2,259 hold a shape parse_date
-        # cannot read, so 17% of valid rows end up with no date. Every
-        # monthly figure excludes them - see D01.
+        # 322 rows arrive blank and 12 slash dates are invalid (section 4.5).
+        # Undated rows stay in overall totals but not in monthly figures.
         self.assertEqual(undated, 334)
         self.assertEqual(self.reasons["missing_date"], 322)
         self.assertEqual(self.reasons["invalid_date"], 12)

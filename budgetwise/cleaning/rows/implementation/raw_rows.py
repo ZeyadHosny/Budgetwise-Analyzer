@@ -1,4 +1,4 @@
-"""Row checks (P2.4, Sarah).
+"""Row checks.
 
 Works on whole raw rows, before any column is cleaned:
   * exact duplicate detection with a set
