@@ -269,7 +269,7 @@ The timing script runs the full pipeline several times and reports each stage's 
 
 Use this script, not the JSON summary, for execution-time results. The JSON summary also has a `metrics.timings_seconds` section, but it times only loading and cleaning; its `analysis` field is always `0.0` and should be ignored.
 
-Expected test result: `Ran 806 tests ... OK (expected failures=3)`. The three expected failures are known input-validation limitations: malformed minus signs, missing trailing CSV fields, and duplicate column headers. The suite also prints a note that test cases TC-038, TC-049, TC-076, TC-086, and TC-087 are checked manually.
+Expected test result: `Ran 804 tests ... OK`. The suite also prints a note that test cases TC-038, TC-049, TC-076, TC-086, and TC-087 are checked manually.
 
 ## Code layout
 

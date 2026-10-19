@@ -283,7 +283,7 @@ class MenuWorkflowTests(WorkflowCase):
 
     def test_missing_dataset_failure_message(self):
         self.session(self.directory / 'missing.csv', ['1', '5'])
-        self.assertIn('Could not open the dataset: CSV is missing', self.last_stdout)
+        self.assertIn('Could not open the dataset: File not found', self.last_stdout)
         self.assertNotIn('Matching transactions:', self.last_stdout)
         self.assertNotIn('JSON summary:', self.last_stdout)
 

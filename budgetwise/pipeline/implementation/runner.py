@@ -180,11 +180,12 @@ def _clean_rows(path, error_log):
     try:
         numbered_rows = list(load_rows(path))
     except ValueError as error:  # missing file, bad header, bad encoding
-        result["error"] = ValueError("CSV is empty")
+        print(type(error))
+        result["error"] = error
         record_issue(0, "file", Reason.FILE_NOT_LOADED, str(error))
         return result
     except FileNotFoundError as error:
-        result["error"] = FileNotFoundError("CSV is missing")
+        result["error"] = error
         record_issue(0, "file", Reason.FILE_NOT_LOADED, str(error))
         return result
 
