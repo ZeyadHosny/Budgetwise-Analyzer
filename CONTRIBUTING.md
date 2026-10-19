@@ -63,7 +63,7 @@ Run from the repository folder before opening a pull request:
 python -m unittest discover
 ```
 
-The current result is `Ran 806 tests ... OK (expected failures=3)`. Check the number of tests, not only `OK`; a `testing/` folder without `__init__.py` is skipped silently.
+The current result is `Ran 804 tests ... OK`. Check the number of tests, not only `OK`; a `testing/` folder without `__init__.py` is skipped silently.
 
 ## Quick reference
 
@@ -72,5 +72,5 @@ BRANCH   feat/p3-6-text-bar-chart
 COMMIT   P2.6: map fooood to Food
 REVIEW   one approval, never your own
 IMPORT   from budgetwise.<area>.<feature> import <name>
-TESTS    python -m unittest discover   (806 tests, 3 expected failures)
+TESTS    python -m unittest discover   (804 tests)
 ```
