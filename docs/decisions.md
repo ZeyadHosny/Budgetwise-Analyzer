@@ -1,7 +1,8 @@
 # Decision record
 
-Every decision the team makes that affects more than one person. Date it, name
-who agreed it, and say what evidence supported it.
+Every decision the team made that affects more than one module, with the
+reasoning and evidence behind it. All figures are from the final run on
+`budgetwise_synthetic_dirty.csv` and match the report.
 
 A decision that is not written down gets re-argued. A decision without its
 reasoning cannot be defended in the report or in Q&A.
@@ -9,7 +10,7 @@ reasoning cannot be defended in the report or in Q&A.
 ## Format
 
 ```
-## D01 — Short title
+## Dxx: Short title
 Date · Decided by · Task
 **Decision:** what was agreed.
 **Why:** the reasoning and evidence.
@@ -18,269 +19,152 @@ Date · Decided by · Task
 
 ---
 
-## Open — to be closed at G1
+## Summary
 
-These block work that is already scheduled. Each needs a decision, not a
-discussion.
-
-| # | Decision | Task | Blocks |
-|---|---|---|---|
-| D01 | Which CSV is the official dataset | `P0.2` | every reported figure · **recorded below, awaiting agreement** |
-| ~~D02~~ | ~~Whether the Kaggle licence permits committing raw data~~ | `P0.2` `P4.3` | **closed — see below** |
-| D03 | Class design, given the data has no account-type field | `P2.5` | `models/`, the report |
-| D04 | The closed category set — six contested names | `P1.2` | `cleaning/categories/`, every total |
-| D05 | Shared interfaces — raw row, cleaned row, transaction, error entry | `P1.5` | all four cleaners |
-| D06 | Budget scope — which five categories, what limits, what justification | `P3.3` | `analysis/budgets/`, the report · **recorded below, awaiting agreement** |
-| D07 | How to handle the missing merchant column | `P4.4` | §4.2 compliance |
-| D08 | Corrected vs skipped — where the boundary sits | `P3.5` `P2.10` | three reported counts · **proposal recorded below, awaiting agreement** |
-| D09 | Who owns the CSV loader | — | all of Phase 2 |
-| D10 | How hyphen dates with a four-digit year are read | `P2.1` | `cleaning/dates/`, every date-based figure · **recorded below, date and names to be filled in** |
-| D11 | One shared reason-code vocabulary and casing | `P2.8` `P2.10` | `errorlog/`, every cleaner, `pipeline/` · **proposal recorded below, awaiting agreement** |
-
-### D01 — dataset evidence already gathered
-
-`data/README.md` sets out the case that `budgetwise_finance_dataset.csv` is the
-file the assignment was written against: it is the only one containing `Rs.` and
-`INR` labels, the only one with `999999999` sentinel rows, and the only one whose
-per-symbol medians fall in the 5,600–6,600 band §4.5 cites.
-
-The decision has since been made the other way; see **D01** under *Recorded for
-Phase 3* below, where this evidence is restated as the case still to be answered.
-
-### D04 — the six contested category names
-
-`config/category_mapping.csv` marks 20 rows `G1` across six names: `Travel`
-(vs *Transportation*), `Health` (vs *Healthcare*), `Others` (vs *Other*),
-`Bonus`, `Freelance`, and `Savings` — the last three absent from the
-assignment's example list entirely. Also note `Shopping` appears in the example
-list but in neither dataset.
+| # | Decision | Status |
+|---|---|---|
+| D01 | `budgetwise_synthetic_dirty.csv` is the official dataset | Agreed, implemented |
+| D02 | The dataset licence permits committing the raw files | Closed |
+| D03 | Class design: transaction subclasses and payment-method account groups | Agreed, implemented |
+| D04 | A closed set of 14 categories | Agreed, implemented |
+| D05 | Shared interfaces between modules | Agreed, recorded in [`interfaces.md`](interfaces.md) |
+| D06 | Budget scope: five categories, limits from the 2019 to 2021 median | Agreed, implemented |
+| D07 | No merchant column in the data | Agreed |
+| D08 | Definitions of valid, skipped, duplicate, corrected and flagged | Agreed, implemented |
+| D09 | The CSV loader is a separate module (`P2.9`) | Agreed, implemented |
+| D10 | Hyphen dates with a four-digit year are read day first | Agreed, implemented |
+| D11 | One shared reason-code list | Agreed, implemented |
 
 ---
 
-## Recorded for Phase 2 — awaiting sign-off
+## D01: `budgetwise_synthetic_dirty.csv` is the official dataset
 
-Added 2026-10-11 by Sarah for `P2.1` and `P2.10`. Each entry says plainly
-whether it has been agreed. Move an entry to **Closed** only when the date and
-the people who agreed it are filled in.
+Recorded 2026-10-17 · Agreed by the team · `P0.2`
 
-## D10 — Hyphen dates with a four-digit year are read day first
+**Decision:** `data/raw/budgetwise_synthetic_dirty.csv` (15,836 rows, nine
+columns) is the dataset every reported figure comes from.
+`budgetwise_finance_dataset.csv` stays in the repository. The same code cleans
+both files with no special cases, and the date tests still run on both.
 
-Date: *fill in* · Decided by: *fill in the names* · `P2.1`
+**Why:** It is the harder and more realistic test of the cleaning rules. It
+has more category spellings, scrambled names, more users and a wider date
+range, so reporting from it is the stronger demonstration of robustness
+(§7, correctness and robustness).
 
-**Decision:** A date of the form `NN-NN-YYYY` is read as `DD-MM-YYYY`. So
-`04-11-2024` is 4 November 2024.
-
-This completes the set of date rules. The first two are mandatory in §4.5; the
-third is the team's own:
-
-| Separator and year | Read as | Source |
-|---|---|---|
-| slash, four-digit year | `MM/DD/YYYY` | §4.5, mandatory |
-| hyphen, two-digit year | `DD-MM-YY` | §4.5, mandatory |
-| hyphen, four-digit year | `DD-MM-YYYY` | this decision |
-
-The separator alone decides how a date is read, never the numbers in it.
-
-**Why:** §4.5 gives a rule for hyphen dates with a two-digit year but says
-nothing about a four-digit year, and the dataset has 1,603 of them. Reading
-them day first is consistent with the mandatory hyphen rule, and the data
-supports it: across those 1,603 rows the first number is above 12 in 953 rows
-and the second number is never above 12. A month-first reading would make 953
-dates impossible. 650 of the 1,603 are ambiguous (both numbers 12 or less) and
-are settled by this rule.
-
-Evidence: `budgetwise/cleaning/dates/supplementary/date_evidence.md`.
-
-**Affects:** `budgetwise/cleaning/dates/` · every monthly figure in
-`analysis/` · the date convention the report must document (§4.5, `P4.4`).
-
-**Status:** implemented and tested in `parse_date()`, merged to `main`. The
-date and the names of those who agreed still need recording here.
-
-## D08 — Corrected, flagged and skipped: definitions of the pipeline counts
-
-**Proposed** 2026-10-11 by Sarah · **not yet agreed** · to be confirmed with
-Patrick and Zeyad · `P2.10`, feeds `P3.5`
-
-**Proposal:** Every input row ends in exactly one of three places, and
-`input = valid + skipped + duplicates` always holds.
-
-| Count | A row is counted here when |
-|---|---|
-| `duplicates` | it is an exact copy of an earlier raw row, judged before any cleaning |
-| `skipped` | it cannot be cleaned: a field is absent; `transaction_id`, `user_id` or `transaction_type` cannot be used; or the amount is blank, unreadable or 100,000,000 or more |
-| `valid` | everything else. One cleaned record each |
-
-Two further counts describe the **valid** rows only:
-
-| Count | A valid row is counted here when |
-|---|---|
-| `corrected` | at least one value was changed to its standard form: date reformatted, category, payment mode or location normalized, currency label or minus sign removed |
-| `flagged` | it was kept with at least one concern and the value left alone: no date, unusual ID format, repeated ID, blank or placeholder note |
-
-Rules for these two:
-
-- A row is counted **at most once** in each, however many reasons it carries.
-- A row **can be in both**. `corrected + flagged` can therefore exceed `valid`.
-- A row with no issue at all is in neither.
-- A missing or invalid date makes a row flagged, never skipped (§4.5).
-- A repeated `transaction_id` makes a row flagged, never a duplicate (§4.5).
-
-Counts for building objects are kept separate (`objects_built`,
-`objects_failed`), so a class refusing a record never changes `valid` or
-`skipped`. Such a record is logged as `transaction_not_built`, and because
-that is not a correction it currently makes the row **flagged**. The code,
-`interfaces.md` and this entry all say the same; the team should confirm it.
-
-**Why:** §5 requires valid, corrected and skipped to be reported separately.
-Without one definition the numbers cannot be compared between runs. Counting a
-row once per action, not once per reason, stops a single messy row inflating
-the totals. Keeping a missing date as flagged follows §4.5, which says such
-rows may still count toward category totals.
-
-On the full dataset this gives 15,900 = 14,651 valid + 349 skipped + 900
-duplicates, with 14,587 corrected and 6,768 flagged. The last two will change
-when the payment-mode mapping is fixed.
-
-**Affects:** `budgetwise/pipeline/` · `metrics/` · the §5 results table in the
-report · `interfaces.md`.
-
-**Open questions for the team:**
-
-- Is "skipped" the right status for a row with a blank amount (271 rows after
-  duplicates are removed)? The Phase 2 specification's wording is looser.
-- Should a payment mode or location set to `Unknown` count as corrected, as it
-  does now, or as flagged?
-- Should a record the model classes refuse count as flagged, as it does now,
-  or only in `objects_failed`?
-
-## D11 — One shared reason-code vocabulary
-
-**Proposed** 2026-10-11 by Sarah · **not yet agreed** · needs Patrick
-(`P2.8`), with Henrieta and Zeyad for their cleaners · `P2.10`
-
-**The problem:** three vocabularies are in use.
-
-| Where | Casing | Examples |
-|---|---|---|
-| `budgetwise/errorlog/` `Reason` list | lowercase | `missing_date`, `unrecognized_date_format`, `impossible_date`, `duplicate_row`, `missing_required_field`, `sentinel_amount` |
-| Cleaners for dates, rows, notes, categories, payment modes, locations | UPPERCASE | `MISSING_DATE`, `INVALID_DATE`, `DATE_NORMALIZED`, `MALFORMED_ROW`, `NOTES_MISSING`, `CATEGORY_NORMALIZED` |
-| Phase 2 specification | UPPERCASE | `DUPLICATE_RAW_ROW`, `MALFORMED_ROW`, `SENTINEL_AMOUNT_INVALID` |
-
-The names also differ, not only the casing: the date cleaner returns
-`INVALID_DATE`, while the `Reason` list has `unrecognized_date_format` and
-`impossible_date` and no `invalid_date`.
-
-**Current behaviour, pending a decision:** the pipeline converts every code to
-lowercase before logging, so `errors.log` is consistent within itself. The
-logger writes whatever it is given and does not require lowercase. Every code
-the pipeline creates itself is listed in one block at the top of
-`budgetwise/pipeline/implementation/runner.py`, so a change is made in one
-place.
-
-**Proposal for discussion:** the `Reason` list in `budgetwise/errorlog/`
-becomes the single vocabulary. It gains the codes it lacks
-(`date_normalized`, `invalid_date` or the two it already has, `malformed_row`,
-`repeated_transaction_id`, the notes, category, payment-mode and location
-codes), and each cleaner returns codes from it. Casing to be chosen once and
-applied everywhere.
-
-**Why it matters:** the professor requires traceable logging with a reason.
-Counts by reason in the report are only meaningful if one event always has one
-name.
-
-**Affects:** `errorlog/` · every cleaner · `pipeline/` · the pipeline test
-that checks codes are lowercase, which should be replaced by a test against
-the agreed list.
-
----
-
-## Recorded for Phase 3 — awaiting sign-off
-
-Added 2026-10-17 for `P3.3` and `P3.4`. Both entries record decisions already
-acted on in code. Move either to **Closed** only when the date and the people
-who agreed it are filled in.
-
-## D01 — `budgetwise_synthetic_dirty.csv` is the official dataset
-
-Date: *fill in* · Decided by: *fill in the names* · `P0.2`
-
-**Decision:** `data/raw/budgetwise_synthetic_dirty.csv` is the dataset every
-reported figure comes from. `budgetwise_finance_dataset.csv` stays in the
-repository but no longer backs any number in the report.
-
-**Why:** *fill in the team's reason.* Two lines of evidence pull in opposite
-directions, and the report has to address both.
-
-**Against the decision — the §4.5 markers.** The assignment's mandatory
-conventions only make sense against `finance_dataset`:
+**What we had to accept, and how we handled it.** Some of the §4.5 examples
+only appear in the finance file:
 
 | Evidence | Present in |
 |---|---|
-| `Rs.` and `INR` currency labels, which §4.5 says to strip | `finance_dataset` only |
-| `999999999` sentinel rows, §4.5's own worked example | `finance_dataset` only (78 rows) |
-| Per-symbol medians in the 5,600-6,600 band §4.5 cites | `finance_dataset` only |
-| `Investment` among §4.5's example canonical categories | `finance_dataset` only |
+| `Rs.` and `INR` currency labels | finance file only |
+| `999999999` sentinel rows (80) | finance file only |
+| `Investment` as a category | finance file only |
 
-**For the decision — it is genuinely the dirtier file.** Measured by what the
-cleaners cannot handle rather than by what they routinely fix:
+The rules for these are still implemented and tested with hand-made rows and
+on the finance file, so they are ready if the data contains them.
 
-| Reason code | `finance_dataset` | `synthetic_dirty` |
-|---|---:|---:|
-| `invalid_date` — no rule matches the value | **0** | **2,259** |
-| `unknown_category` — outside the closed mapping | **0** | **1,540** |
-| Records left with no usable date | 454 | **2,581** |
+When the decision was first recorded, the date cleaner did not yet read every
+date format in the dirty file, and 2,581 records had no usable date. The date
+cleaner was then extended to the dirty file's formats. On the final run:
 
-`finance_dataset` carries a higher *volume* of routine, recognised messiness —
-10,689 category case fixes, 10,944 payment-mode fixes, 900 exact duplicates —
-but the cleaners resolve all of it. `synthetic_dirty` contains forms the
-cleaners were never written for: 18 date shapes against 5, 213 category
-variants against 47, and character-scrambled category names. Reporting from it
-is therefore the stronger demonstration of robustness for §7.
+| Measure | Dirty file |
+|---|---:|
+| Records with a usable date | 14,528 |
+| Records with no usable date | 334 (322 blank, 12 invalid) |
 
-**But the cost has to be stated, not hidden.** Those 2,259 unparseable dates
-mean **2,581 records (17% of valid rows) carry no date at all**, against 454 in
-the other file. Every monthly figure in the report silently excludes them, so
-the dated/undated split belongs in the results rather than in a footnote.
-
-Whichever way the team argues it, the reason must be written here before `G5`,
-or §7's mark for reflection on design decisions is lost.
+The 334 undated records stay in overall and category totals but are left out
+of monthly figures (§4.5). The report states this in Table 3 and Table 4.
 
 **Affects:** every figure in the report · `analysis/budgets/` limits ·
-`interface/menu/` dataset constant · `data/README.md`, whose argument still
-favours the other file · the Phase 1 profiling evidence, which was measured on
-`finance_dataset` and has not been re-measured.
+`interface/menu/` default dataset · `data/README.md`.
 
-## D06 — Budget scope: five categories and how their limits are set
+---
 
-Date: *fill in* · Decided by: *fill in the names* · `P3.4`
+## D03: Class design
 
-**Decision:** Monthly limits are configured for five categories —
-**Entertainment, Food, Rent, Transportation and Utilities**. Each limit is that
-category's median monthly spend in the chosen dataset, rounded up to the next
-500 dataset units. Categories with spending and no configured limit are
-reported as `unbudgeted`, never as zero.
+Agreed by the team · `P3.1`
 
-**Why:** The five are the five highest-spending expense categories, which makes
-them the ones worth budgeting. Measured on `budgetwise_synthetic_dirty.csv`:
+**Decision:**
 
-| Rank | Category | Total expenses |
-|---|---|---:|
-| 1 | Food | 15,059,930 |
-| 2 | Rent | 10,364,133 |
-| 3 | Utilities | 8,970,763 |
-| 4 | Transportation | 8,110,333 |
-| 5 | Entertainment | 3,852,311 |
-| 6 | Uncategorized | 2,716,414 |
+- `Transaction` is the parent class. `ExpenseTransaction` and
+  `IncomeTransaction` inherit from it and each overrides
+  `get_signed_amount()` and `get_transaction_type()`.
+- `Account` is the parent of `CashAccount`, `BankAccount` and
+  `UnknownAccount`. These are **payment-method groups**, not real bank
+  accounts: Cash goes to `CashAccount`; Card, UPI and Bank Transfer go to
+  `BankAccount`; anything else goes to `UnknownAccount`.
+- `Budget` is a separate class that compares monthly spending with a limit.
+- All attributes are private and read through getters. The amount setter
+  rejects missing, non-numeric, non-finite and negative values.
 
-Sixth place is a bookkeeping bucket, not a spending category, so the cut falls
-naturally after five. The same five also ranked top in `finance_dataset`, so
-the D01 switch did not change which categories are budgeted — only the amounts.
+**Why:** The data has transaction types and payment modes but no account IDs
+or balances. Grouping by payment mode uses information the data really has,
+without inventing bank accounts. Expense and income are a genuine "is a"
+relationship.
 
-The median is used rather than the mean because one unusually expensive month
-would drag a mean upward and set a limit nobody would plan against. The 75th
-percentile and maximum are recorded in the justification table as context but
-do not set the limit.
+**Affects:** `models/` · `pipeline/` · the report (Figure 1).
+
+---
+
+## D04: A closed set of 14 categories
+
+Agreed by the team · `P1.2` `P2.2`
+
+**Decision:** Every category maps to one of: Food, Rent, Transportation,
+Entertainment, Utilities, Education, Healthcare, Savings, Salary, Bonus,
+Freelance, Investment, Other, Uncategorized.
+
+- `Travel` maps to Transportation, `Health` to Healthcare, `Others` and
+  `Misc` to Other.
+- `Other Income` and its spellings map to Other only for Income rows;
+  otherwise they become Uncategorized.
+- A blank or unrecognized category becomes Uncategorized and is logged.
+
+**Why:** A closed set is required by §4.5. Bonus, Freelance and Savings are
+real categories in the data, so they are kept rather than forced into Other.
+
+**Result:** 3,969 category changes: 3,718 mapped to a standard name and 251
+set to Uncategorized (154 blank, 97 unrecognized).
+
+**Affects:** `config/category_mapping.csv` · `cleaning/categories/` · every
+category total.
+
+---
+
+## D05: Shared interfaces
+
+Agreed by the team · `P1.5`
+
+**Decision:** Each feature exposes its functions through its `__init__.py`.
+The signatures, the cleaned record and the result of `clean_file()` and
+`run()` are recorded in [`interfaces.md`](interfaces.md).
+
+---
+
+## D06: Budget scope
+
+Agreed by the team · `P3.4`
+
+**Decision:** Monthly limits are set for the five highest-spending expense
+categories: Entertainment, Food, Rent, Transportation and Utilities. Each
+limit is that category's median monthly spending from January 2019 to
+December 2021, including months with no spending and excluding undated
+records, rounded up to the next 500. The limits are then used for 2022.
+
+| Category | Total expenses | Monthly limit |
+|---|---:|---:|
+| Food | 16,147,568 | 67,000 |
+| Rent | 10,441,106 | 50,500 |
+| Utilities | 9,037,864 | 23,000 |
+| Transportation | 8,242,883 | 27,500 |
+| Entertainment | 3,909,424 | 17,000 |
+
+These five are 89.6% of all expenses. Categories with spending but no limit
+are reported as `unbudgeted`, never as zero.
+
+**Why:** The median is not pulled up by one unusually expensive month, so it
+gives a limit someone could plan against. The limits describe historical
+spending across the dataset, not advice for a household.
 
 **Limits are generated, not typed.** `config/monthly_budgets.json` and
 `budgetwise/analysis/budgets/supplementary/budget_justification.md` are both
@@ -290,17 +174,130 @@ written by:
 python -m budgetwise.analysis.budgets.implementation.generate_budget_evidence
 ```
 
-Re-running it after any change to the dataset or the cleaners keeps the limits,
-the evidence table and the report in step.
-
-**Affects:** `config/monthly_budgets.json` · `analysis/budgets/` ·
-report section 5 — **§4.4 requires the limits justified**.
+**Affects:** `config/monthly_budgets.json` · `analysis/budgets/` · the report
+(Table 6). §4.4 requires the limits to be justified.
 
 ---
 
-## Closed
+## D07: No merchant column
 
-## D02 — The dataset licence permits committing the raw files
+Agreed by the team · `P4.4`
+
+**Decision:** §4.2 mentions unique merchants, but neither dataset has a
+merchant column. We do not relabel `location` or `notes` as merchants.
+Unique categories are found with a set instead (`unique_categories()`).
+
+---
+
+## D08: Definitions of the pipeline counts
+
+Proposed 2026-10-11 · Agreed by the team · `P2.10`, feeds `P3.8`
+
+**Decision:** Every input row ends in exactly one of three places, so
+`input = valid + skipped + duplicates` always holds.
+
+| Count | A row is counted here when |
+|---|---|
+| `duplicates` | it is an exact copy of an earlier raw row, judged before any cleaning |
+| `skipped` | it cannot be used: the row is malformed, for example it has extra fields; `transaction_id`, `user_id` or `transaction_type` cannot be used; or the amount is blank, unreadable or 100,000,000 or more |
+| `valid` | everything else. One cleaned record each |
+
+Two more counts describe the valid rows only:
+
+| Count | A valid row is counted here when |
+|---|---|
+| `corrected` | at least one value was changed to a standard form: date reformatted; category, payment mode or location normalized; blank category set to Uncategorized; payment mode or location set to Unknown; currency label or minus sign removed |
+| `flagged` | it was kept with a concern and the value left alone: no usable date, unrecognized category, unusual ID, repeated ID, blank or placeholder note, or a record the model classes refused |
+
+Rules:
+
+- A row is counted **at most once** in each, however many reasons it has.
+- A row **can be in both**, so `corrected + flagged` can exceed `valid`.
+- A missing or invalid date makes a row flagged, never skipped (§4.5).
+- A repeated `transaction_id` makes a row flagged, never a duplicate (§4.5).
+- A blank amount makes a row skipped.
+
+**Final results on the dirty file:**
+
+| Measure | Count |
+|---|---:|
+| Input | 15,836 |
+| Exact duplicates removed | 804 |
+| Skipped (all blank amounts) | 170 |
+| Valid | 14,862 (93.8%) |
+| Corrected | 12,862 |
+| Flagged | 2,103 |
+| In both | 1,744 |
+| Repeated IDs / rows affected | 163 / 328 |
+| Objects built / failed | 14,862 / 0 |
+
+15,836 = 14,862 + 170 + 804. The finance file reconciles the same way:
+15,900 = 14,651 + 349 + 900.
+
+**Why:** §5 requires valid, corrected and skipped to be reported separately.
+One definition makes the numbers comparable between runs, and counting a row
+once stops a single messy row inflating the totals.
+
+**Affects:** `pipeline/` · `metrics/` · the report (Table 3) ·
+[`interfaces.md`](interfaces.md).
+
+---
+
+## D09: The CSV loader is its own module
+
+Agreed by the team · `P2.9`
+
+**Decision:** `budgetwise/loader` reads the file, checks the header and yields
+`(line_number, raw_row)` pairs. The pipeline (`P2.10`) passes each row to the
+cleaners and builds the objects.
+
+---
+
+## D10: Hyphen dates with a four-digit year are read day first
+
+Recorded 2026-10-11 · Agreed by the team · `P2.1`
+
+**Decision:** A date of the form `NN-NN-YYYY` is read as `DD-MM-YYYY`, so
+`04-11-2024` is 4 November 2024.
+
+| Separator and year | Read as | Source |
+|---|---|---|
+| slash, four-digit year | `MM/DD/YYYY` | §4.5, mandatory |
+| hyphen, two-digit year | `DD-MM-YY` | §4.5, mandatory |
+| hyphen, four-digit year | `DD-MM-YYYY` | this decision |
+
+The separator decides how a date is read, never the numbers in it. A date
+that does not exist, such as 31 February, is rejected and logged, never
+swapped around.
+
+**Why:** §4.5 gives no rule for a hyphen date with a four-digit year. Reading
+it day first matches the mandatory hyphen rule, and the data supports it: in
+the finance file's 1,603 such dates, the first number is above 12 in 953 rows
+and the second number never is. Month first would make 953 dates impossible.
+
+Evidence: `budgetwise/cleaning/dates/supplementary/date_evidence.md`.
+
+**Affects:** `cleaning/dates/` · every monthly figure · the date convention
+in the report (§4.5).
+
+---
+
+## D11: One shared reason-code list
+
+Proposed 2026-10-11 · Agreed by the team · `P2.8` `P2.10`
+
+**Decision:** Every reason code comes from the one `Reason` list in
+`budgetwise/errorlog/implementation/reason_codes.py`. The pipeline writes
+every code to `errors.log` in lowercase, so one event always has one name.
+
+**Why:** Counts by reason in the report only mean something if each event
+always has the same name.
+
+**Affects:** `errorlog/` · every cleaner · `pipeline/`.
+
+---
+
+## D02: The dataset licence permits committing the raw files
 
 2026-09-29 · verified against Kaggle's dataset metadata API · `P0.2` `P4.3`
 
@@ -311,8 +308,8 @@ be public. No Kaggle-only link is required.
 all copyright and related rights, so the data may be copied, modified, and
 redistributed by anyone without permission or attribution.
 
-§3's instruction is conditional — *"if the dataset licence restricts
-redistribution"* — and CC0 imposes no restriction, so the condition does not
+§3's instruction is conditional (*"if the dataset licence restricts
+redistribution"*), and CC0 imposes no restriction, so the condition does not
 apply.
 
 Verified from `https://www.kaggle.com/api/v1/datasets/view/mohammedarfathr/budgetwise-personal-finance-dataset`:

@@ -1,16 +1,16 @@
 # Report
 
-**8 marks — the largest single component of the project.** More than the code.
+**8 marks: the largest single component of the project.** More than the code.
 
 | | |
 |---|---|
-| **Responsible** | Bahareh (`P5.1` assembly) · Henrieta (`P4.4` evidence) |
+| **Responsible** | Bahareh (`P5.1` assembly) · Henrietta (`P4.4` evidence) |
 | **Contributors** | every member supplies evidence for their own modules |
 | **Tasks** | `P4.4` evidence · `P5.1` assembly · `G5` format check |
 | **Due** | Oct 19, 2026, 11:59 PM EST, as a PDF via Canvas |
-| **Status** | Not started |
+| **Status** | Written. Ten pages plus peer assessment; submitted as a PDF |
 
-## Format — non-negotiable, checked at G5
+## Format: non-negotiable, checked at G5
 
 | Rule | Value |
 |---|---|
@@ -29,13 +29,13 @@ before `G5`, not on the day.
 [`outline.md`](outline.md):
 
 1. Key problems studied
-2. Solutions proposed — theory, algorithms, and systems
-3. Implementation details — datasets, language, tools, code summary
+2. Solutions proposed: theory, algorithms, and systems
+3. Implementation details: datasets, language, tools, code summary
 4. **Design flow diagram** based on important subroutines
-5. Key experimental results — effectiveness **and** efficiency
+5. Key experimental results: effectiveness **and** efficiency
 6. Limitations and future work
 7. Conclusion
-8. Peer assessment — at the end, signed by all members
+8. Peer assessment: at the end, signed by all members
 
 ## How evidence reaches this folder
 
@@ -48,7 +48,7 @@ That is the whole reason the third subfolder exists.
 ## What gets marked
 
 §7: clarity, completeness, and **reflection on design decisions**. The last one
-is where marks are won — a report that explains *why* the team chose a closed
-category mapping, or why it departed from the suggested `Account` hierarchy,
-reads as engineering. One that only describes what the code does reads as a
+is where marks are won. The report explains *why* the team chose a closed
+category mapping, and why the `Account` classes are payment-method groups
+rather than real bank accounts (D03). That reads as engineering, not a
 manual.

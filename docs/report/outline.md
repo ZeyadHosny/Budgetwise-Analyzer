@@ -1,6 +1,7 @@
 # Report outline
 
-A skeleton mapped to §5's required content. Fill each section; delete nothing.
+The structure the final report follows, mapped to §5's required content.
+All figures come from the dirty dataset (decision D01).
 
 Target: **10 pages maximum**, excluding references and peer assessment.
 Suggested split is indicative, not a rule.
@@ -9,16 +10,16 @@ Suggested split is indicative, not a rule.
 
 ## 1. Introduction and key problems studied  ~1 page
 
-What the BudgetWise dataset is, and what makes it hard. The concrete problems:
-multi-format dates, cosmetic currency labels, 47 category spellings for ~12
-categories, exact duplicates alongside deliberately repeated transaction ids,
-sentinel amounts, and roughly 30% of records carrying some defect.
+What the BudgetWise dataset is, and what makes it hard: 15,836 rows with
+several date formats, currency labels, many spellings of each category, 804
+exact duplicates alongside 163 repeated transaction IDs, and 170 blank
+amounts.
 
 *Evidence: `evidence/` profiling files from `P1.1`–`P1.4`.*
 
 ## 2. Solutions proposed  ~2 pages
 
-Theory, algorithms, and systems. The cleaning rules and why each is correct —
+Theory, algorithms, and systems. The cleaning rules and why each is correct , 
 particularly the ones where a plausible alternative is wrong:
 
 - Why duplicate detection must precede normalization
@@ -36,7 +37,7 @@ why no pandas or NumPy. Module structure and what each is responsible for.
 
 ## 4. Design flow diagram  ~1 page
 
-**Required by §5** — "based on important subroutines". The pipeline from raw CSV
+**Required by §5**: "based on important subroutines". The pipeline from raw CSV
 through the four cleaners to transaction objects, analysis, and output. Show the
 menu paths too.
 
@@ -58,7 +59,7 @@ Execution time for loading, cleaning, and analysis, with the machine stated.
 Total income, total expenses, net balance, monthly expenses, top 5 categories,
 top 5 largest expenses, budget vs actual. Include the text bar chart.
 
-Say what the monthly figures show over time — §2 asks for **trends** and §4.4
+Say what the monthly figures show over time: §2 asks for **trends** and §4.4
 never defines one, so this is where that requirement is met.
 
 *Evidence: `measured_results.md`, `manual_verification.md`, `chart_samples.md`,
@@ -66,10 +67,13 @@ never defines one, so this is where that requirement is met.
 
 ## 6. Limitations and future work  ~1 page
 
-Honest ones. The dataset has no merchant column, so §4.2's merchant sets cannot
-be produced. The data has no account types, so the suggested `Account` hierarchy
-was not built. Currency labels are cosmetic and cannot be interpreted as real
-currencies.
+Honest ones. 334 records have no usable date, so they are left out of monthly
+figures. Some categories and payment modes stay Uncategorized or Unknown. The
+data has no account IDs, so the `Account` classes group transactions by
+payment method rather than representing bank accounts. Currency labels are
+removed without conversion, and large 999,999 expenses dominate the totals.
+The dataset has no merchant column, so §4.2's merchant sets cannot be
+produced (D07).
 
 Naming a limitation you chose deliberately, with the reasoning, is stronger than
 claiming full coverage.
@@ -78,7 +82,7 @@ claiming full coverage.
 
 ## 7. Conclusion  ~0.5 page
 
-**Required by §5**, and easy to forget — it appears only at the very end of the
+**Required by §5**, and easy to forget: it appears only at the very end of the
 deliverables paragraph.
 
 ## References

@@ -3,19 +3,19 @@
 Team documents. Everything here is prose; the code lives in `budgetwise/`.
 
 **The report and presentation are worth 15 of the 20 marks.** The code and
-cleaned outputs are worth 5. This folder deserves at least as much care as the
-package.
+cleaned outputs are worth 5.
 
 | Document | Owner | Task | Status |
 |---|---|---|---|
-| [`requirements_checklist.md`](requirements_checklist.md) | all | `P0.1` | written |
-| [`shared_definitions.md`](shared_definitions.md) | Zeyad | `P0.1` | **outstanding** |
-| [`interfaces.md`](interfaces.md) | Zeyad | `P1.5` | outstanding |
-| [`decisions.md`](decisions.md) | all | `G1` | seeded, decisions open |
-| [`report/`](report/) | Bahareh | `P4.4` `P5.1` | outstanding |
-| [`presentation/`](presentation/) | Henrieta | `P5.2` `P5.3` | outstanding |
-| [`peer_assessment.md`](peer_assessment.md) | Sarah | `P5.4` | outstanding |
-| [`submission_checklist.md`](submission_checklist.md) | Bahareh | `P6.2` `G5` `DUE` | outstanding |
+| [`requirements_checklist.md`](requirements_checklist.md) | all | `P0.1` | final |
+| [`shared_definitions.md`](shared_definitions.md) | Zeyad | `P0.1` | complete |
+| [`interfaces.md`](interfaces.md) | Zeyad | `P1.5` | complete |
+| [`decisions.md`](decisions.md) | all | `G1` | all decisions recorded |
+| [`coordination_checklist.md`](coordination_checklist.md) | Sarah | `P2.0` | final |
+| [`report/`](report/) | Bahareh | `P4.4` `P5.1` | written; submitted as PDF |
+| [`presentation/`](presentation/) | Henrietta | `P5.2` `P5.3` | presented Oct 19 |
+| [`peer_assessment.md`](peer_assessment.md) | Sarah | `P5.4` | table complete; signatures being collected |
+| [`submission_checklist.md`](submission_checklist.md) | Bahareh | `P6.2` `G5` `DUE` | in progress |
 
 ## Where the marks are
 
